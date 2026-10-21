@@ -7,13 +7,15 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 | Path | What it is |
 |------|------------|
 | [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
+| [`hipporag/`](hipporag/README.md) | HippoRAG **under construction** (KG + PPR retrieval; NeurIPS 2024). |
+| [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **under construction** (multi-agent GraphRAG + global memory; KDD 2026). |
 | [`agents_utils/`](agents_utils/) | Shared Python helpers (Qdrant memory, Langfuse tracing, logging, `.env` loading). Not a runnable app. |
 | [`Dockerfile`](Dockerfile) + [`build-image.sh`](build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
 | [`.env-template`](.env-template) | Committed template; copy to **`.env`** (gitignored) for all experiments. |
 | [`docker-compose.langfuse.yml`](docker-compose.langfuse.yml) | Local Langfuse UI + Postgres/ClickHouse/Redis/MinIO. |
 | [`docker-compose.yml`](docker-compose.yml) | Alias: `docker compose up` → Langfuse stack only. |
 
-Persistent data defaults under **`agents/.data/`** (Langfuse) and **`agents/reharness/.data/`** (Qdrant, checkpoints, agent logs).
+Persistent data defaults under **`agents/.data/`** (Langfuse), **`reharness/.data/`**, **`hipporag/.data/`**, and **`memgraphrag/.data/`** per experiment.
 
 ## One-time setup
 
@@ -89,6 +91,34 @@ curl -N -X POST http://localhost:8080/tasks/stream \
 
 **Local Python (no Docker):** possible for development if Qdrant and env vars are set; production path in this repo is the compose stack above.
 
+### HippoRAG
+
+Graph + Personalized PageRank RAG for multi-hop retrieval ([arxiv:2405.14831](https://arxiv.org/abs/2405.14831)). **Scaffold** — health API only until indexing/PPR land.
+
+**Docs:** [`hipporag/README.md`](hipporag/README.md) · [`hipporag/PLAN.md`](hipporag/PLAN.md)
+
+```bash
+cd agents && ./hipporag/run-agent.sh
+curl -s http://localhost:8081/health
+./hipporag/run-agent.sh stop
+```
+
+Uses port **8081** by default so ReHarness can stay on **8080**. Set `AGENT_NAME=hipporag` in compose when tracing.
+
+### MemGraphRAG
+
+Multi-agent GraphRAG with **shared memory** (ontology / facts / passages) and conflict-aware indexing ([arxiv:2606.00610](https://arxiv.org/abs/2606.00610)). **Scaffold** — health API only.
+
+**Docs:** [`memgraphrag/README.md`](memgraphrag/README.md) · [`memgraphrag/PLAN.md`](memgraphrag/PLAN.md)
+
+```bash
+cd agents && ./memgraphrag/run-agent.sh --detach
+curl -s http://localhost:8082/health
+./memgraphrag/run-agent.sh stop
+```
+
+Default port **8082** (`MEMGRAPHRAG_AGENT_PORT`).
+
 ---
 
 Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse.
@@ -100,6 +130,8 @@ Single file: **`agents/.env`**. Key groups:
 - **LLM:** `OPENAI_API_KEY`, `OPENAI_MODEL`
 - **Langfuse client:** `LANGFUSE_*`, `AGENT_NAME` (trace tag per experiment)
 - **ReHarness:** `AGENT_PORT`, `REHARNESS_*`, `QDRANT_*`, `EMBEDDING_MODEL`
+- **HippoRAG:** `HIPPORAG_AGENT_PORT`, `HIPPORAG_*`
+- **MemGraphRAG:** `MEMGRAPHRAG_AGENT_PORT`, `MEMGRAPHRAG_*`
 
 Full list: [`.env-template`](.env-template).
 

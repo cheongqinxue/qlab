@@ -1,0 +1,41 @@
+# MemGraphRAG agent only. Requires shared image + optional Langfuse network.
+#
+#   cd agents && ./build-image.sh
+#   docker compose -f memgraphrag/docker-compose.yml up -d
+#
+# Env: agents/.env
+
+services:
+  agent:
+    image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
+    working_dir: /app/agents/memgraphrag
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8082",
+      ]
+    env_file:
+      - ../.env
+    ports:
+      - "${MEMGRAPHRAG_AGENT_PORT:-8082}:8082"
+    environment:
+      AGENT_NAME: memgraphrag
+      MEMGRAPHRAG_CONFIG: /app/agents/memgraphrag/config/default.json
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      AGENT_LOG_DIR: /logs
+      AGENT_LOG_MAX_BYTES: "5242880"
+      AGENT_LOG_BACKUP_COUNT: "0"
+    volumes:
+      - ./.data/logs:/logs
+      - ./.data/memory:/data/memory
+    networks:
+      - agents_shared
+
+networks:
+  agents_shared:
+    external: true
+    name: agents_shared

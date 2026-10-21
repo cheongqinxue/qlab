@@ -1,0 +1,42 @@
+# HippoRAG agent only. Requires shared image + optional Langfuse network.
+#
+#   cd agents && ./build-image.sh
+#   docker compose -f docker-compose.langfuse.yml up -d   # optional
+#   docker compose -f hipporag/docker-compose.yml up -d
+#
+# Env: agents/.env
+
+services:
+  agent:
+    image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
+    working_dir: /app/agents/hipporag
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8081",
+      ]
+    env_file:
+      - ../.env
+    ports:
+      - "${HIPPORAG_AGENT_PORT:-8081}:8081"
+    environment:
+      AGENT_NAME: hipporag
+      HIPPORAG_CONFIG: /app/agents/hipporag/config/default.json
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      AGENT_LOG_DIR: /logs
+      AGENT_LOG_MAX_BYTES: "5242880"
+      AGENT_LOG_BACKUP_COUNT: "0"
+    volumes:
+      - ./.data/logs:/logs
+      - ./.data/graph:/data/graph
+    networks:
+      - agents_shared
+
+networks:
+  agents_shared:
+    external: true
+    name: agents_shared
