@@ -1,0 +1,110 @@
+# Agents
+
+LLM **agent harness** experiments: shared Docker runtime, optional self-hosted **Langfuse**, and per-project compose stacks. Each experiment is a subfolder with its own README for design details; this file is the **how to run** index.
+
+## Layout
+
+| Path | What it is |
+|------|------------|
+| [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
+| [`agents_utils/`](agents_utils/) | Shared Python helpers (Qdrant memory, Langfuse tracing, logging, `.env` loading). Not a runnable app. |
+| [`Dockerfile`](Dockerfile) + [`build-image.sh`](build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
+| [`.env-template`](.env-template) | Committed template; copy to **`.env`** (gitignored) for all experiments. |
+| [`docker-compose.langfuse.yml`](docker-compose.langfuse.yml) | Local Langfuse UI + Postgres/ClickHouse/Redis/MinIO. |
+| [`docker-compose.yml`](docker-compose.yml) | Alias: `docker compose up` → Langfuse stack only. |
+
+Persistent data defaults under **`agents/.data/`** (Langfuse) and **`agents/reharness/.data/`** (Qdrant, checkpoints, agent logs).
+
+## One-time setup
+
+From the **repository root** (needs [uv](https://github.com/astral-sh/uv) and Docker):
+
+```bash
+cp agents/.env-template agents/.env
+# Edit agents/.env: OPENAI_API_KEY, Langfuse keys, passwords (see template comments)
+```
+
+Build the shared runtime image (repeat after `pyproject.toml` / lockfile changes):
+
+```bash
+cd agents && ./build-image.sh
+```
+
+## Shared services (optional but recommended)
+
+ReHarness tracing expects Langfuse on the **`agents_shared`** Docker network.
+
+```bash
+cd agents
+docker compose -f docker-compose.langfuse.yml up -d
+# UI: http://localhost:3000 (port from LANGFUSE_UI_PORT in .env)
+```
+
+First boot creates the Langfuse project using `LANGFUSE_INIT_*` and the `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` in `.env`. Set tracing off with `LANGFUSE_TRACING_ENABLED=false` if you skip this stack.
+
+Stop Langfuse:
+
+```bash
+cd agents && docker compose -f docker-compose.langfuse.yml down
+```
+
+## Experiments
+
+### ReHarness
+
+Paper-style harness: retrieve reflections → tool-using agent → qualitative feedback → revise memory + forward write.
+
+**Docs:** [`reharness/README.md`](reharness/README.md)
+
+**Run (typical):** two terminals from repo root.
+
+```bash
+# Terminal 1 — Qdrant + FastAPI agent (follows logs)
+cd agents && ./reharness/run-agent.sh
+
+# Terminal 2 — Streamlit chat tester
+cd agents && ./reharness/run-ui.sh
+# → http://127.0.0.1:8501 (REHARNESS_UI_PORT)
+```
+
+Useful flags:
+
+| Command | Effect |
+|---------|--------|
+| `./reharness/run-agent.sh --rebuild-image` | Rebuild `agents-runtime:latest` then start. |
+| `./reharness/run-agent.sh --detach` | Start detached, health-check, exit (no log follow). |
+| `./reharness/run-agent.sh stop` | Stop agent + Qdrant. |
+| `./reharness/run-ui.sh` | Host UI; talks to `REHARNESS_AGENT_URL` (default `http://localhost:8080`). |
+
+**Fresh reflection bank:** Streamlit sidebar → confirm → **Reset Qdrant bank**, or `curl -X POST http://localhost:8080/memory/reset`. See [`reharness/README.md`](reharness/README.md) for manual wipe of `.data/qdrant`.
+
+**HTTP API (no UI):**
+
+```bash
+curl -N -X POST http://localhost:8080/tasks/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"task":"Your task here"}'
+# Then POST feedback to /tasks/{task_id}/feedback/stream
+```
+
+**Local Python (no Docker):** possible for development if Qdrant and env vars are set; production path in this repo is the compose stack above.
+
+---
+
+Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse.
+
+## Environment
+
+Single file: **`agents/.env`**. Key groups:
+
+- **LLM:** `OPENAI_API_KEY`, `OPENAI_MODEL`
+- **Langfuse client:** `LANGFUSE_*`, `AGENT_NAME` (trace tag per experiment)
+- **ReHarness:** `AGENT_PORT`, `REHARNESS_*`, `QDRANT_*`, `EMBEDDING_MODEL`
+
+Full list: [`.env-template`](.env-template).
+
+## Adding another experiment
+
+1. Subfolder under `agents/` with FastAPI or worker entrypoint.
+2. `docker-compose.yml` using `image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}` and `env_file: ../.env`.
+3. Document run/stop in that folder’s README and link it from the **Experiments** section above.

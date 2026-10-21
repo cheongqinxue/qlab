@@ -1,0 +1,713 @@
+generated_at: '2026-10-10T00:23:01.163106+00:00'
+generated_by: scripts/verify_hook_targets.py
+note: Failure modes do not change telemetry; one entry per experiment name.
+experiments:
+  ablation_transformer:
+    description: Mini encoder with toggles for scaled attention, LayerNorm, and residuals.
+      Use --variant (standard|no_scale|no_norm|no_residual) and --failure-mode.
+    failure_modes:
+    - adam_collapse
+    - attention_sink
+    - baseline
+    - explode
+    - layer_grad_imbalance
+    - logit_collapse
+    - rank_collapse
+    - representation_collapse
+    - vanish
+    telemetry_preset: TelemetryConfig.ablation_transformer
+    note: Module names are identical across variants; only block internals differ.
+    variants:
+      no_norm:
+        telemetry_preset: TelemetryConfig.ablation_transformer
+        forward_hooks:
+          activation_rms:
+            patterns:
+            - blocks.[0-9]
+            - input_proj
+            - head
+            modules:
+            - input_proj
+            - blocks.0
+            - blocks.1
+            - blocks.2
+            - head
+          attention:
+            patterns:
+            - blocks.[0-9].attn
+            modules:
+            - blocks.0.attn
+            - blocks.1.attn
+            - blocks.2.attn
+          logit_entropy:
+            logits_module: head
+            modules:
+            - head
+        parameter_metrics: {}
+        optimizer_metrics: {}
+        global_metrics:
+          grad_norm: true
+          update_to_weight_ratio: true
+          attention_head_imbalance: false
+      no_residual:
+        telemetry_preset: TelemetryConfig.ablation_transformer
+        forward_hooks:
+          activation_rms:
+            patterns:
+            - blocks.[0-9]
+            - input_proj
+            - head
+            modules:
+            - input_proj
+            - blocks.0
+            - blocks.1
+            - blocks.2
+            - head
+          attention:
+            patterns:
+            - blocks.[0-9].attn
+            modules:
+            - blocks.0.attn
+            - blocks.1.attn
+            - blocks.2.attn
+          logit_entropy:
+            logits_module: head
+            modules:
+            - head
+        parameter_metrics: {}
+        optimizer_metrics: {}
+        global_metrics:
+          grad_norm: true
+          update_to_weight_ratio: true
+          attention_head_imbalance: false
+      no_scale:
+        telemetry_preset: TelemetryConfig.ablation_transformer
+        forward_hooks:
+          activation_rms:
+            patterns:
+            - blocks.[0-9]
+            - input_proj
+            - head
+            modules:
+            - input_proj
+            - blocks.0
+            - blocks.1
+            - blocks.2
+            - head
+          attention:
+            patterns:
+            - blocks.[0-9].attn
+            modules:
+            - blocks.0.attn
+            - blocks.1.attn
+            - blocks.2.attn
+          logit_entropy:
+            logits_module: head
+            modules:
+            - head
+        parameter_metrics: {}
+        optimizer_metrics: {}
+        global_metrics:
+          grad_norm: true
+          update_to_weight_ratio: true
+          attention_head_imbalance: false
+      standard:
+        telemetry_preset: TelemetryConfig.ablation_transformer
+        forward_hooks:
+          activation_rms:
+            patterns:
+            - blocks.[0-9]
+            - input_proj
+            - head
+            modules:
+            - input_proj
+            - blocks.0
+            - blocks.1
+            - blocks.2
+            - head
+          attention:
+            patterns:
+            - blocks.[0-9].attn
+            modules:
+            - blocks.0.attn
+            - blocks.1.attn
+            - blocks.2.attn
+          logit_entropy:
+            logits_module: head
+            modules:
+            - head
+        parameter_metrics: {}
+        optimizer_metrics: {}
+        global_metrics:
+          grad_norm: true
+          update_to_weight_ratio: true
+          attention_head_imbalance: false
+  bilstm:
+    description: Custom BiLSTM on AG News. ``vanish`` uses a deep stack and long sequences
+      so per-layer grad norms show classical depth-wise attenuation.
+    failure_modes:
+    - adam_collapse
+    - baseline
+    - explode
+    - logit_collapse
+    - vanish
+    telemetry_preset: TelemetryConfig.bilstm
+    forward_hooks:
+      activation_rms:
+        patterns:
+        - lstm
+        - classifier
+        modules:
+        - lstm
+        - classifier
+      logit_entropy:
+        logits_module: classifier
+        modules:
+        - classifier
+    parameter_metrics: {}
+    optimizer_metrics:
+      depth_grad_norms:
+      - grad_norm/classifier
+      - grad_norm/embedding
+      - grad_norm/layer.0
+      - grad_norm/layer.1
+      adam_second_moment:
+      - adam_second_moment/layer.0
+      - adam_second_moment/layer.1
+    global_metrics:
+      grad_norm: true
+      update_to_weight_ratio: true
+      attention_head_imbalance: false
+  encoder_mlm:
+    description: Tiny BERT MLM on WikiText. Pass --failure-mode for training pathologies
+      or encoder best-practice violations.
+    failure_modes:
+    - adam_collapse
+    - attention_sink
+    - bad_mlm_mask
+    - baseline
+    - decay_norm_bias
+    - explode
+    - layer_grad_imbalance
+    - logit_collapse
+    - no_warmup
+    - rank_collapse
+    - representation_collapse
+    - vanish
+    telemetry_preset: TelemetryConfig.encoder_mlm
+    model_id: google/bert_uncased_L-2_H-128_A-2
+    forward_hooks:
+      activation_rms:
+        patterns:
+        - bert.encoder.layer.?.output.LayerNorm
+        - bert.embeddings.LayerNorm
+        modules:
+        - bert.embeddings.LayerNorm
+        - bert.encoder.layer.0.output.LayerNorm
+        - bert.encoder.layer.1.output.LayerNorm
+      attention:
+        patterns:
+        - bert.encoder.layer.?.attention.self
+        modules:
+        - bert.encoder.layer.0.attention.self
+        - bert.encoder.layer.1.attention.self
+      logit_entropy:
+        logits_module: cls.predictions
+        modules:
+        - cls.predictions
+    parameter_metrics:
+      effective_rank:
+        patterns:
+        - bert.encoder.layer.*.attention.self.query.weight
+        - bert.encoder.layer.*.attention.self.key.weight
+        parameters:
+        - bert.encoder.layer.0.attention.self.query.weight
+        - bert.encoder.layer.0.attention.self.key.weight
+        - bert.encoder.layer.1.attention.self.query.weight
+        - bert.encoder.layer.1.attention.self.key.weight
+      update_rank:
+        patterns:
+        - bert.encoder.layer.*.attention.self.query.weight
+        - bert.encoder.layer.*.attention.self.key.weight
+        parameters:
+        - bert.encoder.layer.0.attention.self.query.weight
+        - bert.encoder.layer.0.attention.self.key.weight
+        - bert.encoder.layer.1.attention.self.query.weight
+        - bert.encoder.layer.1.attention.self.key.weight
+      embedding_anisotropy:
+        pattern: bert.embeddings.word_embeddings.weight
+        parameters:
+        - bert.embeddings.word_embeddings.weight
+    optimizer_metrics:
+      depth_grad_norms:
+      - grad_norm/layer.0
+      - grad_norm/layer.1
+      layer_grad_norm_aggregates:
+      - grad_norm/embedding
+      - grad_norm/encoder
+      - grad_norm/head
+      adam_second_moment:
+      - adam_second_moment/layer.0
+      - adam_second_moment/layer.1
+    global_metrics:
+      grad_norm: true
+      update_to_weight_ratio: true
+      attention_head_imbalance: true
+  llm_grpo:
+    description: SmolLM2 GRPO on GSM8K; --failure-mode selects pathology.
+    failure_modes:
+    - adam_collapse
+    - baseline
+    - explode
+    - logit_collapse
+    - vanish
+    telemetry_preset: TelemetryConfig.llm
+    model_id: HuggingFaceTB/SmolLM2-135M-Instruct
+    forward_hooks:
+      activation_rms:
+        patterns:
+        - model.norm
+        - model.layers.0.post_attention_layernorm
+        modules:
+        - model.layers.0.post_attention_layernorm
+        - model.norm
+      attention:
+        patterns:
+        - model.layers.0.self_attn
+        - model.layers.1.self_attn
+        modules:
+        - model.layers.0.self_attn
+        - model.layers.1.self_attn
+      logit_entropy:
+        logits_module: re:(model\.)?lm_head
+        modules:
+        - lm_head
+    parameter_metrics:
+      effective_rank:
+        patterns:
+        - model.layers.*.self_attn.q_proj.weight
+        - model.layers.*.self_attn.k_proj.weight
+        parameters:
+        - model.layers.0.self_attn.q_proj.weight
+        - model.layers.0.self_attn.k_proj.weight
+        - model.layers.1.self_attn.q_proj.weight
+        - model.layers.1.self_attn.k_proj.weight
+        - model.layers.2.self_attn.q_proj.weight
+        - model.layers.2.self_attn.k_proj.weight
+        - model.layers.3.self_attn.q_proj.weight
+        - model.layers.3.self_attn.k_proj.weight
+        - model.layers.4.self_attn.q_proj.weight
+        - model.layers.4.self_attn.k_proj.weight
+        - model.layers.5.self_attn.q_proj.weight
+        - model.layers.5.self_attn.k_proj.weight
+        - model.layers.6.self_attn.q_proj.weight
+        - model.layers.6.self_attn.k_proj.weight
+        - model.layers.7.self_attn.q_proj.weight
+        - model.layers.7.self_attn.k_proj.weight
+        - model.layers.8.self_attn.q_proj.weight
+        - model.layers.8.self_attn.k_proj.weight
+        - model.layers.9.self_attn.q_proj.weight
+        - model.layers.9.self_attn.k_proj.weight
+        - model.layers.10.self_attn.q_proj.weight
+        - model.layers.10.self_attn.k_proj.weight
+        - model.layers.11.self_attn.q_proj.weight
+        - model.layers.11.self_attn.k_proj.weight
+        - model.layers.12.self_attn.q_proj.weight
+        - model.layers.12.self_attn.k_proj.weight
+        - model.layers.13.self_attn.q_proj.weight
+        - model.layers.13.self_attn.k_proj.weight
+        - model.layers.14.self_attn.q_proj.weight
+        - model.layers.14.self_attn.k_proj.weight
+        - model.layers.15.self_attn.q_proj.weight
+        - model.layers.15.self_attn.k_proj.weight
+        - model.layers.16.self_attn.q_proj.weight
+        - model.layers.16.self_attn.k_proj.weight
+        - model.layers.17.self_attn.q_proj.weight
+        - model.layers.17.self_attn.k_proj.weight
+        - model.layers.18.self_attn.q_proj.weight
+        - model.layers.18.self_attn.k_proj.weight
+        - model.layers.19.self_attn.q_proj.weight
+        - model.layers.19.self_attn.k_proj.weight
+        - model.layers.20.self_attn.q_proj.weight
+        - model.layers.20.self_attn.k_proj.weight
+        - model.layers.21.self_attn.q_proj.weight
+        - model.layers.21.self_attn.k_proj.weight
+        - model.layers.22.self_attn.q_proj.weight
+        - model.layers.22.self_attn.k_proj.weight
+        - model.layers.23.self_attn.q_proj.weight
+        - model.layers.23.self_attn.k_proj.weight
+        - model.layers.24.self_attn.q_proj.weight
+        - model.layers.24.self_attn.k_proj.weight
+        - model.layers.25.self_attn.q_proj.weight
+        - model.layers.25.self_attn.k_proj.weight
+        - model.layers.26.self_attn.q_proj.weight
+        - model.layers.26.self_attn.k_proj.weight
+        - model.layers.27.self_attn.q_proj.weight
+        - model.layers.27.self_attn.k_proj.weight
+        - model.layers.28.self_attn.q_proj.weight
+        - model.layers.28.self_attn.k_proj.weight
+        - model.layers.29.self_attn.q_proj.weight
+        - model.layers.29.self_attn.k_proj.weight
+      update_rank:
+        patterns:
+        - model.layers.*.self_attn.q_proj.weight
+        - model.layers.*.self_attn.k_proj.weight
+        parameters:
+        - model.layers.0.self_attn.q_proj.weight
+        - model.layers.0.self_attn.k_proj.weight
+        - model.layers.1.self_attn.q_proj.weight
+        - model.layers.1.self_attn.k_proj.weight
+        - model.layers.2.self_attn.q_proj.weight
+        - model.layers.2.self_attn.k_proj.weight
+        - model.layers.3.self_attn.q_proj.weight
+        - model.layers.3.self_attn.k_proj.weight
+        - model.layers.4.self_attn.q_proj.weight
+        - model.layers.4.self_attn.k_proj.weight
+        - model.layers.5.self_attn.q_proj.weight
+        - model.layers.5.self_attn.k_proj.weight
+        - model.layers.6.self_attn.q_proj.weight
+        - model.layers.6.self_attn.k_proj.weight
+        - model.layers.7.self_attn.q_proj.weight
+        - model.layers.7.self_attn.k_proj.weight
+        - model.layers.8.self_attn.q_proj.weight
+        - model.layers.8.self_attn.k_proj.weight
+        - model.layers.9.self_attn.q_proj.weight
+        - model.layers.9.self_attn.k_proj.weight
+        - model.layers.10.self_attn.q_proj.weight
+        - model.layers.10.self_attn.k_proj.weight
+        - model.layers.11.self_attn.q_proj.weight
+        - model.layers.11.self_attn.k_proj.weight
+        - model.layers.12.self_attn.q_proj.weight
+        - model.layers.12.self_attn.k_proj.weight
+        - model.layers.13.self_attn.q_proj.weight
+        - model.layers.13.self_attn.k_proj.weight
+        - model.layers.14.self_attn.q_proj.weight
+        - model.layers.14.self_attn.k_proj.weight
+        - model.layers.15.self_attn.q_proj.weight
+        - model.layers.15.self_attn.k_proj.weight
+        - model.layers.16.self_attn.q_proj.weight
+        - model.layers.16.self_attn.k_proj.weight
+        - model.layers.17.self_attn.q_proj.weight
+        - model.layers.17.self_attn.k_proj.weight
+        - model.layers.18.self_attn.q_proj.weight
+        - model.layers.18.self_attn.k_proj.weight
+        - model.layers.19.self_attn.q_proj.weight
+        - model.layers.19.self_attn.k_proj.weight
+        - model.layers.20.self_attn.q_proj.weight
+        - model.layers.20.self_attn.k_proj.weight
+        - model.layers.21.self_attn.q_proj.weight
+        - model.layers.21.self_attn.k_proj.weight
+        - model.layers.22.self_attn.q_proj.weight
+        - model.layers.22.self_attn.k_proj.weight
+        - model.layers.23.self_attn.q_proj.weight
+        - model.layers.23.self_attn.k_proj.weight
+        - model.layers.24.self_attn.q_proj.weight
+        - model.layers.24.self_attn.k_proj.weight
+        - model.layers.25.self_attn.q_proj.weight
+        - model.layers.25.self_attn.k_proj.weight
+        - model.layers.26.self_attn.q_proj.weight
+        - model.layers.26.self_attn.k_proj.weight
+        - model.layers.27.self_attn.q_proj.weight
+        - model.layers.27.self_attn.k_proj.weight
+        - model.layers.28.self_attn.q_proj.weight
+        - model.layers.28.self_attn.k_proj.weight
+        - model.layers.29.self_attn.q_proj.weight
+        - model.layers.29.self_attn.k_proj.weight
+    optimizer_metrics:
+      depth_grad_norms:
+      - grad_norm/embedding
+      - grad_norm/head
+      - grad_norm/layer.0
+      - grad_norm/layer.1
+      - grad_norm/layer.10
+      - grad_norm/layer.11
+      - grad_norm/layer.12
+      - grad_norm/layer.13
+      - grad_norm/layer.14
+      - grad_norm/layer.15
+      - grad_norm/layer.16
+      - grad_norm/layer.17
+      - grad_norm/layer.18
+      - grad_norm/layer.19
+      - grad_norm/layer.2
+      - grad_norm/layer.20
+      - grad_norm/layer.21
+      - grad_norm/layer.22
+      - grad_norm/layer.23
+      - grad_norm/layer.24
+      - grad_norm/layer.25
+      - grad_norm/layer.26
+      - grad_norm/layer.27
+      - grad_norm/layer.28
+      - grad_norm/layer.29
+      - grad_norm/layer.3
+      - grad_norm/layer.4
+      - grad_norm/layer.5
+      - grad_norm/layer.6
+      - grad_norm/layer.7
+      - grad_norm/layer.8
+      - grad_norm/layer.9
+      adam_second_moment:
+      - adam_second_moment/layer.0
+      - adam_second_moment/layer.1
+      - adam_second_moment/layer.10
+      - adam_second_moment/layer.11
+      - adam_second_moment/layer.12
+      - adam_second_moment/layer.13
+      - adam_second_moment/layer.14
+      - adam_second_moment/layer.15
+      - adam_second_moment/layer.16
+      - adam_second_moment/layer.17
+      - adam_second_moment/layer.18
+      - adam_second_moment/layer.19
+      - adam_second_moment/layer.2
+      - adam_second_moment/layer.20
+      - adam_second_moment/layer.21
+      - adam_second_moment/layer.22
+      - adam_second_moment/layer.23
+      - adam_second_moment/layer.24
+      - adam_second_moment/layer.25
+      - adam_second_moment/layer.26
+      - adam_second_moment/layer.27
+      - adam_second_moment/layer.28
+      - adam_second_moment/layer.29
+      - adam_second_moment/layer.3
+      - adam_second_moment/layer.4
+      - adam_second_moment/layer.5
+      - adam_second_moment/layer.6
+      - adam_second_moment/layer.7
+      - adam_second_moment/layer.8
+      - adam_second_moment/layer.9
+    global_metrics:
+      grad_norm: true
+      update_to_weight_ratio: true
+      attention_head_imbalance: true
+  llm_sft:
+    description: SmolLM2-135M-Instruct SFT on SmolTalk; --failure-mode selects pathology.
+    failure_modes:
+    - adam_collapse
+    - baseline
+    - explode
+    - logit_collapse
+    - vanish
+    telemetry_preset: TelemetryConfig.llm
+    model_id: HuggingFaceTB/SmolLM2-135M-Instruct
+    forward_hooks:
+      activation_rms:
+        patterns:
+        - model.norm
+        - model.layers.0.post_attention_layernorm
+        modules:
+        - model.layers.0.post_attention_layernorm
+        - model.norm
+      attention:
+        patterns:
+        - model.layers.0.self_attn
+        - model.layers.1.self_attn
+        modules:
+        - model.layers.0.self_attn
+        - model.layers.1.self_attn
+      logit_entropy:
+        logits_module: re:(model\.)?lm_head
+        modules:
+        - lm_head
+    parameter_metrics:
+      effective_rank:
+        patterns:
+        - model.layers.*.self_attn.q_proj.weight
+        - model.layers.*.self_attn.k_proj.weight
+        parameters:
+        - model.layers.0.self_attn.q_proj.weight
+        - model.layers.0.self_attn.k_proj.weight
+        - model.layers.1.self_attn.q_proj.weight
+        - model.layers.1.self_attn.k_proj.weight
+        - model.layers.2.self_attn.q_proj.weight
+        - model.layers.2.self_attn.k_proj.weight
+        - model.layers.3.self_attn.q_proj.weight
+        - model.layers.3.self_attn.k_proj.weight
+        - model.layers.4.self_attn.q_proj.weight
+        - model.layers.4.self_attn.k_proj.weight
+        - model.layers.5.self_attn.q_proj.weight
+        - model.layers.5.self_attn.k_proj.weight
+        - model.layers.6.self_attn.q_proj.weight
+        - model.layers.6.self_attn.k_proj.weight
+        - model.layers.7.self_attn.q_proj.weight
+        - model.layers.7.self_attn.k_proj.weight
+        - model.layers.8.self_attn.q_proj.weight
+        - model.layers.8.self_attn.k_proj.weight
+        - model.layers.9.self_attn.q_proj.weight
+        - model.layers.9.self_attn.k_proj.weight
+        - model.layers.10.self_attn.q_proj.weight
+        - model.layers.10.self_attn.k_proj.weight
+        - model.layers.11.self_attn.q_proj.weight
+        - model.layers.11.self_attn.k_proj.weight
+        - model.layers.12.self_attn.q_proj.weight
+        - model.layers.12.self_attn.k_proj.weight
+        - model.layers.13.self_attn.q_proj.weight
+        - model.layers.13.self_attn.k_proj.weight
+        - model.layers.14.self_attn.q_proj.weight
+        - model.layers.14.self_attn.k_proj.weight
+        - model.layers.15.self_attn.q_proj.weight
+        - model.layers.15.self_attn.k_proj.weight
+        - model.layers.16.self_attn.q_proj.weight
+        - model.layers.16.self_attn.k_proj.weight
+        - model.layers.17.self_attn.q_proj.weight
+        - model.layers.17.self_attn.k_proj.weight
+        - model.layers.18.self_attn.q_proj.weight
+        - model.layers.18.self_attn.k_proj.weight
+        - model.layers.19.self_attn.q_proj.weight
+        - model.layers.19.self_attn.k_proj.weight
+        - model.layers.20.self_attn.q_proj.weight
+        - model.layers.20.self_attn.k_proj.weight
+        - model.layers.21.self_attn.q_proj.weight
+        - model.layers.21.self_attn.k_proj.weight
+        - model.layers.22.self_attn.q_proj.weight
+        - model.layers.22.self_attn.k_proj.weight
+        - model.layers.23.self_attn.q_proj.weight
+        - model.layers.23.self_attn.k_proj.weight
+        - model.layers.24.self_attn.q_proj.weight
+        - model.layers.24.self_attn.k_proj.weight
+        - model.layers.25.self_attn.q_proj.weight
+        - model.layers.25.self_attn.k_proj.weight
+        - model.layers.26.self_attn.q_proj.weight
+        - model.layers.26.self_attn.k_proj.weight
+        - model.layers.27.self_attn.q_proj.weight
+        - model.layers.27.self_attn.k_proj.weight
+        - model.layers.28.self_attn.q_proj.weight
+        - model.layers.28.self_attn.k_proj.weight
+        - model.layers.29.self_attn.q_proj.weight
+        - model.layers.29.self_attn.k_proj.weight
+      update_rank:
+        patterns:
+        - model.layers.*.self_attn.q_proj.weight
+        - model.layers.*.self_attn.k_proj.weight
+        parameters:
+        - model.layers.0.self_attn.q_proj.weight
+        - model.layers.0.self_attn.k_proj.weight
+        - model.layers.1.self_attn.q_proj.weight
+        - model.layers.1.self_attn.k_proj.weight
+        - model.layers.2.self_attn.q_proj.weight
+        - model.layers.2.self_attn.k_proj.weight
+        - model.layers.3.self_attn.q_proj.weight
+        - model.layers.3.self_attn.k_proj.weight
+        - model.layers.4.self_attn.q_proj.weight
+        - model.layers.4.self_attn.k_proj.weight
+        - model.layers.5.self_attn.q_proj.weight
+        - model.layers.5.self_attn.k_proj.weight
+        - model.layers.6.self_attn.q_proj.weight
+        - model.layers.6.self_attn.k_proj.weight
+        - model.layers.7.self_attn.q_proj.weight
+        - model.layers.7.self_attn.k_proj.weight
+        - model.layers.8.self_attn.q_proj.weight
+        - model.layers.8.self_attn.k_proj.weight
+        - model.layers.9.self_attn.q_proj.weight
+        - model.layers.9.self_attn.k_proj.weight
+        - model.layers.10.self_attn.q_proj.weight
+        - model.layers.10.self_attn.k_proj.weight
+        - model.layers.11.self_attn.q_proj.weight
+        - model.layers.11.self_attn.k_proj.weight
+        - model.layers.12.self_attn.q_proj.weight
+        - model.layers.12.self_attn.k_proj.weight
+        - model.layers.13.self_attn.q_proj.weight
+        - model.layers.13.self_attn.k_proj.weight
+        - model.layers.14.self_attn.q_proj.weight
+        - model.layers.14.self_attn.k_proj.weight
+        - model.layers.15.self_attn.q_proj.weight
+        - model.layers.15.self_attn.k_proj.weight
+        - model.layers.16.self_attn.q_proj.weight
+        - model.layers.16.self_attn.k_proj.weight
+        - model.layers.17.self_attn.q_proj.weight
+        - model.layers.17.self_attn.k_proj.weight
+        - model.layers.18.self_attn.q_proj.weight
+        - model.layers.18.self_attn.k_proj.weight
+        - model.layers.19.self_attn.q_proj.weight
+        - model.layers.19.self_attn.k_proj.weight
+        - model.layers.20.self_attn.q_proj.weight
+        - model.layers.20.self_attn.k_proj.weight
+        - model.layers.21.self_attn.q_proj.weight
+        - model.layers.21.self_attn.k_proj.weight
+        - model.layers.22.self_attn.q_proj.weight
+        - model.layers.22.self_attn.k_proj.weight
+        - model.layers.23.self_attn.q_proj.weight
+        - model.layers.23.self_attn.k_proj.weight
+        - model.layers.24.self_attn.q_proj.weight
+        - model.layers.24.self_attn.k_proj.weight
+        - model.layers.25.self_attn.q_proj.weight
+        - model.layers.25.self_attn.k_proj.weight
+        - model.layers.26.self_attn.q_proj.weight
+        - model.layers.26.self_attn.k_proj.weight
+        - model.layers.27.self_attn.q_proj.weight
+        - model.layers.27.self_attn.k_proj.weight
+        - model.layers.28.self_attn.q_proj.weight
+        - model.layers.28.self_attn.k_proj.weight
+        - model.layers.29.self_attn.q_proj.weight
+        - model.layers.29.self_attn.k_proj.weight
+    optimizer_metrics:
+      depth_grad_norms:
+      - grad_norm/embedding
+      - grad_norm/head
+      - grad_norm/layer.0
+      - grad_norm/layer.1
+      - grad_norm/layer.10
+      - grad_norm/layer.11
+      - grad_norm/layer.12
+      - grad_norm/layer.13
+      - grad_norm/layer.14
+      - grad_norm/layer.15
+      - grad_norm/layer.16
+      - grad_norm/layer.17
+      - grad_norm/layer.18
+      - grad_norm/layer.19
+      - grad_norm/layer.2
+      - grad_norm/layer.20
+      - grad_norm/layer.21
+      - grad_norm/layer.22
+      - grad_norm/layer.23
+      - grad_norm/layer.24
+      - grad_norm/layer.25
+      - grad_norm/layer.26
+      - grad_norm/layer.27
+      - grad_norm/layer.28
+      - grad_norm/layer.29
+      - grad_norm/layer.3
+      - grad_norm/layer.4
+      - grad_norm/layer.5
+      - grad_norm/layer.6
+      - grad_norm/layer.7
+      - grad_norm/layer.8
+      - grad_norm/layer.9
+      adam_second_moment:
+      - adam_second_moment/layer.0
+      - adam_second_moment/layer.1
+      - adam_second_moment/layer.10
+      - adam_second_moment/layer.11
+      - adam_second_moment/layer.12
+      - adam_second_moment/layer.13
+      - adam_second_moment/layer.14
+      - adam_second_moment/layer.15
+      - adam_second_moment/layer.16
+      - adam_second_moment/layer.17
+      - adam_second_moment/layer.18
+      - adam_second_moment/layer.19
+      - adam_second_moment/layer.2
+      - adam_second_moment/layer.20
+      - adam_second_moment/layer.21
+      - adam_second_moment/layer.22
+      - adam_second_moment/layer.23
+      - adam_second_moment/layer.24
+      - adam_second_moment/layer.25
+      - adam_second_moment/layer.26
+      - adam_second_moment/layer.27
+      - adam_second_moment/layer.28
+      - adam_second_moment/layer.29
+      - adam_second_moment/layer.3
+      - adam_second_moment/layer.4
+      - adam_second_moment/layer.5
+      - adam_second_moment/layer.6
+      - adam_second_moment/layer.7
+      - adam_second_moment/layer.8
+      - adam_second_moment/layer.9
+    global_metrics:
+      grad_norm: true
+      update_to_weight_ratio: true
+      attention_head_imbalance: true
