@@ -1,0 +1,5 @@
+{
+  "retrieval_top_k": 5,
+  "ppr_damping": 0.5,
+  "memory_data_dir": ".data/memory"
+}

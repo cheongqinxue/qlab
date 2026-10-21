@@ -13,6 +13,7 @@ When in doubt, ask before changing the repo.
 
 ## Project pointers
 
+- **Agent harness experiments:** `agents/` — [`agents/README.md`](agents/README.md); **ReHarness** `agents/reharness/`; **HippoRAG** `agents/hipporag/`; **MemGraphRAG** `agents/memgraphrag/`.
 - **Pathology training + W&B logging:** `tutorials/pathologies/`
 - **BEV (local W&B viewer UI):** `tutorials/pathologies/bev/` — `backend/bev` (Python), `webui/`, `e2e/`, `sdk/`; see `bev/README.md` for build/run; roadmap in `bev/PLAN.md`; API + DB schema in `bev/docs/backend-reference.md`. Periodic carve-out/packaging audit: skill `bev-distribution-audit` (`.cursor/skills/bev-distribution-audit/`).
 
