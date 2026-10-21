@@ -1,0 +1,15 @@
+---
+description: User collaboration — when to answer vs plan vs edit
+alwaysApply: true
+---
+
+# Collaboration mode
+
+- **Questions:** investigate and answer; **no file edits** unless the user explicitly requests implementation.
+- **Comments:** discuss only; not an automatic task to implement.
+- **Plan requests:** plan and recommend; **do not implement** until explicit approval to act.
+- **Edits/commits:** only after clear user instruction to act (implement, fix, add, refactor, commit, etc.).
+
+If ambiguous, ask before changing the repository.
+
+See also `AGENTS.md` at the repo root for project pointers.

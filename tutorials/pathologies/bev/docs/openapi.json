@@ -1,0 +1,1875 @@
+{
+  "components": {
+    "schemas": {
+      "CatalogResponse": {
+        "description": "``GET /api/runs/{run_id}/catalog`` (unfiltered key list only).",
+        "properties": {
+          "match_count": {
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricCatalogRow"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "metrics",
+          "match_count",
+          "truncated"
+        ],
+        "title": "CatalogResponse",
+        "type": "object"
+      },
+      "FacetAnalysisResponse": {
+        "additionalProperties": true,
+        "description": "``GET /api/runs/{run_id}/facet-analysis``.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "facets": {
+            "items": {
+              "$ref": "#/components/schemas/FacetDescriptor"
+            },
+            "title": "Facets",
+            "type": "array"
+          },
+          "match_count": {
+            "default": 0,
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "metric": {
+            "default": "",
+            "title": "Metric",
+            "type": "string"
+          },
+          "path_pattern": {
+            "default": "",
+            "title": "Path Pattern",
+            "type": "string"
+          },
+          "pattern": {
+            "default": "",
+            "title": "Pattern",
+            "type": "string"
+          },
+          "plottable_match_count": {
+            "default": 0,
+            "title": "Plottable Match Count",
+            "type": "integer"
+          },
+          "resolved_pattern": {
+            "default": "",
+            "title": "Resolved Pattern",
+            "type": "string"
+          },
+          "suggested_pairs": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestedFacetPair"
+            },
+            "title": "Suggested Pairs",
+            "type": "array"
+          }
+        },
+        "title": "FacetAnalysisResponse",
+        "type": "object"
+      },
+      "FacetDescriptor": {
+        "additionalProperties": true,
+        "description": "Facet coverage for facet-analysis.",
+        "properties": {
+          "assigned_count": {
+            "default": 0,
+            "title": "Assigned Count",
+            "type": "integer"
+          },
+          "cardinality": {
+            "default": 0,
+            "title": "Cardinality",
+            "type": "integer"
+          },
+          "coverage": {
+            "default": 0.0,
+            "title": "Coverage",
+            "type": "number"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "offered": {
+            "default": false,
+            "title": "Offered",
+            "type": "boolean"
+          },
+          "sample_values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sample Values",
+            "type": "array"
+          },
+          "unassigned_count": {
+            "default": 0,
+            "title": "Unassigned Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "FacetDescriptor",
+        "type": "object"
+      },
+      "FacetLabelPair": {
+        "description": "Row/column facet labels for one metric key.",
+        "properties": {
+          "col": {
+            "title": "Col",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "col"
+        ],
+        "title": "FacetLabelPair",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MatrixLayoutResponse": {
+        "additionalProperties": true,
+        "description": "``GET /api/runs/{run_id}/matrix-layout`` (allows layout-specific fields).",
+        "properties": {
+          "cells": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "col": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Col"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "match_count": {
+            "default": 0,
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "max_cells": {
+            "default": 0,
+            "title": "Max Cells",
+            "type": "integer"
+          },
+          "metric": {
+            "default": "",
+            "title": "Metric",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "path_pattern": {
+            "default": "",
+            "title": "Path Pattern",
+            "type": "string"
+          },
+          "pattern": {
+            "default": "",
+            "title": "Pattern",
+            "type": "string"
+          },
+          "plottable_match_count": {
+            "default": 0,
+            "title": "Plottable Match Count",
+            "type": "integer"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "step": {
+            "default": 0.0,
+            "title": "Step",
+            "type": "number"
+          },
+          "steps": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "tiles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Tiles",
+            "type": "array"
+          }
+        },
+        "title": "MatrixLayoutResponse",
+        "type": "object"
+      },
+      "MetricCatalogRow": {
+        "description": "One row from ``metrics_catalog``.",
+        "properties": {
+          "dtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtype"
+          },
+          "first_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Step"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Step"
+          },
+          "n_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Points"
+          },
+          "path_segments": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Segments"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "MetricCatalogRow",
+        "type": "object"
+      },
+      "MetricFamiliesResponse": {
+        "description": "``GET /api/runs/{run_id}/metric-families``.",
+        "properties": {
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/MetricFamily"
+            },
+            "title": "Families",
+            "type": "array"
+          }
+        },
+        "required": [
+          "families"
+        ],
+        "title": "MetricFamiliesResponse",
+        "type": "object"
+      },
+      "MetricFamily": {
+        "description": "Train metric family summary.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "plottable_count": {
+            "title": "Plottable Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "plottable_count"
+        ],
+        "title": "MetricFamily",
+        "type": "object"
+      },
+      "MetricSearchSummary": {
+        "description": "Collapsed structure for all keys matching a search scope.",
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/MetricSearchSummaryNode"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "key_count": {
+            "title": "Key Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max_nodes": {
+            "default": 500,
+            "title": "Max Nodes",
+            "type": "integer"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "key_count"
+        ],
+        "title": "MetricSearchSummary",
+        "type": "object"
+      },
+      "MetricSearchSummaryNode": {
+        "description": "One node in a collapsed metric path summary tree.",
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/MetricSearchSummaryNode"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "collapsed": {
+            "default": false,
+            "title": "Collapsed",
+            "type": "boolean"
+          },
+          "ellipsis": {
+            "default": false,
+            "title": "Ellipsis",
+            "type": "boolean"
+          },
+          "key_count": {
+            "title": "Key Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "key_count"
+        ],
+        "title": "MetricSearchSummaryNode",
+        "type": "object"
+      },
+      "MetricsSearchResponse": {
+        "description": "``GET /api/runs/{run_id}/metrics/search`` (regex / metric-scope discovery).",
+        "properties": {
+          "match_count": {
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricCatalogRow"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricSearchSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "metrics",
+          "match_count",
+          "truncated"
+        ],
+        "title": "MetricsSearchResponse",
+        "type": "object"
+      },
+      "RunManifest": {
+        "description": "``GET /api/runs/{run_id}/manifest``.",
+        "properties": {
+          "checkpoint_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Dir"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "last_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Step"
+          },
+          "metric_count": {
+            "default": 0,
+            "title": "Metric Count",
+            "type": "integer"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "store_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Version"
+          },
+          "wandb_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wandb File"
+          },
+          "wandb_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wandb Run Id"
+          }
+        },
+        "title": "RunManifest",
+        "type": "object"
+      },
+      "RunSummary": {
+        "description": "One run in ``GET /api/runs``.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "last_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Step"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "store_version": {
+            "default": 0,
+            "title": "Store Version",
+            "type": "integer"
+          },
+          "wandb_file": {
+            "title": "Wandb File",
+            "type": "string"
+          },
+          "wandb_run_id": {
+            "title": "Wandb Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wandb_run_id",
+          "wandb_file"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "SeriesBatchRequest": {
+        "description": "``POST /api/runs/{run_id}/series/batch`` body (known metric keys only).",
+        "properties": {
+          "col_facet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Col Facet"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Keys",
+            "type": "array"
+          },
+          "max_keys": {
+            "default": 512,
+            "minimum": 1.0,
+            "title": "Max Keys",
+            "type": "integer"
+          },
+          "max_points": {
+            "default": 2000,
+            "minimum": 1.0,
+            "title": "Max Points",
+            "type": "integer"
+          },
+          "row_facet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Facet"
+          },
+          "scope": {
+            "default": "",
+            "title": "Scope",
+            "type": "string"
+          },
+          "x_axis": {
+            "default": "step",
+            "title": "X Axis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "title": "SeriesBatchRequest",
+        "type": "object"
+      },
+      "SeriesBatchResponse": {
+        "description": "``POST /api/runs/{run_id}/series/batch``.",
+        "properties": {
+          "col_facet": {
+            "default": "",
+            "title": "Col Facet",
+            "type": "string"
+          },
+          "facet_labels": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FacetLabelPair"
+            },
+            "title": "Facet Labels",
+            "type": "object"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "match_count": {
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "metric": {
+            "default": "",
+            "title": "Metric",
+            "type": "string"
+          },
+          "path_pattern": {
+            "default": "",
+            "title": "Path Pattern",
+            "type": "string"
+          },
+          "pattern": {
+            "default": "",
+            "title": "Pattern",
+            "type": "string"
+          },
+          "row_facet": {
+            "default": "",
+            "title": "Row Facet",
+            "type": "string"
+          },
+          "scope": {
+            "default": "",
+            "title": "Scope",
+            "type": "string"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Series",
+            "type": "object"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "series",
+          "match_count",
+          "truncated"
+        ],
+        "title": "SeriesBatchResponse",
+        "type": "object"
+      },
+      "SeriesPrefixResponse": {
+        "description": "``GET /api/runs/{run_id}/series/prefix``.",
+        "properties": {
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Series",
+            "type": "object"
+          }
+        },
+        "required": [
+          "prefix",
+          "series"
+        ],
+        "title": "SeriesPrefixResponse",
+        "type": "object"
+      },
+      "SeriesResponse": {
+        "description": "``GET /api/runs/{run_id}/series``.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "x_axis": {
+            "title": "X Axis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "x_axis",
+          "points"
+        ],
+        "title": "SeriesResponse",
+        "type": "object"
+      },
+      "SuggestedFacetPair": {
+        "description": "Suggested row/col facet pair.",
+        "properties": {
+          "cell_count": {
+            "default": 0,
+            "title": "Cell Count",
+            "type": "integer"
+          },
+          "col_facet": {
+            "title": "Col Facet",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "fits_budget": {
+            "default": false,
+            "title": "Fits Budget",
+            "type": "boolean"
+          },
+          "row_facet": {
+            "title": "Row Facet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_facet",
+          "col_facet"
+        ],
+        "title": "SuggestedFacetPair",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkspaceDocumentRequest": {
+        "description": "``PUT /api/workspace``.",
+        "properties": {
+          "sections": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "title": "WorkspaceDocumentRequest",
+        "type": "object"
+      },
+      "WorkspaceDocumentResponse": {
+        "description": "``GET /api/workspace``.",
+        "properties": {
+          "scan_root": {
+            "default": "",
+            "title": "Scan Root",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "username": {
+            "default": "",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "title": "WorkspaceDocumentResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Local W&B diagnostics \u2014 ingest, catalog, and chart APIs.",
+    "title": "BEV",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/runs": {
+      "get": {
+        "description": "List runs under the scan root; ingest any run missing ``run.db``.",
+        "operationId": "list_runs_api_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response List Runs Api Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/catalog": {
+      "get": {
+        "description": "Full metric catalog for small runs (no regex filters).",
+        "operationId": "get_run_catalog_api_runs__run_id__catalog_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pattern"
+            }
+          },
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metric"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path_pattern",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path Pattern"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run Catalog",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/facet-analysis": {
+      "get": {
+        "description": "Facet coverage and suggested row/col pairs for a metric scope.",
+        "operationId": "get_facet_analysis_api_runs__run_id__facet_analysis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Pattern",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path_pattern",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Path Pattern",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_cells",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cells"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_keys",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Keys"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacetAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Facet Analysis",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/manifest": {
+      "get": {
+        "description": "Polling metadata including ``metric_count`` and ``store_version``.",
+        "operationId": "get_run_manifest_api_runs__run_id__manifest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run Manifest",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/matrix-layout": {
+      "get": {
+        "description": "Matrix or tile layout with scalar values at ``step``.",
+        "operationId": "get_matrix_layout_api_runs__run_id__matrix_layout_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Pattern",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path_pattern",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Path Pattern",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "step",
+            "required": false,
+            "schema": {
+              "default": 0.0,
+              "title": "Step",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_cells",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cells"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_keys",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Keys"
+            }
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": "auto",
+              "title": "Depth",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "row_facet",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Row Facet"
+            }
+          },
+          {
+            "in": "query",
+            "name": "col_facet",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Col Facet"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agg",
+            "required": false,
+            "schema": {
+              "default": "max",
+              "title": "Agg",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "layout_mode",
+            "required": false,
+            "schema": {
+              "default": "auto",
+              "title": "Layout Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrixLayoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Matrix Layout",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/metric-families": {
+      "get": {
+        "description": "Distinct ``train/<family>`` names for plottable keys.",
+        "operationId": "get_metric_families_api_runs__run_id__metric_families_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricFamiliesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Metric Families",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/metrics/search": {
+      "get": {
+        "description": "Discover metric keys by regex or train-scoped filters (no series data).",
+        "operationId": "search_run_metrics_api_runs__run_id__metrics_search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pattern"
+            }
+          },
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metric"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path_pattern",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path Pattern"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "summary",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Summary",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Run Metrics",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/series": {
+      "get": {
+        "description": "Single downsampled time series.",
+        "operationId": "get_series_api_runs__run_id__series_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_points",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "minimum": 1,
+              "title": "Max Points",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "x_axis",
+            "required": false,
+            "schema": {
+              "default": "step",
+              "title": "X Axis",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Series",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/series/batch": {
+      "post": {
+        "description": "Batch time series for an explicit list of known metric keys.",
+        "operationId": "post_series_batch_api_runs__run_id__series_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeriesBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Series Batch",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/series/prefix": {
+      "get": {
+        "description": "All series whose keys start with ``prefix``.",
+        "operationId": "get_series_prefix_api_runs__run_id__series_prefix_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_points",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "minimum": 1,
+              "title": "Max Points",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesPrefixResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Series Prefix",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/workspace": {
+      "get": {
+        "description": "Load persisted workspace sections and panels.",
+        "operationId": "get_workspace_api_workspace_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Workspace",
+        "tags": [
+          "runs"
+        ]
+      },
+      "put": {
+        "description": "Save workspace sections and panels.",
+        "operationId": "put_workspace_api_workspace_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Workspace",
+        "tags": [
+          "runs"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# Wrapper — same as docker-compose.langfuse.yml
+#   cd agents && docker compose up -d
+
+include:
+  - path: docker-compose.langfuse.yml

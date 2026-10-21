@@ -1,0 +1,14 @@
+{
+  "url": "http://localhost:6333",
+  "api_key": null,
+  "collection_name": "experiment_memory_colbert",
+  "retrieval_mode": "bm25_colbert",
+  "vector_size": 128,
+  "distance": "COSINE",
+  "colbert_vector_name": "colbert",
+  "sparse_vector_name": "bm25",
+  "prefetch_limit": 100,
+  "content_payload_key": "page_content",
+  "metadata_payload_key": "metadata",
+  "default_k": 10
+}

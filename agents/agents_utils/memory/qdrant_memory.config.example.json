@@ -1,0 +1,12 @@
+{
+  "url": "http://localhost:6333",
+  "api_key": null,
+  "collection_name": "experiment_memory",
+  "retrieval_mode": "dense",
+  "vector_size": 768,
+  "distance": "COSINE",
+  "vector_name": "",
+  "content_payload_key": "page_content",
+  "metadata_payload_key": "metadata",
+  "default_k": 10
+}
