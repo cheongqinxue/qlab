@@ -14,9 +14,10 @@ from agents_utils.observability.langfuse_tracing import (
     flush_langfuse,
     langfuse_tracing_enabled,
 )
-from hipporag_core.graph_store import GraphStore
+from hipporag_core.runtime import build_runtime
+from hipporag_core.toy_bootstrap import bootstrap_toy_enabled, bootstrap_toy_multihop
 from server.app_state import AppState
-from server.routes import health
+from server.routes import ask, corpus, health, index, retrieve
 from server.settings import get_settings
 
 load_agents_env()
@@ -30,17 +31,40 @@ if _log_file is not None:
 async def lifespan(app: FastAPI):
     """Initialize graph store and optional Langfuse."""
     settings = get_settings()
-    app.state.runtime = AppState(graph=GraphStore())
+    runtime = build_runtime(
+        damping=settings.ppr_damping,
+        synonymy_threshold=settings.synonymy_threshold,
+    )
+    app.state.runtime = AppState(runtime=runtime)
+    if bootstrap_toy_enabled():
+        bootstrap = bootstrap_toy_multihop(runtime)
+        if bootstrap is not None:
+            logger.info(
+                "Toy corpus bootstrapped into graph (passages=%s entities=%s triples=%s)",
+                bootstrap.get("passages"),
+                bootstrap.get("entities"),
+                bootstrap.get("triples"),
+            )
+    else:
+        logger.info(
+            "Toy bootstrap skipped (HIPPORAG_BOOTSTRAP_TOY=0); "
+            "use POST /corpus/bootstrap-toy or Streamlit sidebar"
+        )
     if langfuse_tracing_enabled():
         ensure_langfuse_client()
         logger.info("Langfuse tracing enabled")
-    logger.info("HippoRAG scaffold ready (port=%s)", settings.agent_port)
+    logger.info("HippoRAG ready (port=%s)", settings.agent_port)
     yield
+    runtime.close()
     flush_langfuse()
 
 
-app = FastAPI(title="HippoRAG Agent", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="HippoRAG Agent", version="0.2.0", lifespan=lifespan)
 app.include_router(health.router)
+app.include_router(corpus.router)
+app.include_router(index.router)
+app.include_router(retrieve.router)
+app.include_router(ask.router)
 
 
 def run() -> None:

@@ -1,0 +1,8 @@
+[
+  {
+    "id": "q_bridge",
+    "query": "Which Stanford professor works on the neuroscience of Alzheimer's?",
+    "expected_passage_ids": ["p_prof_alz", "p_prof_stanford"],
+    "must_rank_first": "p_prof_alz"
+  }
+]

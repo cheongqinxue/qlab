@@ -17,6 +17,7 @@ class Settings:
     config_path: Path
     ppr_damping: float
     retrieval_top_k: int
+    synonymy_threshold: float
 
 
 @lru_cache
@@ -40,5 +41,11 @@ def get_settings() -> Settings:
         ppr_damping=float(os.environ.get("HIPPORAG_PPR_DAMPING", defaults.get("ppr_damping", 0.5))),
         retrieval_top_k=int(
             os.environ.get("HIPPORAG_TOP_K", defaults.get("retrieval_top_k", 5))
+        ),
+        synonymy_threshold=float(
+            os.environ.get(
+                "HIPPORAG_SYNONYMY_THRESHOLD",
+                defaults.get("synonymy_edge_sim_threshold", 0.8),
+            )
         ),
     )

@@ -7,7 +7,7 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 | Path | What it is |
 |------|------------|
 | [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
-| [`hipporag/`](hipporag/README.md) | HippoRAG **under construction** (KG + PPR retrieval; NeurIPS 2024). |
+| [`hipporag/`](hipporag/README.md) | HippoRAG **testing** (KG + PPR retrieval, Neo4j, Streamlit; NeurIPS 2024). |
 | [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **under construction** (multi-agent GraphRAG + global memory; KDD 2026). |
 | [`agents_utils/`](agents_utils/) | Shared Python helpers (Qdrant memory, Langfuse tracing, logging, `.env` loading). Not a runnable app. |
 | [`Dockerfile`](Dockerfile) + [`build-image.sh`](build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
@@ -93,17 +93,18 @@ curl -N -X POST http://localhost:8080/tasks/stream \
 
 ### HippoRAG
 
-Graph + Personalized PageRank RAG for multi-hop retrieval ([arxiv:2405.14831](https://arxiv.org/abs/2405.14831)). **Scaffold** — health API only until indexing/PPR land.
+Graph + Personalized PageRank RAG for multi-hop retrieval ([arxiv:2405.14831](https://arxiv.org/abs/2405.14831)). Toy corpus + fixture OpenIE by default; Streamlit tester on **8502**.
 
 **Docs:** [`hipporag/README.md`](hipporag/README.md) · [`hipporag/PLAN.md`](hipporag/PLAN.md)
 
 ```bash
 cd agents && ./hipporag/run-agent.sh
+./hipporag/run-ui.sh
 curl -s http://localhost:8081/health
 ./hipporag/run-agent.sh stop
 ```
 
-Uses port **8081** by default so ReHarness can stay on **8080**. Set `AGENT_NAME=hipporag` in compose when tracing.
+Uses port **8081** by default so ReHarness can stay on **8080**. UI port **8502** (`HIPPORAG_UI_PORT`). Set `AGENT_NAME=hipporag` in compose when tracing.
 
 ### MemGraphRAG
 

@@ -21,6 +21,14 @@ class Triple(BaseModel):
     passage_id: str = Field(description="Source passage for this triple.")
 
 
+class OpenIEExtraction(BaseModel):
+    """LLM OpenIE output for one passage (NER + triples)."""
+
+    passage_id: str
+    entities: list[str] = Field(default_factory=list)
+    triples: list[Triple] = Field(default_factory=list)
+
+
 class RetrievalHit(BaseModel):
     """One passage returned by PPR-based retrieval."""
 
