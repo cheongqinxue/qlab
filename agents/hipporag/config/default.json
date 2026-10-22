@@ -1,5 +1,6 @@
 {
   "ppr_damping": 0.5,
   "retrieval_top_k": 5,
+  "synonymy_edge_sim_threshold": 0.8,
   "graph_data_dir": ".data/graph"
 }

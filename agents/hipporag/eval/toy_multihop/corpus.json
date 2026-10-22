@@ -1,0 +1,22 @@
+[
+  {
+    "id": "p_stanford",
+    "text": "Stanford University is located in California."
+  },
+  {
+    "id": "p_prof_stanford",
+    "text": "Professor Thomas is a faculty member at Stanford."
+  },
+  {
+    "id": "p_prof_alz",
+    "text": "Professor Thomas researches the neuroscience of Alzheimer's disease."
+  },
+  {
+    "id": "p_alz",
+    "text": "Alzheimer's disease is a neurodegenerative disorder affecting memory."
+  },
+  {
+    "id": "p_harvard",
+    "text": "Harvard University is an Ivy League school in Massachusetts."
+  }
+]

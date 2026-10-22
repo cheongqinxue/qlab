@@ -1,12 +1,30 @@
-# HippoRAG agent only. Requires shared image + optional Langfuse network.
+# HippoRAG agent + Neo4j. Requires shared image + optional Langfuse network.
 #
 #   cd agents && ./build-image.sh
 #   docker compose -f docker-compose.langfuse.yml up -d   # optional
 #   docker compose -f hipporag/docker-compose.yml up -d
 #
+# Neo4j Browser: http://localhost:${HIPPORAG_NEO4J_HTTP_PORT:-7474}
+# GDS Community (PageRank, etc.): NEO4J_PLUGINS downloads jar into plugins volume on first start.
+# Verify in Browser: RETURN gds.version();
 # Env: agents/.env
 
 services:
+  neo4j:
+    # Pin 5.26.x — pairs with GDS 2.13 per Neo4j compatibility matrix.
+    image: neo4j:5.26-community
+    ports:
+      - "${HIPPORAG_NEO4J_HTTP_PORT:-7474}:7474"
+      - "${HIPPORAG_NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-change-me-neo4j}
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    volumes:
+      - ./.data/hipporag/neo4j:/data
+      - ./.data/hipporag/neo4j/plugins:/plugins
+    networks:
+      - hipporag_internal
+
   agent:
     image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
     working_dir: /app/agents/hipporag
@@ -30,13 +48,23 @@ services:
       AGENT_LOG_DIR: /logs
       AGENT_LOG_MAX_BYTES: "5242880"
       AGENT_LOG_BACKUP_COUNT: "0"
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-change-me-neo4j}
+      HIPPORAG_GRAPH_BACKEND: neo4j
+      HIPPORAG_OPENIE: fixture
+      HIPPORAG_BOOTSTRAP_TOY: ${HIPPORAG_BOOTSTRAP_TOY:-1}
     volumes:
       - ./.data/logs:/logs
       - ./.data/graph:/data/graph
+    depends_on:
+      - neo4j
     networks:
+      - hipporag_internal
       - agents_shared
 
 networks:
+  hipporag_internal:
   agents_shared:
     external: true
     name: agents_shared

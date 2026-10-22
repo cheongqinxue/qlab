@@ -1,0 +1,57 @@
+[
+  {
+    "passage_id": "p_stanford",
+    "entities": ["Stanford University", "California"],
+    "triples": [
+      {
+        "subject": "Stanford University",
+        "predicate": "is located in",
+        "object": "California"
+      }
+    ]
+  },
+  {
+    "passage_id": "p_prof_stanford",
+    "entities": ["Professor Thomas", "Stanford"],
+    "triples": [
+      {
+        "subject": "Professor Thomas",
+        "predicate": "works at",
+        "object": "Stanford"
+      }
+    ]
+  },
+  {
+    "passage_id": "p_prof_alz",
+    "entities": ["Professor Thomas", "Alzheimer's disease"],
+    "triples": [
+      {
+        "subject": "Professor Thomas",
+        "predicate": "researches",
+        "object": "Alzheimer's disease"
+      }
+    ]
+  },
+  {
+    "passage_id": "p_alz",
+    "entities": ["Alzheimer's disease", "memory"],
+    "triples": [
+      {
+        "subject": "Alzheimer's disease",
+        "predicate": "affects",
+        "object": "memory"
+      }
+    ]
+  },
+  {
+    "passage_id": "p_harvard",
+    "entities": ["Harvard University", "Massachusetts"],
+    "triples": [
+      {
+        "subject": "Harvard University",
+        "predicate": "is in",
+        "object": "Massachusetts"
+      }
+    ]
+  }
+]

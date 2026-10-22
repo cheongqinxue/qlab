@@ -13,9 +13,13 @@ router = APIRouter(tags=["health"])
 async def health(request: Request) -> dict[str, object]:
     """Service liveness and graph index stats."""
     state: AppState = request.app.state.runtime  # type: ignore[attr-defined]
+    store = state.runtime.store
     return {
         "status": "ok",
         "experiment": "hipporag",
-        "passages": state.graph.passage_count,
-        "triples": state.graph.triple_count,
+        "passages": store.passage_count,
+        "entities": store.entity_count,
+        "triples": store.triple_count,
+        "rel_edges": store.rel_edge_count,
+        "synonym_edges": store.synonym_edge_count,
     }

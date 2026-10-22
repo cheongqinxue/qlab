@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hipporag_core.graph_store import GraphStore
+from hipporag_core.runtime import HipporagRuntime
 
 
 @dataclass
 class AppState:
     """Runtime handles for the HippoRAG server."""
 
-    graph: GraphStore
+    runtime: HipporagRuntime

@@ -1,32 +1,22 @@
-"""Knowledge graph backing store (stub for Phase 1)."""
+"""Graph store factory (memory or Neo4j)."""
 
 from __future__ import annotations
 
-from hipporag_core.models import Passage, Triple
+import os
+
+from hipporag_core.memory_graph_store import MemoryGraphStore
+from hipporag_core.neo4j_graph_store import Neo4jGraphStore
+
+GraphStore = MemoryGraphStore
 
 
-class GraphStore:
-    """In-memory placeholder until persistent graph + PPR land."""
+def create_graph_store() -> MemoryGraphStore:
+    """Create graph store from ``HIPPORAG_GRAPH_BACKEND`` env.
 
-    def __init__(self) -> None:
-        """Initialize empty passage and triple lists."""
-        self._passages: dict[str, Passage] = {}
-        self._triples: list[Triple] = []
-
-    def add_passage(self, passage: Passage) -> None:
-        """Register a passage for future indexing."""
-        self._passages[passage.id] = passage
-
-    def add_triple(self, triple: Triple) -> None:
-        """Register an extracted triple."""
-        self._triples.append(triple)
-
-    @property
-    def passage_count(self) -> int:
-        """Number of indexed passages."""
-        return len(self._passages)
-
-    @property
-    def triple_count(self) -> int:
-        """Number of stored triples."""
-        return len(self._triples)
+    Returns:
+        ``memory`` (default in tests) or ``neo4j`` for Docker.
+    """
+    backend = os.environ.get("HIPPORAG_GRAPH_BACKEND", "neo4j").lower()
+    if backend == "memory":
+        return MemoryGraphStore()
+    return Neo4jGraphStore.from_env()

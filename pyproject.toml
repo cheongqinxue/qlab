@@ -37,6 +37,8 @@ dependencies = [
     "httpx>=0.28.1",
     "langchain-core>=1.6.12",
     "streamlit>=1.45.0",
+    "igraph>=0.11.8",
+    "neo4j>=5.28.1",
 ]
 
 [project.optional-dependencies]
@@ -53,9 +55,12 @@ pythonpath = [
     "tutorials",
     "tutorials/pathologies/bev/backend",
     "tutorials/pathologies/bev/sdk",
+    "agents",
+    "agents/hipporag",
 ]
 testpaths = [
     "tutorials",
     "tutorials/pathologies/bev/backend/tests",
     "tutorials/pathologies/bev/sdk/tests",
+    "agents/hipporag/tests",
 ]
