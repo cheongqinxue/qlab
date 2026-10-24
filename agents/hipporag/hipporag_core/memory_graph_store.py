@@ -9,7 +9,7 @@ import numpy as np
 from hipporag_core.content_hash import passage_content_hash
 from hipporag_core.entity_ids import entity_id, normalize_phrase
 from hipporag_core.models import Passage, Triple
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 from hipporag_core.ppr_snapshot import PprSnapshot
 
 
@@ -58,13 +58,13 @@ class MemoryGraphStore:
         staged = self._passages[passage_id]
         staged.indexed_hash = staged.content_hash
 
-    def merge_entity(self, phrase: str, encoder: PhraseEncoder) -> str:
+    def merge_entity(self, phrase: str, encoder: BaseEncoder) -> str:
         """Ensure entity node exists; return entity id."""
         text = normalize_phrase(phrase)
         eid = entity_id(text)
         self._entities[eid] = text
         if eid not in self._entity_vectors:
-            self._entity_vectors[eid] = encoder.encode(text)
+            self._entity_vectors[eid] = encoder.encode_document_numpy(text)
         return eid
 
     def add_mention(self, entity_eid: str, passage_id: str, count: int = 1) -> None:

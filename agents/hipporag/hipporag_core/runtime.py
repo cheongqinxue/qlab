@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from agents_utils.memory.base_encoder import BaseEncoder
+from agents_utils.memory.sentence_transformers_encoder import SentenceTransformersEncoder
+
 from hipporag_core.graph_store import create_graph_store
 from hipporag_core.indexer import Indexer
 from hipporag_core.memory_graph_store import MemoryGraphStore
-from hipporag_core.phrase_encoder import PhraseEncoder
 from hipporag_core.retriever import Retriever
 
 
@@ -17,7 +19,7 @@ class HipporagRuntime:
     """Handles for indexing and retrieval."""
 
     store: MemoryGraphStore
-    encoder: PhraseEncoder
+    encoder: BaseEncoder
     indexer: Indexer
     retriever: Retriever
 
@@ -29,32 +31,36 @@ class HipporagRuntime:
             self.store.close()
 
 
-def build_runtime(*, damping: float, synonymy_threshold: float) -> HipporagRuntime:
+def build_runtime(
+    *,
+    damping: float,
+    synonymy_threshold: float,
+    encoder: BaseEncoder | None = None,
+) -> HipporagRuntime:
     """Construct runtime from environment.
 
     Args:
         damping: PPR damping factor.
         synonymy_threshold: Synonymy τ.
+        encoder: Dense encoder; defaults to ``EMBEDDING_MODEL`` when omitted.
 
     Returns:
         Wired runtime bundle.
     """
     store = create_graph_store()
-    pytest_run = os.environ.get("PYTEST_CURRENT_TEST") is not None
-    if os.environ.get("HIPPORAG_TEST_ENCODER") == "hash" or pytest_run:
-        encoder = PhraseEncoder()
-    else:
+    resolved = encoder
+    if resolved is None:
         model = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-        encoder = PhraseEncoder.from_env_model(model)
+        resolved = SentenceTransformersEncoder(model)
     indexer = Indexer(
         store=store,
-        encoder=encoder,
+        encoder=resolved,
         synonymy_threshold=synonymy_threshold,
     )
-    retriever = Retriever(store=store, encoder=encoder, damping=damping)
+    retriever = Retriever(store=store, encoder=resolved, damping=damping)
     return HipporagRuntime(
         store=store,
-        encoder=encoder,
+        encoder=resolved,
         indexer=indexer,
         retriever=retriever,
     )

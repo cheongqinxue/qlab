@@ -8,7 +8,7 @@ from typing import Any
 from neo4j import Driver, GraphDatabase
 
 from hipporag_core.memory_graph_store import MemoryGraphStore
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 
 
 class Neo4jGraphStore(MemoryGraphStore):
@@ -51,7 +51,7 @@ class Neo4jGraphStore(MemoryGraphStore):
             hash=passage_content_hash(passage.text),
         )
 
-    def merge_entity(self, phrase: str, encoder: PhraseEncoder) -> str:
+    def merge_entity(self, phrase: str, encoder: BaseEncoder) -> str:
         """Merge entity in RAM and Neo4j."""
         eid = super().merge_entity(phrase, encoder)
         text = self._entities[eid]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 
 from memgraphrag_core.memory.config import MemGraphMemoryConfig
 from memgraphrag_core.memory.memgraph_memory import MemGraphGlobalMemory
@@ -21,18 +21,18 @@ class TestMemGraphGlobalMemory:
         assert isinstance(inst, MemGraphGlobalMemory)
         assert inst.passage_count == 0
 
-    def test_build_or_restore_loads_disk(self, tmp_path) -> None:
+    def test_build_or_restore_loads_disk(self, tmp_path, hash_encoder) -> None:
         cfg = MemGraphMemoryConfig(memory_data_dir=str(tmp_path))
         memory = MemGraphGlobalMemory(cfg)
         memory.layers.add_passage(PassageRecord(id="p1", text="saved"))
         save_memory(memory.layers, tmp_path)
-        restored = MemGraphGlobalMemory.build_or_restore(cfg, encoder=PhraseEncoder())
+        restored = MemGraphGlobalMemory.build_or_restore(cfg, encoder=hash_encoder)
         assert restored.passage_count == 1
 
-    def test_add_and_afind(self) -> None:
+    def test_add_and_afind(self, hash_encoder) -> None:
         memory = MemGraphGlobalMemory(
             MemGraphMemoryConfig(retrieval_sim_threshold=0.0),
-            encoder=PhraseEncoder(),
+            encoder=hash_encoder,
         )
 
         async def _run() -> None:
@@ -52,8 +52,8 @@ class TestMemGraphGlobalMemory:
 
         asyncio.run(_run())
 
-    def test_adelete_fact_and_passage(self) -> None:
-        memory = MemGraphGlobalMemory(MemGraphMemoryConfig(), encoder=PhraseEncoder())
+    def test_adelete_fact_and_passage(self, hash_encoder) -> None:
+        memory = MemGraphGlobalMemory(MemGraphMemoryConfig(), encoder=hash_encoder)
         memory.layers.add_passage(PassageRecord(id="p1", text="x"))
         memory.layers.add_fact(
             FactRecord(id="f1", text="f", passage_ids=["p1"]),

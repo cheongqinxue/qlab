@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from agents_utils.memory.base_memory import BaseMemoryItem
-from hipporag_core.ppr import run_personalized_pagerank
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.graph.ppr import run_personalized_pagerank
+from agents_utils.memory.base_encoder import BaseEncoder
 
 from memgraphrag_core.indexing.graph_builder import IndexingGraph
 from memgraphrag_core.memory.config import MemGraphMemoryConfig
@@ -19,7 +19,7 @@ class MemoryGuidedRetriever:
     def __init__(
         self,
         memory: MemGraphGlobalMemory,
-        encoder: PhraseEncoder,
+        encoder: BaseEncoder,
         config: MemGraphMemoryConfig,
     ) -> None:
         """Attach memory bank and encoder."""
@@ -80,10 +80,10 @@ class MemoryGuidedRetriever:
 
     def _dense_passage_fallback(self, query: str, *, top_k: int) -> list[BaseMemoryItem]:
         """Rank passages by cosine similarity when graph/PPR is unavailable."""
-        query_vec = self._encoder.encode(query)
+        query_vec = self._encoder.encode_query_numpy(query)
         scored: list[tuple[str, float, str]] = []
         for passage in self._memory.layers.iter_passages():
-            sim = float(query_vec @ self._encoder.encode(passage.text))
+            sim = float(query_vec @ self._encoder.encode_document_numpy(passage.text))
             scored.append((passage.id, sim, passage.text))
         scored.sort(key=lambda row: row[1], reverse=True)
         return [

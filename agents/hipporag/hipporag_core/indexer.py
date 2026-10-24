@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from hipporag_core.memory_graph_store import MemoryGraphStore
 from hipporag_core.models import OpenIEExtraction
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 from hipporag_core.synonymy import pairs_above_threshold
 
 
@@ -15,7 +15,7 @@ class Indexer:
         self,
         *,
         store: MemoryGraphStore,
-        encoder: PhraseEncoder,
+        encoder: BaseEncoder,
         synonymy_threshold: float = 0.8,
     ) -> None:
         """Configure indexer.

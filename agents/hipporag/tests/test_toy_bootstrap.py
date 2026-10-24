@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from hipporag_core.memory_graph_store import MemoryGraphStore
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 from hipporag_core.retriever import Retriever
 from hipporag_core.runtime import HipporagRuntime
 from hipporag_core.toy_bootstrap import index_toy_graph, load_toy_passages
@@ -12,7 +12,7 @@ from hipporag_core.toy_bootstrap import index_toy_graph, load_toy_passages
 class TestToyBootstrap:
     """Load eval corpus into graph."""
 
-    def test_load_and_index_toy(self, phrase_encoder: PhraseEncoder) -> None:
+    def test_load_and_index_toy(self, phrase_encoder: BaseEncoder) -> None:
         from hipporag_core.indexer import Indexer
 
         store = MemoryGraphStore()

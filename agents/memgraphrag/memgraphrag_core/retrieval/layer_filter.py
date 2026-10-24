@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 from memgraphrag_core.memory.three_layer import ThreeLayerMemory
 
 
@@ -19,17 +19,17 @@ class FilteredNode:
 
 def filter_layers_by_query(
     memory: ThreeLayerMemory,
-    encoder: PhraseEncoder,
+    encoder: BaseEncoder,
     query: str,
     *,
     sim_threshold: float,
 ) -> list[FilteredNode]:
     """Return graph node ids per layer that exceed similarity threshold."""
-    query_vec = encoder.encode(query)
+    query_vec = encoder.encode_query_numpy(query)
     hits: list[FilteredNode] = []
 
     def consider(kind: str, record_id: str, text: str) -> None:
-        sim = float(query_vec @ encoder.encode(text))
+        sim = float(query_vec @ encoder.encode_document_numpy(text))
         if sim >= sim_threshold:
             hits.append(FilteredNode(kind=kind, record_id=record_id, similarity=sim))
 

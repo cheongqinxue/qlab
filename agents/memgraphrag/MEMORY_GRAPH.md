@@ -58,7 +58,7 @@ flowchart TB
   end
   subgraph derived [Derived at index time — implemented]
     IG[IndexingGraph in-memory]
-    PPR[hipporag_core/ppr.py]
+    PPR[agents_utils/graph/ppr.py]
     GB --> IG
     IG --> PPR
   end
@@ -189,10 +189,10 @@ Entry: `MemoryGuidedRetriever.retrieve` (also `MemGraphGlobalMemory.afind` and `
 
 ### 4.1 Pipeline (paper §4.3)
 
-1. **Encode query** — `PhraseEncoder` (hash in tests; HF model in dev via `EMBEDDING_MODEL`).
+1. **Encode query** — `BaseEncoder` (`HashDenseEncoder` in tests; `SentenceTransformersEncoder` + `EMBEDDING_MODEL` in dev).
 2. **Layer filter** (`retrieval/layer_filter.py`) — cosine similarity ≥ `retrieval_sim_threshold` over ontology labels, fact texts, passage texts.
 3. **PPR seeds** (`retrieval/ppr_seeds.py`) — map filtered ids to graph node indices; structure-aware weights.
-4. **PPR** — `run_personalized_pagerank` in `hipporag_core/ppr.py` on undirected edges from `IndexingGraph`.
+4. **PPR** — `run_personalized_pagerank` in `agents_utils/graph/ppr.py` on undirected edges from `IndexingGraph`.
 5. **Rank passages** — aggregate mass on `passage_indices`.
 6. **Fallback** — dense cosine over passage texts when graph is empty or filter/PPR yields no hits.
 
@@ -312,7 +312,7 @@ Use this checklist when promoting Neo4j from projection to **system of record**.
 | HippoRAG artifact | MemGraphRAG reuse |
 |-------------------|-------------------|
 | `Neo4jGraphStore` subclass pattern | Evolve `Neo4jMemoryProjection` |
-| `export_ppr_snapshot` / `ppr.py` | In use via shared `ppr.py` |
+| `export_ppr_snapshot` / shared PPR | In use via `agents_utils/graph/ppr.py` |
 | `passage_scoring.py` | Generalize mention/support matrix (partial — passage node ranking today) |
 | Compose + GDS plugin | Add Neo4j service block when needed |
 | Parity pytest | Expand toy conflict golden retrieve |

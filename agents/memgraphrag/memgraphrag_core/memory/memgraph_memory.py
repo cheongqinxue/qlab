@@ -6,8 +6,8 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
+from agents_utils.memory.base_encoder import BaseEncoder
 from agents_utils.memory.base_memory import BaseMemory, BaseMemoryItem
-from hipporag_core.phrase_encoder import PhraseEncoder
 from typing_extensions import Self
 
 from memgraphrag_core.indexing.graph_builder import IndexingGraph, build_from_memory
@@ -24,7 +24,7 @@ class MemGraphGlobalMemory(BaseMemory):
         self,
         config: MemGraphMemoryConfig,
         *,
-        encoder: PhraseEncoder | None = None,
+        encoder: BaseEncoder | None = None,
     ) -> None:
         """Attach configuration and empty layer store."""
         self._config = config
@@ -52,16 +52,16 @@ class MemGraphGlobalMemory(BaseMemory):
         """Pass-through for health checks."""
         return self.layers.passage_count
 
-    def set_encoder(self, encoder: PhraseEncoder) -> None:
-        """Attach phrase encoder used for graph vectors and retrieval."""
+    def set_encoder(self, encoder: BaseEncoder) -> None:
+        """Attach dense encoder used for graph vectors and retrieval."""
         self._encoder = encoder
 
-    def rebuild_index_graph(self, encoder: PhraseEncoder | None = None) -> None:
+    def rebuild_index_graph(self, encoder: BaseEncoder | None = None) -> None:
         """Rebuild derived indexing graph from current layers."""
         enc = encoder or self._encoder
         if enc is None:
-            enc = PhraseEncoder()
-            self._encoder = enc
+            msg = "encoder required; pass encoder= to build_or_restore or set_encoder"
+            raise RuntimeError(msg)
         if self.layers.passage_count == 0 and self.layers.fact_count == 0:
             self.index_graph = None
             return
@@ -71,9 +71,6 @@ class MemGraphGlobalMemory(BaseMemory):
     def build_or_restore(cls, config: MemGraphMemoryConfig, **kwargs: Any) -> Self:
         """Construct memory and load ``memory.json`` when present."""
         encoder = kwargs.get("encoder")
-        if encoder is not None and not isinstance(encoder, PhraseEncoder):
-            msg = "encoder kwarg must be PhraseEncoder"
-            raise TypeError(msg)
         inst = cls(config, encoder=encoder)
         data_dir = config.memory_data_dir
         if memory_json_path(data_dir).is_file():
@@ -120,10 +117,11 @@ class MemGraphGlobalMemory(BaseMemory):
             return []
         from memgraphrag_core.retrieval.retriever import MemoryGuidedRetriever
 
+        if self._encoder is None:
+            msg = "encoder required for afind; set via runtime build_runtime(encoder=...)"
+            raise RuntimeError(msg)
         top_k = int((metadata or {}).get("top_k", self._config.retrieval_top_k))
-        encoder = self._encoder or PhraseEncoder()
-        self._encoder = encoder
-        retriever = MemoryGuidedRetriever(self, encoder, self._config)
+        retriever = MemoryGuidedRetriever(self, self._encoder, self._config)
         return await retriever.retrieve(query.strip(), top_k=top_k)
 
     async def adelete(self, item_id: str) -> bool:

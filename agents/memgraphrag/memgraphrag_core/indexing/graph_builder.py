@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 from memgraphrag_core.memory.three_layer import ThreeLayerMemory
 
 
@@ -43,7 +43,7 @@ class IndexingGraph:
         return {(k.kind, k.record_id): i for i, k in enumerate(self.node_keys)}
 
 
-def build_from_memory(memory: ThreeLayerMemory, encoder: PhraseEncoder) -> IndexingGraph:
+def build_from_memory(memory: ThreeLayerMemory, encoder: BaseEncoder) -> IndexingGraph:
     """Project M_ont/M_fac/M_pas into an ``IndexingGraph``."""
     graph = IndexingGraph()
     index = graph.key_to_index()
@@ -85,7 +85,10 @@ def build_from_memory(memory: ThreeLayerMemory, encoder: PhraseEncoder) -> Index
                 add_edge(fact_idx, idx_map[key], 1.0)
 
     if graph.node_texts:
-        vectors = np.stack([encoder.encode(t) for t in graph.node_texts], axis=0)
+        vectors = np.stack(
+            [encoder.encode_document_numpy(t) for t in graph.node_texts],
+            axis=0,
+        )
         graph.node_vectors = vectors
     else:
         graph.node_vectors = np.zeros((0, 8), dtype=np.float64)

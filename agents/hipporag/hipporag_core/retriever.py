@@ -8,8 +8,8 @@ from hipporag_core.linking import link_query_entities
 from hipporag_core.memory_graph_store import MemoryGraphStore
 from hipporag_core.models import RetrievalHit
 from hipporag_core.passage_scoring import score_passages_from_ppr
-from hipporag_core.phrase_encoder import PhraseEncoder
-from hipporag_core.ppr import run_personalized_pagerank
+from agents_utils.memory.base_encoder import BaseEncoder
+from agents_utils.graph.ppr import run_personalized_pagerank
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ class Retriever:
         self,
         *,
         store: MemoryGraphStore,
-        encoder: PhraseEncoder,
+        encoder: BaseEncoder,
         damping: float = 0.5,
     ) -> None:
         """Create retriever.

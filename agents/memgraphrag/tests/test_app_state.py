@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.hash_dense_encoder import HashDenseEncoder
 
 from memgraphrag_core.agents.conflict_detect import FixtureConflictDetectionAgent
 from memgraphrag_core.agents.conflict_resolve import FixtureConflictResolutionAgent
@@ -33,7 +33,7 @@ class TestAppState:
         from server.app_state import AppState
 
         cfg = MemGraphMemoryConfig()
-        encoder = PhraseEncoder()
+        encoder = HashDenseEncoder()
         memory = MemGraphGlobalMemory(cfg, encoder=encoder)
         orchestrator = IndexOrchestrator(
             memory,
