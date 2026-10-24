@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import Any, Literal, Protocol
 
-if TYPE_CHECKING:
-    from config import Settings
+from agents_utils.web_tools_settings import WebToolsSettings
 
 Freshness = Literal["oneDay", "oneWeek", "oneMonth", "oneYear", "noLimit"]
 
@@ -33,7 +32,7 @@ class WebSearchBackend(Protocol):
         """
 
 
-def create_websearch_backend(settings: Settings) -> WebSearchBackend | None:
+def create_websearch_backend(settings: WebToolsSettings) -> WebSearchBackend | None:
     """Instantiate the configured web search backend, if credentials allow.
 
     Args:
@@ -46,7 +45,7 @@ def create_websearch_backend(settings: Settings) -> WebSearchBackend | None:
     if provider == "langsearch":
         if not settings.langsearch_api_key:
             return None
-        from tools.websearch.providers.langsearch import LangSearchBackend
+        from agents_utils.websearch.providers.langsearch import LangSearchBackend
 
         return LangSearchBackend(settings)
     msg = f"Unknown websearch provider: {provider!r}"

@@ -1,0 +1,100 @@
+---
+description: Clean Code principles (Robert C. Martin) and related coding guidelines
+alwaysApply: true
+---
+
+# Clean Code Cheatsheet
+
+Summary of **Clean Code** by *Robert Cecil Martin*, plus additional guidelines for cleaner code.
+
+Source: https://github.com/muazsh/Clean-Code-Cheatsheet/blob/main/README.md
+
+## General Rules
+
+- If you want to go fast, get done quickly, and make code easy to write, make it easy to read.
+- **The Boy Scout Rule:** Leave the campground cleaner than you found it.
+- **Meaningful names:**
+  - Use intention-revealing names: the name of a variable, function, or class should answer the big questions.
+  - Classes and objects should have noun or noun phrase names.
+  - Methods should have verb or verb phrase names.
+- Follow one naming convention.
+- Follow a unified format for indentations, whitespaces, parentheses, new lines, and grouping. Prefer a tool for this (e.g. Clang Format, Visual Studio Format).
+- Prefer polymorphism to if/else or switch/case; it reduces branching in the code.
+- Prefer exceptions to returning error codes; they require immediate handling and reduce if-statement noise.
+- Extract try/catch blocks into functions; they introduce noise in the main context.
+- Continuously refine and refactor your code. Keep it as clean and simple as it can be. Never let the rot get started.
+- Follow Kent Beck's four rules of Simple Design:
+  - **Run all the tests:** a comprehensively tested system is verifiable and deployable; this pushes toward small classes, SRP, and DI.
+  - **No duplication:** a primary enemy of a well-designed system.
+  - **Expresses the intent of the programmer:** small classes/functions, good names, follow standards, tests.
+  - **Minimizes the number of classes and methods:** not all classes need interfaces; not all object classes must be split into data classes and behavior classes.
+
+## Functions
+
+- Functions should do one thing. They should do it well. They should do it only.
+- Arguments: the fewer the better (and at the same abstraction level as the function).
+- Do not return or pass null.
+
+## Classes
+
+- Hide internal state and expose methods.
+- **Data vs objects:** in complex systems, sometimes you add new data types (objects/OO fit best); sometimes you add new functions (procedural code and data structures fit best).
+- **Law of Demeter:** minimize coupling.
+- **Separation of concerns:** design patterns and dependency injection help apply this principle.
+
+## Comments
+
+- Comments must **not** explain complexity; the code should explain itself.
+- Good comments describe technical aspects, returned values, TODOs, or importance of non-obvious code.
+- Do not comment out code; delete it.
+
+## Tests
+
+- Tests are as important as the project. If you let tests rot, your code will rot too. Keep tests clean.
+- Test code should be as clean as production code (readable).
+- The higher the test coverage, the less fear you have.
+- One test should test one concept.
+- Minimize asserts in one test.
+- Tests must be **Fast, Independent, Repeatable, Self-Validating, Timely** (just before the production code).
+
+## Third-Party Packages
+
+- Do not expose third-party interfaces in your APIs; use them only internally.
+- Wrap third-party libraries rather than exposing the library itself everywhere.
+- Test third-party packages.
+
+## Concurrency
+
+- Keep concurrency-related code separate from other code.
+- Use what the language offers before building your own.
+- Keep synchronized sections small.
+- Think about shutdown early and get it working early.
+- **Testing threaded code:**
+  - Treat spurious failures as candidate threading issues.
+  - Get your non-threaded code working first.
+  - Make your threaded code pluggable.
+  - Make your threaded code tunable.
+  - Run with more threads than processors.
+  - Run on different platforms.
+  - Instrument your code to try and force failures.
+
+## Implementation Principles
+
+- **KISS (Keep It Simple, Stupid):** avoid unnecessary complexity.
+- **DRY (Don't Repeat Yourself):** as above.
+- **YAGNI (You Aren't Gonna Need It):** do not write code because you think you will need it.
+
+## Design: SOLID Principles
+
+- **Single Responsibility:** any function must have one job; any class must have one concept; modules and libraries should introduce services in one context.
+- **Open-Closed Principle:** entities (classes, modules, libs) must be open for extension but closed for modification.
+- **Liskov Substitution Principle:** replacing an object of a class with one of a derived class must not break program behavior.
+- **Interface Segregation Principle:** multiple focused interfaces passed on demand beat one interface with functions the client never needs.
+- **Dependency Injection:** reduces coupling; pass needed services in instead of creating objects internally.
+
+## More
+
+- Use design patterns when applicable.
+- Avoid anti-patterns (e.g. God classes).
+- Avoid code smells: many parameters, bad names, magic numbers, etc.
+- Use a static code analyzer (e.g. CppCheck, ReSharper).

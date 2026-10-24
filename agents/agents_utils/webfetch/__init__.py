@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from langchain_core.tools import StructuredTool
 
-from config import Settings
-from tools.webfetch.fetcher import PageFetcher, RenderedPage, WebFetchError
-from tools.webfetch.format import extract_page_text, format_page_content
-from tools.webfetch.schemas import WebFetchInput
-from tools.webfetch.url_safety import UnsafeUrlError
-from utils.api_retry import create_api_retry
+from agents_utils.http.api_retry import create_api_retry
+from agents_utils.web_tools_settings import WebToolsSettings
+from agents_utils.webfetch.fetcher import PageFetcher, RenderedPage, WebFetchError
+from agents_utils.webfetch.format import extract_page_text, format_page_content
+from agents_utils.webfetch.schemas import WebFetchInput
+from agents_utils.webfetch.url_safety import UnsafeUrlError
 
 
-def create_tools(settings: Settings) -> list[StructuredTool]:
+def create_tools(settings: WebToolsSettings) -> list[StructuredTool]:
     """Create webfetch tools from application settings.
 
     Args:
@@ -22,7 +22,7 @@ def create_tools(settings: Settings) -> list[StructuredTool]:
         LangChain tools that fetch fully rendered page content.
     """
     fetcher = PageFetcher(
-        timeout_ms=settings.webfetch_timeout_seconds * 1_000,
+        timeout_ms=int(settings.webfetch_timeout_seconds * 1_000),
         network_idle_timeout_ms=settings.webfetch_network_idle_timeout_ms,
         post_load_wait_ms=settings.webfetch_post_load_wait_ms,
         retry=create_api_retry(settings, operation_name="Webfetch page load"),
@@ -31,7 +31,6 @@ def create_tools(settings: Settings) -> list[StructuredTool]:
 
     def webfetch(url: str, max_chars: int = default_max_chars) -> str:
         """Fetch a web page after JavaScript rendering."""
-
         try:
             page = fetcher.fetch(str(url))
         except UnsafeUrlError as exc:
@@ -52,10 +51,6 @@ def create_tools(settings: Settings) -> list[StructuredTool]:
         ),
     ]
 
-
-from tools.registry import register_tools
-
-register_tools(create_tools)
 
 __all__ = [
     "PageFetcher",

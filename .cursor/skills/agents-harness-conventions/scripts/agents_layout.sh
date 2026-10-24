@@ -102,14 +102,14 @@ cmd_list() {
       | sort -t= -k2 -n || true
   fi
 
-  local dup=()
-  for exp in $(experiment_dirs "$agents_root"); do
-    [[ -f "$exp/tests/test_api.py" ]] && dup+=("$(basename "$exp")")
-  done
-  if ((${#dup[@]} > 1)); then
+  if [[ -d "$agents_root" ]]; then
     echo
-    echo "# pytest: do not combine these in one invocation (shared test_api.py basename)"
-    echo "  $(IFS=,; echo "${dup[*]}")"
+    echo "# duplicate test module basenames across experiments (if any)"
+    find "$agents_root" -path '*/tests/test_*.py' -printf '%f\n' 2>/dev/null \
+      | sort | uniq -d | while read -r base; do
+        echo "  ${base}: $(find "$agents_root" -path "*/tests/${base}" -printf '%h\n' \
+          | sed "s|$agents_root/||;s|/tests||" | paste -sd, -)"
+      done
   fi
 }
 

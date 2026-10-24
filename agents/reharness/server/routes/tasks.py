@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
-from pydantic import BaseModel, Field
 
 from reharness_utils.message_content import extract_visible_assistant_text
 from server.streaming import stream_graph_events
@@ -22,46 +21,24 @@ from agents_utils.observability.langfuse_tracing import (
 )
 
 from server.app_state import AppState
+from server.schemas import (
+    CreateTaskRequest,
+    CreateTaskResponse,
+    FeedbackRequest,
+    TaskStatusResponse,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-class CreateTaskRequest(BaseModel):
-    """Start a new streamed task instance."""
-
-    task: str = Field(min_length=1, max_length=32_000)
-
-
-class CreateTaskResponse(BaseModel):
-    """Identifiers and status after starting a task."""
-
-    task_id: str
-    status: str
-    assistant_message: str | None = None
-    interrupt: dict[str, Any] | None = None
-
-
-class FeedbackRequest(BaseModel):
-    """Qualitative feedback in response to the agent's final question."""
-
-    feedback: str = Field(min_length=1, max_length=16_000)
-
-
-class TaskStatusResponse(BaseModel):
-    """Task status snapshot."""
-
-    task_id: str
-    status: str
-    assistant_message: str | None = None
-    harness_complete: bool = False
-
-
 def _graph(request: Request) -> Any:
+    """Return the compiled LangGraph from app state."""
     state: AppState = request.app.state.runtime  # type: ignore[attr-defined]
     return state.graph
 
 
 def _assistant_prompt(messages: list[Any]) -> str | None:
+    """Extract the latest visible assistant text from graph messages."""
     for message in reversed(messages):
         if isinstance(message, AIMessage):
             text = extract_visible_assistant_text(message.content)
@@ -70,6 +47,7 @@ def _assistant_prompt(messages: list[Any]) -> str | None:
 
 
 def _status_from_snapshot(values: dict[str, Any]) -> str:
+    """Map checkpoint values to a coarse task status string."""
     if values.get("harness_complete"):
         return "complete"
     if values.get("__interrupt__"):

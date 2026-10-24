@@ -9,13 +9,13 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from tools.webfetch.url_safety import UnsafeUrlError, validate_fetch_url
-from utils.api_retry import (
+from agents_utils.http.api_retry import (
     ApiRetry,
     RetryableApiError,
     classify_http_status,
     is_retryable_http_status,
 )
+from agents_utils.webfetch.url_safety import UnsafeUrlError, validate_fetch_url
 
 logger = logging.getLogger("thoughtbuddy.tools.webfetch")
 

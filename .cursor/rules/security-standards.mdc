@@ -1,0 +1,42 @@
+---
+description: Security standards for secrets, PII, logging, environment files, and git hygiene
+alwaysApply: true
+---
+
+# Security Standards
+
+## Environment files
+
+- Every project must have a **`.env`** file (local, not committed) and a **`.env-template`** file (committed)
+- **`.env-template`** documents all required environment variables with placeholder or empty values — never real secrets
+- Ensure **`.env` is listed in `.gitignore`**
+- Ensure **`.env-template` is NOT gitignored** — it must be tracked and shared with the team
+
+## Secrets
+
+- **NEVER hardcode secrets in code** — no API keys, tokens, passwords, or connection strings in source files
+- Load secrets from environment variables (via `.env` locally) or a secrets manager in production
+- Do not commit secrets to git, logs, comments, or test fixtures
+- Never commit credential files — `.pem`, `.key`, `credentials.json`, service account keys, `*.p12`
+- Ensure `.gitignore` covers `.env`, `*.pem`, `*.key`, and `credentials.json`
+
+## Critical violations (never)
+
+- Never disable TLS verification (`verify=False`) outside local dev
+- Never pass untrusted input to shell commands (`shell=True`) or raw SQL string interpolation
+- Never store passwords in plain text — use bcrypt or argon2
+- Never use `Access-Control-Allow-Origin: *` with credentials in production
+
+## Logging (severe violations)
+
+- Never log secrets — no API keys, tokens, passwords, connection strings, `Authorization` headers, or credential file contents
+- Never log full request/response bodies that may contain credentials or session tokens
+- Never expose secrets in API error responses or stack traces returned to clients
+- Never log PII without an explicit policy — redact or omit emails, names, addresses, payment details, and health data by default
+- Never enable DEBUG-level logging in production if it may capture sensitive request data
+
+## When scaffolding or reviewing a project
+
+- If `.env` or `.env-template` is missing, create both
+- If `.env` is not gitignored, add it to `.gitignore`
+- If secrets appear in code, replace with environment variable references

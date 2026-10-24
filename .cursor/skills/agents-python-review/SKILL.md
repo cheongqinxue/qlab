@@ -14,19 +14,39 @@ Read first: skill [`agents-harness-conventions`](../agents-harness-conventions/S
 
 ## Global rules to enforce
 
-Apply your **global Cursor rules** to all Python under **`agents/`**:
-
-- **clean-code**
-- **security-standards**
-- **collaboration** (only relevant if the review task includes changing files without explicit user ask—note as process, not a line violation)
-
-Also apply the user’s **Python / testing** standards (ruff, types, docstrings, pytest patterns) as **python-standards**-class findings when violated.
+Cursor **skills do not auto-load** `.mdc` rule files. Naming `python-standards` in prose is not enough — you must **read the rule files** in step 0 below and record that in `CODEREVIEW.md`. Glob-based rules (e.g. `python-standards`) are **not** guaranteed to be in the chat context unless those files are open.
 
 Treat every item in **agents-harness-conventions** (import wall, BaseEncoder, test injection, fixture-first, git/docs) as a **project rule**; tag violations as `agents/<topic>/…` (see template below).
 
 ---
 
 ## Workflow
+
+### 0. Load global standards (mandatory)
+
+**Before** reviewing code, **read** these rule files from disk (user rules + qlab workspace rule). Do not skip this step.
+
+| Rule id | Read this file |
+|---------|----------------|
+| **clean-code** | `~/.cursor/rules/clean-code.mdc` |
+| **security-standards** | `~/.cursor/rules/security-standards.mdc` |
+| **python-standards** | `~/.cursor/rules/python-standards.mdc` |
+| **python-tests** | `~/.cursor/rules/python-tests.mdc` (all `agents/**/tests/**`) |
+| **fastapi-standards** | `~/.cursor/rules/fastapi-standards.mdc` (`agents/**/server/`, route modules) |
+| **collaboration** | `qlab/.cursor/rules/collaboration.mdc` (process only) |
+
+In **`agents/CODEREVIEW.md`**, start with a **Global standards checklist** subsection listing each file above as **read** and bullet the sections you applied (e.g. python-standards: type hints, Google docstrings, pytest-only, tenacity, error handling). Any section not reviewed must say **deferred** and why (e.g. scope limit).
+
+Optional tooling (run when available; note pass/fail in the checklist):
+
+```bash
+uv run ruff check agents --statistics
+uv run ruff format agents --check --diff
+```
+
+If `ruff` is missing from the environment, say so in the checklist and rely on manual review against **python-standards.mdc**.
+
+Tag findings from these files as `clean-code/…`, `security-standards/…`, `python-standards/…`, `python-tests/…`, `fastapi-standards/…`.
 
 ### 1. Index the tree
 
@@ -52,9 +72,18 @@ Any reported cross-experiment `*_core` import (including from `agents_utils`) is
 
 ### 3. Review Python code
 
-Review **all `.py` files under `agents/`** against the global rules and **agents-harness-conventions**.
+Review **all `.py` files under `agents/`** against the **loaded** global rules (step 0) and **agents-harness-conventions**.
 
 Prioritize: `*_core/`, `server/`, `main.py`, `agents_utils/`, and `tests/`.
+
+Minimum **python-standards** pass (from the file you read in step 0):
+
+- Type hints on parameters and returns; prefer `X | None` over `Optional[X]`
+- Google docstrings on public classes/functions (`Args` / `Returns` where non-obvious)
+- Tests: pytest only, `Test*` naming; test modules uniquely named per experiment (e.g. `test_<experiment>_api.py`)
+- Error handling: no bare `except:`; avoid broad `except Exception` except at documented boundaries (prefer specific types)
+- Retries on external I/O: tenacity with explicit retriable exceptions (flag ad-hoc retry loops)
+- Validation: Pydantic for structured payloads where the codebase already uses it
 
 ### 4. Write findings
 

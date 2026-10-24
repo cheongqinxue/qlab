@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from langchain_core.tools import StructuredTool
 
-from config import Settings
-from tools.websearch.backend import Freshness, create_websearch_backend
-from tools.websearch.format import format_search_results
-from tools.websearch.schemas import WebSearchInput
+from agents_utils.web_tools_settings import WebToolsSettings
+from agents_utils.websearch.backend import Freshness, create_websearch_backend
+from agents_utils.websearch.format import format_search_results
+from agents_utils.websearch.schemas import WebSearchInput
 
 
-def create_tools(settings: Settings) -> list[StructuredTool]:
+def create_tools(settings: WebToolsSettings) -> list[StructuredTool]:
     """Create websearch tools from application settings.
 
     Args:
@@ -46,9 +46,5 @@ def create_tools(settings: Settings) -> list[StructuredTool]:
         ),
     ]
 
-
-from tools.registry import register_tools
-
-register_tools(create_tools)
 
 __all__ = ["Freshness", "WebSearchInput", "create_tools", "format_search_results"]

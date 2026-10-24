@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from tools.websearch.backend import Freshness
+from agents_utils.websearch.backend import Freshness
 
 
 class WebSearchInput(BaseModel):

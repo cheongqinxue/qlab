@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 from cove_core.eval_loader import load_toy_manifest
+from cove_core.models import CoVeRunResult
 from server.app_state import AppState
 
 router = APIRouter(tags=["verify"])
@@ -26,8 +27,8 @@ class VerifyIn(BaseModel):
         return self
 
 
-@router.post("/verify")
-async def verify(body: VerifyIn, request: Request) -> dict[str, object]:
+@router.post("/verify", response_model=CoVeRunResult)
+async def verify(body: VerifyIn, request: Request) -> CoVeRunResult:
     """Run baseline → plan → isolated verify → revise."""
     state: AppState = request.app.state.runtime  # type: ignore[attr-defined]
     query = body.query
@@ -41,5 +42,4 @@ async def verify(body: VerifyIn, request: Request) -> dict[str, object]:
             status_code=400,
             detail="Fixture mode requires query_id (e.g. mexican_american_war)",
         )
-    result = await state.runtime.orchestrator.run(query, query_id=query_id)
-    return result.model_dump()
+    return await state.runtime.orchestrator.run(query, query_id=query_id)

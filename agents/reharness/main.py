@@ -24,7 +24,7 @@ from harness.reharness import ReHarness
 from server.app_state import AppState
 from server.routes import health, memory, tasks
 from server.settings import get_settings
-from tools.python_runner import run_python
+from tools.agent_tools import build_agent_tools
 
 load_agents_env()
 _log_file = configure_agent_logging()
@@ -54,12 +54,19 @@ async def lifespan(app: FastAPI):
     memory = QdrantMemory.build_or_restore(config, encoder=encoder)
     llm = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
     reharness = ReHarness(memory, llm=llm, top_k=settings.reharness_top_k)
+    agent_tools = build_agent_tools(settings)
+    if settings.web_tools_enabled:
+        logger.info(
+            "Web tools enabled (websearch=%s, tools=%s)",
+            settings.websearch_provider,
+            [getattr(t, "name", repr(t)) for t in agent_tools],
+        )
 
     async with AsyncSqliteSaver.from_conn_string(str(settings.checkpoint_path)) as checkpointer:
         graph = build_task_graph(
             llm=llm,
             reharness=reharness,
-            tools=[run_python],
+            tools=agent_tools,
             checkpointer=checkpointer,
         )
         app.state.runtime = AppState(graph=graph, checkpointer=checkpointer, memory=memory)

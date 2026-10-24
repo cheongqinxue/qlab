@@ -120,3 +120,5 @@ Stop stack: `./reharness/run-agent.sh stop`
 ## Configuration
 
 See `agents/.env-template` for `OPENAI_MODEL`, `REHARNESS_TOP_K`, `QDRANT_URL`, `CHECKPOINT_PATH`, `REHARNESS_AGENT_URL`, etc. ReHarness does **not** use `CONTEXT_LIMIT` / `AgentContextManager`; raising context does not substitute for the reflection bank.
+
+Optional **web tools** (`REHARNESS_WEB_TOOLS=1`) register shared `agents_utils` **`websearch`** (LangSearch via `LANGSEARCH_API_KEY`) and **`webfetch`** (Playwright) alongside **`run_python`**. When disabled (default), only the Python runner is bound to the graph.

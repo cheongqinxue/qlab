@@ -1,0 +1,121 @@
+---
+description: pytest testing guidelines and best practices
+globs: tests/**/*.py, **/test_*.py, **/conftest.py
+alwaysApply: false
+---
+
+# pytest Best Practices
+
+Guidelines for writing effective, maintainable tests with **pytest**. General Python conventions live in **`python-standards.mdc`**. Secrets and logging rules live in **`security-standards.mdc`**.
+
+## Code organization
+
+### Directory structure
+
+Prefer a dedicated `tests/` directory at the project root, separate from application code:
+
+```
+my_project/
+├── src/my_package/
+│   ├── __init__.py
+│   ├── module1.py
+│   └── module2.py
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_module1.py
+│   └── test_module2.py
+└── pyproject.toml
+```
+
+Add `__init__.py` under `tests/` when the project uses package-style test layout.
+
+### File naming
+
+Use the `test_<module>.py` pattern consistently. Pytest discovers files matching `test_*.py` or `*_test.py` by default — pick one convention and stick to it.
+
+### Module layout
+
+Mirror application structure in test modules (`test_utils.py` for `utils.py`). Group related cases in a `Test*` class when it aids readability; plain test functions are fine for simple cases.
+
+### Testability
+
+Design for testability: decouple components, inject dependencies, and avoid tight coupling so dependencies can be mocked or replaced.
+
+## Patterns and anti-patterns
+
+### Recommended patterns
+
+- **Arrange–Act–Assert (AAA):** Keep setup, execution, and assertions clearly separated.
+- **Fixtures:** Use `@pytest.fixture` (often in `conftest.py`) for shared setup and teardown. Prefer `yield` fixtures when cleanup is needed.
+- **Parametrize:** Use `@pytest.mark.parametrize` for multiple inputs that exercise the same behavior.
+- **Mocks:** Use `pytest-mock` (`mocker` fixture) or `monkeypatch` to isolate code from external dependencies.
+- **One concept per test:** Each test should verify a single, well-defined behavior.
+- **TDD / BDD:** Write tests before or alongside implementation when it helps clarify expected behavior; use `pytest-bdd` for Gherkin-style scenarios when appropriate.
+
+### Anti-patterns
+
+- **Testing implementation details:** Assert on behavior and public outputs, not internal structure that may change.
+- **Large, complex tests:** Split into smaller, focused tests.
+- **Ignoring failures:** Treat failing tests as blocking — investigate and fix promptly.
+- **Over-mocking:** Mock only what is needed to isolate the unit under test.
+- **Non-deterministic tests:** Avoid reliance on wall-clock time, randomness, or external state without control (freeze time, fixed seeds, fixtures).
+
+## State and isolation
+
+- Each test should run in isolation and not depend on order or side effects from other tests.
+- Avoid global mutable state; use fixtures and dependency injection to control state.
+- Use function-scoped fixtures by default; widen scope (`module`, `session`) only when setup cost justifies it and tests remain independent.
+
+## Error handling in tests
+
+- Assert expected exceptions with `pytest.raises(SpecificError)` — avoid catching broad `Exception` in production code or tests.
+- Prefer assertion messages that explain intent: `assert result == expected, f"expected {expected}, got {result}"`.
+- Test error paths explicitly: empty inputs, `None`, invalid types, boundary values, and unexpected failures.
+
+## Test types
+
+### Unit tests
+
+- Test one unit in isolation with dependencies mocked.
+- Strategies: black-box (inputs/outputs), white-box (internal paths when necessary), boundary values, equivalence partitions.
+
+### Integration tests
+
+- Verify interactions between components or with real infrastructure (DB, APIs) when mocks are insufficient.
+- Mark slow or environment-dependent tests (e.g. `@pytest.mark.integration`) and run them selectively in CI.
+
+### End-to-end tests
+
+- Cover critical user workflows across layers; keep the set small and maintainable.
+- Use dedicated tooling (Playwright, Selenium, etc.) when UI or full-stack flows are in scope.
+
+## Performance
+
+- Keep the default suite fast; profile and optimize slow tests.
+- Use **pytest-xdist** (`pytest -n auto`) for parallel runs on large suites.
+- Run a targeted subset during development (`pytest path/to/test_file.py::test_name`, `-k` expressions, markers).
+- Release resources in fixture teardown; avoid leaking connections, files, or large objects.
+
+## Security in tests
+
+- Never commit secrets, tokens, or real credentials in tests or fixtures — use env vars or test doubles.
+- Do not disable TLS verification in tests that hit real endpoints.
+- Use synthetic or anonymized data; avoid real PII in test fixtures and assertion output.
+
+## Tooling
+
+- **pytest** — test runner and discovery
+- **pytest-mock** — `mocker` fixture for patching
+- **pytest-xdist** — parallel execution
+- **coverage.py** — coverage measurement (`pytest --cov`)
+- **uv** — dependency and environment management
+
+Run tests in CI on every change; fail the pipeline on test failures. Use coverage reports to find gaps, not as a quality target on their own.
+
+## Debugging failures
+
+- Reproduce with a single test: `pytest tests/test_module.py::test_name -vv`.
+- Use `--pdb` or IDE breakpoints to inspect state.
+- Use `caplog` or `capsys` fixtures instead of print statements when checking output.
+- Narrow scope until the failure is isolated, then fix the root cause.

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 
 def _load_path_setup():
+    """Load ``tests/_path_setup.py`` without importing as ``tests._path_setup``."""
     import importlib.util
     from pathlib import Path
 
@@ -34,6 +35,7 @@ class TestHealth:
     """Health endpoint."""
 
     def test_health_ok(self, api_client: TestClient) -> None:
+        """Health returns experiment id and memory counts."""
         response = api_client.get("/health")
         assert response.status_code == 200
         body = response.json()
@@ -46,6 +48,7 @@ class TestReset:
     """Reset endpoint."""
 
     def test_reset_clears_memory(self, api_client: TestClient) -> None:
+        """Reset drops in-memory passages."""
         from memgraphrag_core.models import PassageRecord
 
         mem = api_client.app.state.runtime.memory  # type: ignore[attr-defined]
@@ -61,6 +64,7 @@ class TestCorpusIndexRetrieve:
     """Toy bootstrap and retrieval flow."""
 
     def test_bootstrap_and_retrieve(self, api_client: TestClient) -> None:
+        """Toy bootstrap indexes facts and retrieve returns Newton passage."""
         boot = api_client.post("/corpus/bootstrap-toy")
         assert boot.status_code == 200
         body = boot.json()
@@ -77,6 +81,7 @@ class TestCorpusIndexRetrieve:
         assert "1642" in hits[0]["content"] or "Newton" in hits[0]["content"]
 
     def test_passage_and_index(self, api_client: TestClient) -> None:
+        """Manual passage ingest updates index counts."""
         api_client.post("/reset")
         api_client.post(
             "/corpus/passages",
