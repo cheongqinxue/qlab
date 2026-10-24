@@ -43,6 +43,9 @@ dependencies = [
 
 [project.optional-dependencies]
 agents-ui = ["streamlit>=1.45.0"]
+
+[dependency-groups]
+dev = ["ruff>=0.9.0"]
 [tool.pytest.ini_options]
 markers = [
     "slow: long-running ingest or scale tests",

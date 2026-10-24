@@ -1,0 +1,131 @@
+---
+description: Python coding standards and conventions
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python Standards
+
+General Python conventions. For FastAPI router, schema, and API-layer code, see **`fastapi-standards.mdc`**. For secrets and environment file handling, see **`security-standards.mdc`** (always applies).
+
+## Project structure
+
+- Separate directories for source code, tests, docs, and config
+- Place source under `src/<package_name>/` and tests under `./tests/`
+- Modular design: distinct files/modules for models, services, controllers, and utilities
+- Add `__init__.py` when creating packages under `./tests/` or `./src/<package_name>/`
+
+## Style & formatting
+
+- Line length: 100 (ruff)
+- Use type hints for all function parameters and return types, including explicit return types (`None` where appropriate)
+- Prefer `X | None` over `Optional[X]`
+- Use `Self` for class methods that return the instance
+- Use `ruff` for linting and formatting
+- Use `mypy` with `ignore_missing_imports = true`
+- Use `strict=True` in `zip()` when lengths must match
+
+## Dependencies & tooling
+
+- Manage dependencies with **uv** and virtual environments
+- Implement CI/CD with GitHub Actions or GitLab CI
+
+## Configuration
+
+- Manage configuration via environment variables
+
+## Documentation
+
+- Google-style docstrings on all public functions and classes (PEP 257 compliant)
+- Include `Args` and `Returns` sections
+- Update existing docstrings when modifying code
+- Keep any existing comments in a file
+
+## Testing
+
+- Use **pytest** only — not `unittest`
+- Place all tests under `./tests/`
+- Test classes/functions prefixed with `Test`
+- All tests must have type annotations and docstrings
+- Use `@pytest.mark.asyncio` for async tests
+- Mock external services (GCS, WandB, etc.) in tests
+
+When tests use pytest fixtures under `TYPE_CHECKING`:
+
+```python
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _pytest.capture import CaptureFixture
+    from _pytest.fixtures import FixtureRequest
+    from _pytest.logging import LogCaptureFixture
+    from _pytest.monkeypatch import MonkeyPatch
+    from pytest_mock.plugin import MockerFixture
+```
+
+## Validation & retries
+
+- Prefer **Pydantic** for data validation and schema definitions
+- Prefer **tenacity** for retries on external calls (HTTP APIs, cloud SDKs, etc.)
+- Be explicit about which exception types are retriable — whitelist transient errors (timeouts, connection errors, rate limits, 5xx), never catch broad `Exception`
+- Never use retries to mask code bugs — `TypeError`, `ValueError`, `KeyError`, and similar logic errors must fail immediately
+- Set sensible retry limits (attempt count, backoff, max wait) and log retry attempts
+
+## Error handling
+
+- No defensive programming — be deliberate, intentional, and explicit about which errors and exceptions to catch
+- Avoid bare `except:` — use specific exception types
+- Log errors with `logging.exception()` for full tracebacks, including context capture
+- Clean up resources (temp files, sessions, blobs) on errors
+- Re-raise with `raise e` (not bare `raise`) after cleanup
+
+## Logging
+
+PII and secrets in logs are covered by **`security-standards.mdc`**. Apply these Python/cloud practices otherwise.
+
+### Cloud & containers
+
+- Log to **stdout/stderr**, not local files — container platforms (Cloud Run, ECS, K8s, Lambda) capture stdout and ship to CloudWatch, Cloud Logging, etc.
+- Use **structured logging** (JSON) via `structlog` or `python-json-logger` — queryable fields beat prose in cloud log explorers
+- Configure logging once at app startup; set level via environment variable (`LOG_LEVEL`)
+
+### Log levels
+
+- `DEBUG` — local troubleshooting only; off in production by default
+- `INFO` — normal business events (request handled, job completed)
+- `WARNING` — recoverable oddities (retry succeeded, deprecated path used)
+- `ERROR` — operation failed; needs attention
+- `CRITICAL` — service unavailable or data loss risk
+
+### Context & correlation
+
+- Propagate a **`request_id`** (or trace ID) through the request lifecycle — middleware, service calls, background tasks
+- Include structured context: `service`, `environment`, `request_id`, `duration_ms`, `error_type` — not bare `"Something went wrong"`
+- Use `contextvars` to bind request-scoped fields so loggers pick them up automatically
+
+### Errors
+
+- Log exceptions **once at the catch boundary** with `logging.exception()` — do not re-log the same error at every re-raise layer
+- Return safe messages to clients; keep diagnostic detail in logs only
+
+### Retries
+
+- Log retries at `WARNING`; log final failure at `ERROR` — not every attempt at `ERROR`
+
+### Cost & noise
+
+- Do not log full payloads on every successful request
+- Do not log inside tight loops or hot paths
+- Avoid duplicate logs across layers (router, service, and repository logging the same event)
+
+### Observability
+
+- **Logs** — discrete events and forensics
+- **Metrics** — rates, latencies, queue depth (CloudWatch, Prometheus) — do not use logs as a metrics system
+- **Traces** — request path across services (OpenTelemetry, X-Ray, Cloud Trace) where applicable
+
+### Background jobs & serverless
+
+- Include `job_id`, `attempt`, and queue/task name in worker logs
+- In Lambda/Cloud Functions: configure logging outside the handler; log start, end, and duration inside the handler
+

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from cove_core.agents.llm_client import create_chat_model
@@ -30,7 +31,12 @@ def _format_pairs_text(pairs: list[VerificationPair]) -> str:
 class LlmBaselineDrafter:
     """Step 1: baseline LLM response."""
 
-    def __init__(self, model: str | None = None, *, chat_model: object | None = None) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        *,
+        chat_model: BaseChatModel | None = None,
+    ) -> None:
         """Bind chat model (injectable for tests)."""
         self._model = chat_model if chat_model is not None else create_chat_model(model)
 
@@ -72,7 +78,12 @@ class LlmVerificationPlanner:
 class LlmVerificationExecutor:
     """Step 3: factored isolated answers (no baseline in prompt)."""
 
-    def __init__(self, model: str | None = None, *, chat_model: object | None = None) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        *,
+        chat_model: BaseChatModel | None = None,
+    ) -> None:
         """Bind chat model (injectable for tests)."""
         self._model = chat_model if chat_model is not None else create_chat_model(model)
 
@@ -101,7 +112,12 @@ class LlmVerificationExecutor:
 class LlmFinalReviser:
     """Step 4: revised response using verification evidence."""
 
-    def __init__(self, model: str | None = None, *, chat_model: object | None = None) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        *,
+        chat_model: BaseChatModel | None = None,
+    ) -> None:
         """Bind chat model (injectable for tests)."""
         self._model = chat_model if chat_model is not None else create_chat_model(model)
 

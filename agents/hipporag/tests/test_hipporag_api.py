@@ -9,14 +9,36 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def _load_path_setup():
+    """Load ``tests/_path_setup.py`` without importing as ``tests._path_setup``."""
+    path = Path(__file__).resolve().parent / "_path_setup.py"
+    spec = importlib.util.spec_from_file_location("hipporag_path_setup", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _load_hipporag_app():
     """Import HippoRAG ``main:app`` without colliding with other experiments."""
+    path_setup = _load_path_setup()
+    path_setup.ensure_hipporag_paths()
+    path_setup.purge_shared_agent_modules()
     root = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location("hipporag_main", root / "main.py")
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module.app
+
+
+@pytest.fixture(autouse=True)
+def hipporag_api_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """In-memory graph and no Langfuse side effects (shared conftest stubs)."""
+    monkeypatch.setenv("HIPPORAG_GRAPH_BACKEND", "memory")
+    monkeypatch.setenv("HIPPORAG_BOOTSTRAP_TOY", "0")
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
 
 
 @pytest.fixture
@@ -30,6 +52,7 @@ class TestHealth:
     """Health endpoint."""
 
     def test_health_ok(self, api_client: TestClient) -> None:
+        """Health returns experiment id and ok status."""
         response = api_client.get("/health")
         assert response.status_code == 200
         body = response.json()
@@ -46,6 +69,7 @@ class TestCorpusAndRetrieve:
         toy_openie_by_passage: dict,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        """Ingest passages, index, and retrieve with fixture OpenIE."""
         from hipporag_core.openie import FixedOpenIEExtractor
 
         extractor = FixedOpenIEExtractor(toy_openie_by_passage)

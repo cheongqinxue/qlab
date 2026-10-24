@@ -19,7 +19,7 @@ def ensure_memgraphrag_paths() -> None:
 
 
 def purge_shared_agent_modules() -> None:
-    """Remove cached ``main`` / ``server`` modules."""
+    """Remove cached ``main`` / ``server`` modules after reordering ``sys.path``."""
     ensure_memgraphrag_paths()
     for name in list(sys.modules):
         if name == "main" or name.startswith("server"):

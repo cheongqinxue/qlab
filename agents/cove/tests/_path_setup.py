@@ -10,7 +10,7 @@ _AGENTS_ROOT = _COVE_ROOT.parent
 
 
 def ensure_cove_paths() -> None:
-    """Prepend CoVe and agents tree to ``sys.path``."""
+    """Prepend CoVe and agents tree to ``sys.path`` for harness-local imports."""
     for path in (_AGENTS_ROOT, _COVE_ROOT):
         entry = str(path)
         while entry in sys.path:
@@ -19,7 +19,7 @@ def ensure_cove_paths() -> None:
 
 
 def purge_shared_agent_modules() -> None:
-    """Remove cached ``main`` / ``server`` modules."""
+    """Remove cached ``main`` / ``server`` modules after reordering ``sys.path``."""
     ensure_cove_paths()
     for name in list(sys.modules):
         if name == "main" or name.startswith("server"):

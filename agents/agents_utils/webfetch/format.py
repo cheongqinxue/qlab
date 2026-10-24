@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import trafilatura
 
-from tools.webfetch.fetcher import RenderedPage
+from agents_utils.webfetch.fetcher import RenderedPage
 
 
 def extract_page_text(page: RenderedPage) -> str:

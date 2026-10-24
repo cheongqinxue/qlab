@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from agents_utils.neo4j_env import neo4j_password_from_env
+
 from memgraphrag_core.indexing.graph_builder import IndexingGraph
 from memgraphrag_core.memory.three_layer import ThreeLayerMemory
 
@@ -23,7 +25,7 @@ class Neo4jMemoryProjection:
         """Connect using ``NEO4J_URI``, ``NEO4J_USER``, ``NEO4J_PASSWORD``."""
         uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         user = os.environ.get("NEO4J_USER", "neo4j")
-        password = os.environ.get("NEO4J_PASSWORD", "change-me-neo4j")
+        password = neo4j_password_from_env()
         return cls(uri, user, password)
 
     def _get_driver(self):  # noqa: ANN202 — neo4j Driver

@@ -336,7 +336,7 @@ Use this checklist when promoting Neo4j from projection to **system of record**.
 - **Indexing graph:** fact nodes only for the survivor; edges to supporting passage(s) and schema nodes from extraction fixture.
 - **Retrieve:** queries about Newton’s birth year should rank the passage that supports the kept fact (PPR or dense fallback depending on encoder threshold).
 
-See `tests/test_fixture_pipeline.py` and `tests/test_api.py` (`bootstrap-toy` + retrieve).
+See `tests/test_fixture_pipeline.py` and `tests/test_memgraphrag_api.py` (`bootstrap-toy` + retrieve).
 
 ---
 

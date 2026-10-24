@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
-import types
 from pathlib import Path
+
+from agents_utils.testing.langfuse_stubs import install_langfuse_stubs_if_missing
 
 _path_setup_path = Path(__file__).resolve().parent / "_path_setup.py"
 _spec = importlib.util.spec_from_file_location("cove_path_setup", _path_setup_path)
@@ -22,18 +22,7 @@ _COVE_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = _COVE_ROOT / "config" / "default.json"
 
 
-def _install_langfuse_stubs() -> None:
-    if "langfuse.langchain" in sys.modules:
-        return
-    langfuse_pkg = types.ModuleType("langfuse")
-    langchain_pkg = types.ModuleType("langfuse.langchain")
-    langchain_pkg.CallbackHandler = object
-    langfuse_pkg.Langfuse = object
-    sys.modules["langfuse"] = langfuse_pkg
-    sys.modules["langfuse.langchain"] = langchain_pkg
-
-
-_install_langfuse_stubs()
+install_langfuse_stubs_if_missing()
 purge_shared_agent_modules()
 
 import pytest

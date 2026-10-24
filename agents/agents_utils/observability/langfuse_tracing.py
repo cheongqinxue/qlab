@@ -106,5 +106,5 @@ def flush_langfuse() -> None:
         from langfuse import get_client
 
         get_client(public_key=os.environ["LANGFUSE_PUBLIC_KEY"]).flush()
-    except Exception:
+    except OSError:
         logger.exception("Langfuse flush failed")

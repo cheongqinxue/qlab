@@ -6,9 +6,7 @@ from typing import Any
 
 import httpx
 
-from config import Settings
-from tools.websearch.backend import Freshness
-from utils.api_retry import (
+from agents_utils.http.api_retry import (
     ApiClientError,
     ApiRetry,
     RetryableApiError,
@@ -17,6 +15,8 @@ from utils.api_retry import (
     http_status_error,
     is_retryable_http_status,
 )
+from agents_utils.web_tools_settings import WebToolsSettings
+from agents_utils.websearch.backend import Freshness
 
 LANGSEARCH_WEB_SEARCH_URL = "https://api.langsearch.com/v1/web-search"
 NON_RETRYABLE_API_CODES = frozenset({400, 401, 403, 404, 422})
@@ -144,7 +144,7 @@ def extract_search_data(payload: dict[str, Any]) -> dict[str, Any]:
 class LangSearchBackend:
     """WebSearchBackend implementation backed by LangSearch."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: WebToolsSettings) -> None:
         """Create a LangSearch backend from application settings.
 
         Args:

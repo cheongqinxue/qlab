@@ -17,15 +17,16 @@ For **scaffolding a new experiment**, use skill [`agents-demo-experiment`](../ag
 
 ## Global rules (apply in this tree)
 
-Use your **global Cursor rules**; the ones that matter under `agents/` are:
+Naming a rule in a skill **does not load** it. When reviewing or implementing, **read** the `.mdc` files (see **agents-python-review** step 0). The ones that matter under `agents/`:
 
 | Rule id | Scope |
 |---------|--------|
 | **collaboration** | Question vs plan vs act; no edits/commits unless the user asks |
 | **clean-code** | Readable names, small functions, minimal branching |
 | **security-standards** | `.env` gitignored, `.env-template` committed, no secrets in code/logs |
-
-Also follow the user’s **Python / testing** preferences when writing or reviewing code here: ruff (100 cols), type hints, Google docstrings on public APIs, pytest (`Test*` classes, `@pytest.mark.asyncio` for async), minimal diffs, no over-engineering.
+| **python-standards** | Types, ruff, docstrings, errors, logging, tenacity |
+| **python-tests** | pytest layout under `agents/**/tests/` |
+| **fastapi-standards** | `agents/**/server/` routes and schemas |
 
 ---
 
@@ -50,7 +51,7 @@ bash .cursor/skills/agents-harness-conventions/scripts/agents_layout.sh list
 bash .cursor/skills/agents-harness-conventions/scripts/agents_layout.sh check-imports
 ```
 
-`list` prints each harness (folder with `main.py`), its top-level packages, port hints from `agents/.env-template`, and experiments that share `tests/test_api.py`. Use `--strict-packages` on `check-imports` to include non-`*_core` top-level packages (e.g. ReHarness `tools/`).
+`list` prints each harness (folder with `main.py`), its top-level packages, port hints from `agents/.env-template`, and any **duplicate** `tests/test_*.py` basenames across experiments. Use `--strict-packages` on `check-imports` to include non-`*_core` top-level packages (e.g. ReHarness `tools/`).
 
 ---
 
@@ -69,14 +70,16 @@ MemGraph-style paths that need vectors should **require** an encoder when indexi
 ## Tests and API smoke
 
 - **Fixture-first:** toy `eval/` JSON, fixture agents, bootstrap env flags before LLM paths.
-- **API tests:** load each experiment’s `main.py` with **`importlib`** (`spec_from_file_location`) so `main` / `server` do not collide across harnesses.
-- **Pytest invocation:** run **one experiment per invocation** when possible:
+- **API tests:** load each experiment’s `main.py` with **`importlib`** (`spec_from_file_location`) so `main` / `server` do not collide across harnesses. Before load, call that experiment’s **`tests/_path_setup.py`** (`ensure_*_paths` + `purge_shared_agent_modules`) so combined runs do not resolve `server` to another harness.
+- **Langfuse in tests:** use `agents_utils.testing.langfuse_stubs.install_langfuse_stubs_if_missing()` in experiment `conftest.py` when the SDK is optional; clear `LANGFUSE_*` keys in API fixtures when tracing should stay off.
+- **Pytest invocation:** per-experiment or combined:
 
 ```bash
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run python -m pytest agents/<name>/tests -q
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run python -m pytest agents/agents_utils/tests agents/cove/tests agents/hipporag/tests agents/memgraphrag/tests -q
 ```
 
-Do not combine multiple experiment test dirs in one pytest run when `list` reports a shared basename (typically `test_api.py`); use `agents/<name>/tests` per harness.
+Name API test modules uniquely per experiment (e.g. `test_cove_api.py`, `test_hipporag_api.py`). Prefer `agents/<name>/tests` per harness.
 
 ---
 

@@ -1,0 +1,48 @@
+---
+description: FastAPI conventions for routers, schemas, dependencies, and API layer code
+globs: "**/routers/**/*.py, **/routes/**/*.py, **/api/**/*.py, **/schemas/**/*.py, **/dependencies/**/*.py"
+alwaysApply: false
+---
+
+# FastAPI Standards
+
+Applies to FastAPI routers, routes, API modules, Pydantic schemas, and dependencies.
+General Python conventions remain in `python-standards.mdc`.
+
+## Architecture
+
+- Separate **routers**, **services**, **schemas**, and **dependencies** — keep route handlers thin
+- Group routes by domain under `routers/` or `routes/` (e.g. `routers/users.py`)
+- Use **Pydantic v2** models for request bodies, query params, and response schemas — not raw dicts
+- Return typed response models; annotate route handlers with explicit return types
+- Use **dependency injection** (`Depends`) for auth, DB sessions, and shared resources
+
+## Route handlers
+
+- Use `async def` for I/O-bound handlers (DB, HTTP, file); `def` only for CPU-bound or sync-only libraries
+- Prefer declarative route definitions with clear HTTP status codes and `response_model`
+- Use `HTTPException` for expected client errors — map domain exceptions to specific status codes in one place
+- Do not catch broad exceptions in handlers — let registered exception handlers deal with them
+
+## Lifespan & middleware
+
+- Prefer **lifespan context managers** over `@app.on_event("startup")` / `shutdown`
+- Use middleware for cross-cutting concerns: request logging, correlation IDs, timing — not business logic
+
+## Database & external calls
+
+- Use async DB drivers (e.g. asyncpg, aiomysql) with async SQLAlchemy 2.0 where an ORM is needed
+- No blocking I/O in async route handlers
+- Apply **tenacity** (per python-standards) at the service/client layer for transient external API failures — not inside route handlers
+
+## Error handling
+
+- Register exception handlers for domain-specific errors → HTTP responses
+- Be explicit about which exceptions each layer catches — no blanket try/except in routes
+- Unexpected errors propagate; middleware/handlers log with full context
+
+## Testing
+
+- Test routes with `httpx.AsyncClient` and `pytest.mark.asyncio`
+- Override dependencies via `app.dependency_overrides` for auth and DB in tests
+- Test happy path, validation errors (422), and expected HTTP error responses

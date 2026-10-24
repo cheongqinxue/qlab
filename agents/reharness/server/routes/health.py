@@ -7,11 +7,13 @@ import os
 import httpx
 from fastapi import APIRouter
 
+from server.schemas import HealthOut
+
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health")
-async def health() -> dict[str, object]:
+@router.get("/health", response_model=HealthOut)
+async def health() -> HealthOut:
     """Agent liveness and Qdrant reachability."""
     qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333").rstrip("/")
     deps: dict[str, str] = {"agent": "ok"}
@@ -21,4 +23,4 @@ async def health() -> dict[str, object]:
             deps["qdrant"] = "ok" if qdrant.status_code == 200 else "error"
     except httpx.HTTPError:
         deps["qdrant"] = "unreachable"
-    return {"status": "ok", "dependencies": deps}
+    return HealthOut(status="ok", experiment="reharness", dependencies=deps)

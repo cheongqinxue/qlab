@@ -3,20 +3,17 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
+
+from agents_utils.memory.base_memory import BaseMemory
 
 from server.app_state import AppState
+from server.schemas import ResetMemoryResponse
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 
-class ResetMemoryResponse(BaseModel):
-    """Result of clearing the Qdrant reflection collection."""
-
-    cleared: bool = Field(description="True when all points were removed from the bank.")
-
-
-def _memory(request: Request):
+def _memory(request: Request) -> BaseMemory:
+    """Return the Qdrant reflection bank from app state."""
     state: AppState = request.app.state.runtime  # type: ignore[attr-defined]
     return state.memory
 

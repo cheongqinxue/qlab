@@ -7,8 +7,10 @@ from typing import Any
 
 from neo4j import Driver, GraphDatabase
 
-from hipporag_core.memory_graph_store import MemoryGraphStore
 from agents_utils.memory.base_encoder import BaseEncoder
+from agents_utils.neo4j_env import neo4j_password_from_env
+
+from hipporag_core.memory_graph_store import MemoryGraphStore
 
 
 class Neo4jGraphStore(MemoryGraphStore):
@@ -24,7 +26,7 @@ class Neo4jGraphStore(MemoryGraphStore):
         """Connect using ``NEO4J_URI``, ``NEO4J_USER``, ``NEO4J_PASSWORD``."""
         uri = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
         user = os.environ.get("NEO4J_USER", "neo4j")
-        password = os.environ.get("NEO4J_PASSWORD", "change-me-neo4j")
+        password = neo4j_password_from_env()
         driver = GraphDatabase.driver(uri, auth=(user, password))
         return cls(driver)
 
