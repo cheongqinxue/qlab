@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 108" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">qlab</title>
+  <defs>
+    <!-- Mint/emerald (Q) → violet (lab): split-complement of green; softer than red–green -->
+    <linearGradient id="word-grad" x1="4" y1="40" x2="178" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="55%" stop-color="#2dd4bf" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <!-- Word height (Q) = 2× flask height (50). Q = 1.5× lab. Flask at bottom-right of b. -->
+  <text
+    fill="url(#word-grad)"
+    font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+    font-weight="600"
+    letter-spacing="-0.03em"
+  >
+    <tspan x="4" y="86" font-size="100">Q</tspan>
+    <tspan font-size="66.667">lab</tspan>
+  </text>
+  <g transform="translate(166, 21.5) scale(0.5)">
+    <defs>
+      <clipPath id="flask-glass">
+        <path
+          d="M 8 17.2
+             C 5 27.6 0 38.8 -6.2 50
+             L 32.2 50
+             C 27 38.8 22 27.6 18 17.2
+             Z"
+        />
+      </clipPath>
+    </defs>
+    <!-- Shorter body (80% height, base at y=50); base width ×1.2; neck centered on x=13 -->
+    <g
+      fill="none"
+      stroke="#52b5a8"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M 6.5 11.6 h 13" />
+      <path d="M 8 11.6 v 5.6 M 18 11.6 v 5.6" />
+      <path
+        d="M 8 17.2
+           C 5 27.6 0 38.8 -6.2 50
+           L 32.2 50
+           C 27 38.8 22 27.6 18 17.2
+           Z"
+      />
+    </g>
+    <!-- Liquid clipped to glass; meniscus scaled with body (same fill level) -->
+    <path
+      fill="#52b5a8"
+      clip-path="url(#flask-glass)"
+      d="M -6.2 50
+         L 32.2 50
+         L 32.2 34.8
+         C 26 31.5 20 30.5 13 31.5
+         S 2 33.5 -6.2 34.8
+         Z"
+    />
+    <path fill="#52b5a8" d="M -6.2 50 h 38.4 v 3 H -6.2 Z" />
+  </g>
+</svg>
