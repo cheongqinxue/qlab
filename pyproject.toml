@@ -63,4 +63,5 @@ testpaths = [
     "tutorials/pathologies/bev/backend/tests",
     "tutorials/pathologies/bev/sdk/tests",
     "agents/hipporag/tests",
+    "agents/memgraphrag/tests",
 ]

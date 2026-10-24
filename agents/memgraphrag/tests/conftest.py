@@ -1,0 +1,94 @@
+"""Pytest fixtures for MemGraphRAG (no Neo4j, no LLM)."""
+
+from __future__ import annotations
+
+import json
+import sys
+import types
+from pathlib import Path
+
+import importlib.util
+
+_path_setup_path = Path(__file__).resolve().parent / "_path_setup.py"
+_spec = importlib.util.spec_from_file_location("mgr_path_setup", _path_setup_path)
+_mgr_path = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_spec.loader.exec_module(_mgr_path)
+ensure_memgraphrag_paths = _mgr_path.ensure_memgraphrag_paths
+purge_shared_agent_modules = _mgr_path.purge_shared_agent_modules
+
+ensure_memgraphrag_paths()
+
+_MEMGRAPHRAG_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CONFIG = _MEMGRAPHRAG_ROOT / "config" / "default.json"
+
+
+def _install_langfuse_stubs() -> None:
+    """Allow ``import main`` without optional Langfuse packages in minimal envs."""
+    if "langfuse.langchain" in sys.modules:
+        return
+    langfuse_pkg = types.ModuleType("langfuse")
+
+    class _CallbackHandler:  # noqa: D106 — test stub
+        pass
+
+    langchain_pkg = types.ModuleType("langfuse.langchain")
+    langchain_pkg.CallbackHandler = _CallbackHandler
+    langfuse_pkg.Langfuse = object
+    sys.modules["langfuse"] = langfuse_pkg
+    sys.modules["langfuse.langchain"] = langchain_pkg
+
+
+_install_langfuse_stubs()
+purge_shared_agent_modules()
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def memgraphrag_test_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Point settings at repo config and avoid optional observability side effects."""
+    cfg_data = json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+    cfg_data["memory_data_dir"] = str(tmp_path / "memory")
+    cfg_data["neo4j_enabled"] = False
+    custom_config = tmp_path / "memgraphrag-config.json"
+    custom_config.write_text(json.dumps(cfg_data), encoding="utf-8")
+    monkeypatch.setenv("MEMGRAPHRAG_CONFIG", str(custom_config))
+    monkeypatch.setenv("MEMGRAPHRAG_TEST_ENCODER", "hash")
+    monkeypatch.setenv("MEMGRAPHRAG_BOOTSTRAP_TOY", "0")
+    monkeypatch.setenv("MEMGRAPHRAG_AGENTS", "fixture")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "")
+    purge_shared_agent_modules()
+    from server.settings import get_settings
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def three_layer_with_newton_facts():
+    """Two conflicting facts in M_fac for agent tests."""
+    from memgraphrag_core.memory.three_layer import ThreeLayerMemory
+    from memgraphrag_core.models import FactRecord, PassageRecord
+
+    memory = ThreeLayerMemory()
+    memory.add_passage(PassageRecord(id="p1", text="Newton born 1642."))
+    memory.add_passage(PassageRecord(id="p2", text="Newton born 1643."))
+    memory.add_fact(
+        FactRecord(id="f_newton_1642", text="Born 1642", passage_ids=["p1"])
+    )
+    memory.add_fact(
+        FactRecord(id="f_newton_1643", text="Born 1643", passage_ids=["p2"])
+    )
+    return memory
+
+
+@pytest.fixture
+def toy_extraction_by_passage() -> dict[str, dict]:
+    """Minimal extraction fixture keyed by passage id."""
+    return {
+        "p1": {
+            "schemas": [{"id": "s_birth", "label": "PersonBirthYear"}],
+            "facts": [{"id": "f1", "text": "Born 1642", "passage_ids": ["p1"]}],
+        },
+    }

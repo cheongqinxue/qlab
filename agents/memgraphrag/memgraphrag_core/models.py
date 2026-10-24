@@ -18,6 +18,10 @@ class FactRecord(BaseModel):
     id: str
     text: str = Field(min_length=1)
     passage_ids: list[str] = Field(default_factory=list)
+    schema_ids: list[str] = Field(
+        default_factory=list,
+        description="Ontology schema ids this fact instantiates.",
+    )
 
 
 class OntologySchemaRecord(BaseModel):

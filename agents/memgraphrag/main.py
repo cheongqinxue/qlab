@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for the MemGraphRAG experiment (scaffold)."""
+"""FastAPI entrypoint for the MemGraphRAG experiment."""
 
 from __future__ import annotations
 
@@ -14,9 +14,11 @@ from agents_utils.observability.langfuse_tracing import (
     flush_langfuse,
     langfuse_tracing_enabled,
 )
-from memgraphrag_core.global_memory import GlobalMemory
+from memgraphrag_core.memory.config import MemGraphMemoryConfig
+from memgraphrag_core.runtime import build_runtime
+from memgraphrag_core.toy_bootstrap import bootstrap_toy_conflict
 from server.app_state import AppState
-from server.routes import health
+from server.routes import corpus, health, index, reset, retrieve
 from server.settings import get_settings
 
 load_agents_env()
@@ -30,17 +32,32 @@ if _log_file is not None:
 async def lifespan(app: FastAPI):
     """Initialize global memory and optional Langfuse."""
     settings = get_settings()
-    app.state.runtime = AppState(memory=GlobalMemory())
+    mem_config = MemGraphMemoryConfig.from_file(settings.config_path)
+    runtime = build_runtime(mem_config)
+    app.state.runtime = AppState(runtime=runtime)
+    bootstrap = await bootstrap_toy_conflict(runtime)
+    if bootstrap is not None:
+        logger.info(
+            "Toy conflict corpus indexed (passages=%s facts=%s conflicts_resolved=%s)",
+            bootstrap.get("passages"),
+            bootstrap.get("facts"),
+            bootstrap.get("conflicts_resolved"),
+        )
     if langfuse_tracing_enabled():
         ensure_langfuse_client()
         logger.info("Langfuse tracing enabled")
-    logger.info("MemGraphRAG scaffold ready (port=%s)", settings.agent_port)
+    logger.info("MemGraphRAG ready (port=%s)", settings.agent_port)
     yield
+    runtime.close()
     flush_langfuse()
 
 
-app = FastAPI(title="MemGraphRAG Agent", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="MemGraphRAG Agent", version="0.2.0", lifespan=lifespan)
 app.include_router(health.router)
+app.include_router(corpus.router)
+app.include_router(index.router)
+app.include_router(retrieve.router)
+app.include_router(reset.router)
 
 
 def run() -> None:

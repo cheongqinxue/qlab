@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from memgraphrag_core.global_memory import GlobalMemory
+from memgraphrag_core.runtime import MemgraphRuntime
 
 
 @dataclass
 class AppState:
     """Runtime handles for the MemGraphRAG server."""
 
-    memory: GlobalMemory
+    runtime: MemgraphRuntime
+
+    @property
+    def memory(self):
+        """Shortcut to global memory bank."""
+        return self.runtime.memory

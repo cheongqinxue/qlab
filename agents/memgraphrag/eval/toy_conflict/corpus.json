@@ -1,0 +1,12 @@
+{
+  "passages": [
+    {
+      "id": "p1",
+      "text": "Isaac Newton was born in 1642 according to the Julian calendar used in England at the time."
+    },
+    {
+      "id": "p2",
+      "text": "Historical records often cite Newton's birth year as 1643 under the Gregorian calendar."
+    }
+  ]
+}

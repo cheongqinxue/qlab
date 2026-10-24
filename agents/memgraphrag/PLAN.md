@@ -2,35 +2,44 @@
 
 Reference: [2606.00610](https://arxiv.org/abs/2606.00610), [XMUDeepLIT/MemGraphRAG](https://github.com/XMUDeepLIT/MemGraphRAG).
 
-## Phase 0 — Scaffold (current)
+## Architecture (memory-first)
 
-- [x] Experiment folder, Docker, health API, docs
-- [ ] Skim official repo for memory schema and agent roles
+- **Primary API:** `MemGraphGlobalMemory` subclasses [`BaseMemory`](../agents_utils/memory/base_memory.py) (same contract as ReHarness `QdrantMemory`).
+- **Structured state:** `ThreeLayerMemory` = paper M_ont / M_fac / M_pas (authoritative).
+- **Indexing:** multi-agent loop (A_ext, A_det, A_res) + `indexing/graph_builder.py` → derived graph only.
+- **Retrieval:** `MemGraphGlobalMemory.afind` → `retrieval/` (layer filter → PPR seeds → PPR).
+- **Projections:** JSON (`storage/memory_store.py`), optional Neo4j (`storage/neo4j_store.py`).
+
+The previous plan phases still apply; work is ordered **memory → agents → graph → retrieve**.
+
+## Phase 0 — Scaffold
+
+- [x] Directory tree: `memory/`, `agents/`, `indexing/`, `retrieval/`, `storage/`, routes, `eval/toy_conflict/`
+- [x] `MemGraphGlobalMemory(BaseMemory)` + health counts via `ThreeLayerMemory`
+- [x] `POST /reset` clears memory
+- [ ] Skim official repo for field-level parity with upstream `Memory.py`
 
 ## Phase 1 — Global memory
 
-- [ ] `MemGraphRAGMemory`: ontology (`M_ont`), facts (`M_fac`), passages (`M_pas`)
-- [ ] Persist under `memgraphrag/.data/memory/`
-- [ ] Ingest API: add passages, list layer counts
+- [x] Implement `add` / passage staging from `POST /corpus/passages`
+- [x] `load_memory` / `save_memory` under `memgraphrag/.data/memory/`
+- [x] Toy bootstrap from `eval/toy_conflict/` (`MEMGRAPHRAG_BOOTSTRAP_TOY=1`, `POST /corpus/bootstrap-toy`)
 
 ## Phase 2 — Multi-agent indexing
 
-- [ ] Extraction agent → facts + ontology updates
-- [ ] Conflict detection agent (hard conflicts vs passage evidence)
-- [ ] Resolution agent (connected conflict groups)
-- [ ] Build **hierarchical indexing graph** from memory
+- [x] Wire `IndexOrchestrator` + fixture or LLM agents (`MEMGRAPHRAG_AGENTS`)
+- [x] Hierarchical indexing graph + igraph PPR (via HippoRAG `ppr.py`)
 
 ## Phase 3 — Memory-aware retrieval
 
-- [ ] Memory filtering + structure-aware PPR seeds
-- [ ] `POST /retrieve` → ranked passages / subgraph context
-- [ ] Optional answer generation endpoint
+- [x] `MemoryGuidedRetriever` + `POST /retrieve` (dense fallback when graph empty)
+- [ ] Optional `POST /ask` with LLM reader
 
 ## Phase 4 — Evaluation & observability
 
-- [ ] Mini corpus + multi-hop questions
-- [ ] Langfuse traces per agent role
-- [ ] Compare to dense RAG and qlab `hipporag/` scaffold
+- [ ] Conflict toy demo + multi-hop questions
+- [ ] Langfuse spans per agent role
+- [ ] Compare to dense RAG and qlab `hipporag/`
 
 ## Non-goals (for now)
 

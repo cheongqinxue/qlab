@@ -1,0 +1,7 @@
+{
+  "f_newton_1643": {
+    "drop": ["f_newton_1643"],
+    "keep": ["f_newton_1642"],
+    "rationale_fixture": "Prefer Julian-calendar primary source in p1 for toy demo."
+  }
+}
