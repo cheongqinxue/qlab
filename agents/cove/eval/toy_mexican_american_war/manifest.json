@@ -1,0 +1,5 @@
+{
+  "query_id": "mexican_american_war",
+  "query": "Summarize the Mexican–American War, including when it started and ended.",
+  "description": "Baseline draft states an incorrect end year; isolated verification corrects dates."
+}

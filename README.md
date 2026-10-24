@@ -10,6 +10,7 @@ Most of the repo lives under two top-level folders:
   - **`reharness/`** — [ReHarness](https://arxiv.org/abs/2610.12668): retrieve reflections, run a tool agent, revise memory from qualitative feedback (Qdrant + LangGraph).
   - **`hipporag/`** — [HippoRAG](https://arxiv.org/abs/2405.14831): knowledge-graph indexing + Personalized PageRank retrieval (multi-hop RAG; **testing**).
   - **`memgraphrag/`** — [MemGraphRAG](https://arxiv.org/abs/2606.00610): multi-agent GraphRAG with shared global memory and hierarchical indexing (**testing**).
+  - **`cove/`** — [Chain-of-Verification](https://arxiv.org/abs/2309.11495): draft → plan verification Qs → isolated answers → revised response (**scaffold**).
   - **`agents_utils/`** — Shared libraries used by agent experiments (Qdrant memory, Langfuse tracing, env/logging).
 
 - **`tutorials/`** — Smaller coding exercises and training sandboxes.

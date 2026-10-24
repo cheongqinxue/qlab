@@ -9,14 +9,15 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 | [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
 | [`hipporag/`](hipporag/README.md) | HippoRAG **testing** (KG + PPR retrieval, Neo4j, Streamlit; NeurIPS 2024). |
 | [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **testing** (multi-agent GraphRAG + global memory; KDD 2026). |
-| [`agents_utils/`](agents_utils/) | Shared Python helpers (Qdrant memory, Langfuse tracing, logging, `.env` loading). Not a runnable app. |
+| [`cove/`](cove/README.md) | Chain-of-Verification **scaffold** (four-step self-check; ACL Findings 2024). |
+| [`agents_utils/`](agents_utils/) | Shared Python helpers (encoders, graph PPR, Qdrant memory, Langfuse tracing, logging, `.env`). Experiments must not import each other—only `agents_utils`. |
 | [`Dockerfile`](Dockerfile) + [`scripts/build-image.sh`](scripts/build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
 | [`scripts/`](scripts/README.md) | Composable **`start-langfuse`**, **`start-ollama`**, etc. |
 | [`.env-template`](.env-template) | Committed template; copy to **`.env`** (gitignored) for all experiments. |
 | [`docker-compose.langfuse.yml`](docker-compose.langfuse.yml) | Local Langfuse UI + Postgres/ClickHouse/Redis/MinIO. |
 | [`docker-compose.yml`](docker-compose.yml) | Alias: `docker compose up` → Langfuse stack only. |
 
-Persistent data defaults under **`agents/.data/`** (Langfuse), **`reharness/.data/`**, **`hipporag/.data/`**, and **`memgraphrag/.data/`** per experiment.
+Persistent data defaults under **`agents/.data/`** (Langfuse), **`reharness/.data/`**, **`hipporag/.data/`**, **`memgraphrag/.data/`**, and **`cove/.data/`** per experiment.
 
 ## One-time setup
 
@@ -118,9 +119,24 @@ curl -s http://localhost:8082/health
 
 Default port **8082** (`MEMGRAPHRAG_AGENT_PORT`).
 
+### Chain-of-Verification (CoVe)
+
+Self-verification pipeline: baseline answer, verification questions, **isolated** Q/A, final revision ([arxiv:2309.11495](https://arxiv.org/abs/2309.11495)). **Scaffold** — fixture agents only.
+
+**Docs:** [`cove/README.md`](cove/README.md) · [`cove/PLAN.md`](cove/PLAN.md) · [`cove/COVE_PIPELINE.md`](cove/COVE_PIPELINE.md)
+
+```bash
+cd agents && ./cove/run.sh
+curl -s http://localhost:8083/health
+curl -s -X POST http://localhost:8083/eval/bootstrap-toy
+./cove/run-agent.sh stop
+```
+
+Default port **8083** (`COVE_AGENT_PORT`). LLM steps: `COVE_AGENTS=llm` (stub until Phase 2).
+
 ---
 
-Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse.
+Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse. See skill [`.cursor/skills/agents-demo-experiment/`](../.cursor/skills/agents-demo-experiment/SKILL.md).
 
 ## Environment
 
@@ -131,6 +147,7 @@ Single file: **`agents/.env`**. Key groups:
 - **ReHarness:** `AGENT_PORT`, `REHARNESS_*`, `QDRANT_*`, `EMBEDDING_MODEL`
 - **HippoRAG:** `HIPPORAG_AGENT_PORT`, `HIPPORAG_*`
 - **MemGraphRAG:** `MEMGRAPHRAG_AGENT_PORT`, `MEMGRAPHRAG_*`
+- **CoVe:** `COVE_AGENT_PORT`, `COVE_AGENTS`
 
 Full list: [`.env-template`](.env-template).
 

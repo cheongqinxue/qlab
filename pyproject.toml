@@ -57,6 +57,8 @@ pythonpath = [
     "tutorials/pathologies/bev/sdk",
     "agents",
     "agents/hipporag",
+    "agents/cove",
+    "agents",
 ]
 testpaths = [
     "tutorials",
@@ -64,4 +66,6 @@ testpaths = [
     "tutorials/pathologies/bev/sdk/tests",
     "agents/hipporag/tests",
     "agents/memgraphrag/tests",
+    "agents/cove/tests",
+    "agents/agents_utils/tests",
 ]

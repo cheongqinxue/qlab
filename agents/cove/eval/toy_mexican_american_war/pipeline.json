@@ -1,0 +1,18 @@
+{
+  "baseline_response": "The Mexican–American War was an armed conflict between the United States and Mexico from 1846 to 1849.",
+  "verification_questions": [
+    "When did the Mexican–American War start?",
+    "When did the Mexican–American War end?"
+  ],
+  "verification_pairs": [
+    {
+      "question": "When did the Mexican–American War start?",
+      "answer": "The war began in 1846."
+    },
+    {
+      "question": "When did the Mexican–American War end?",
+      "answer": "The war ended in 1848 with the Treaty of Guadalupe Hidalgo."
+    }
+  ],
+  "final_response": "The Mexican–American War was an armed conflict between the United States and Mexico from 1846 to 1848."
+}
