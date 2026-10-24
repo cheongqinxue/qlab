@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from langchain_core.embeddings import Embeddings
 
 from .base_encoder import BaseEncoder, EncodedVector, EncoderKind
@@ -30,10 +28,12 @@ class LangchainEncoder(BaseEncoder):
     def vector_dimension(self) -> int:
         return self._vector_dimension
 
-    async def aencode_document(self, text: str) -> EncodedVector:
-        vectors = await asyncio.to_thread(self._embeddings.embed_documents, [text])
+    def encode_document(self, text: str) -> EncodedVector:
+        """Encode using ``embed_documents``."""
+        vectors = self._embeddings.embed_documents([text])
         return EncodedVector(kind=EncoderKind.DENSE, dense=list(vectors[0]))
 
-    async def aencode_query(self, text: str) -> EncodedVector:
-        vector = await asyncio.to_thread(self._embeddings.embed_query, text)
+    def encode_query(self, text: str) -> EncodedVector:
+        """Encode using ``embed_query``."""
+        vector = self._embeddings.embed_query(text)
         return EncodedVector(kind=EncoderKind.DENSE, dense=list(vector))

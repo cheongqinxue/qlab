@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from .base_encoder import BaseEncoder, EncodedVector, EncoderKind
@@ -44,18 +43,14 @@ class SentenceTransformersEncoder(BaseEncoder):
     def vector_dimension(self) -> int:
         return self._vector_dimension
 
-    async def aencode_document(self, text: str) -> EncodedVector:
-        vector = await asyncio.to_thread(
-            self._model.encode,
-            text,
-            **self._encode_kwargs,
-        )
-        return EncodedVector(kind=EncoderKind.DENSE, dense=list(vector))
+    def encode_document(self, text: str) -> EncodedVector:
+        """Encode document-side text."""
+        return EncodedVector(kind=EncoderKind.DENSE, dense=self._encode_dense_list(text))
 
-    async def aencode_query(self, text: str) -> EncodedVector:
-        vector = await asyncio.to_thread(
-            self._model.encode,
-            text,
-            **self._encode_kwargs,
-        )
-        return EncodedVector(kind=EncoderKind.DENSE, dense=list(vector))
+    def encode_query(self, text: str) -> EncodedVector:
+        """Encode query-side text (same bi-encoder path)."""
+        return EncodedVector(kind=EncoderKind.DENSE, dense=self._encode_dense_list(text))
+
+    def _encode_dense_list(self, text: str) -> list[float]:
+        vector = self._model.encode(text, **self._encode_kwargs)
+        return list(vector)

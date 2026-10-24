@@ -9,7 +9,7 @@ class ColbertEncoder(BaseEncoder):
     """Late-interaction encoder producing token-level vectors.
 
     One ``MULTI_VECTOR`` option alongside dense encoders (sentence-transformers, etc.).
-    Subclass and implement ``_encode_tokens`` with your ColBERT model.
+    Subclass and implement ``_encode_tokens_sync`` with your ColBERT model.
     """
 
     def __init__(self, *, vector_dimension: int) -> None:
@@ -28,15 +28,17 @@ class ColbertEncoder(BaseEncoder):
     def vector_dimension(self) -> int:
         return self._vector_dimension
 
-    async def aencode_document(self, text: str) -> EncodedVector:
-        token_vectors = await self._encode_tokens(text, is_query=False)
+    def encode_document(self, text: str) -> EncodedVector:
+        """Encode a stored document."""
+        token_vectors = self._encode_tokens_sync(text, is_query=False)
         return EncodedVector(kind=EncoderKind.MULTI_VECTOR, token_vectors=token_vectors)
 
-    async def aencode_query(self, text: str) -> EncodedVector:
-        token_vectors = await self._encode_tokens(text, is_query=True)
+    def encode_query(self, text: str) -> EncodedVector:
+        """Encode a retrieval query."""
+        token_vectors = self._encode_tokens_sync(text, is_query=True)
         return EncodedVector(kind=EncoderKind.MULTI_VECTOR, token_vectors=token_vectors)
 
-    async def _encode_tokens(self, text: str, *, is_query: bool) -> list[list[float]]:
+    def _encode_tokens_sync(self, text: str, *, is_query: bool) -> list[list[float]]:
         """Encode text to token vectors (implement in a concrete model subclass).
 
         Args:
@@ -49,5 +51,5 @@ class ColbertEncoder(BaseEncoder):
         Raises:
             NotImplementedError: Until a concrete ColBERT backend is provided.
         """
-        msg = f"{type(self).__name__} must implement _encode_tokens"
+        msg = f"{type(self).__name__} must implement _encode_tokens_sync"
         raise NotImplementedError(msg)
