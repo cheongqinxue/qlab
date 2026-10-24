@@ -8,9 +8,10 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 |------|------------|
 | [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
 | [`hipporag/`](hipporag/README.md) | HippoRAG **testing** (KG + PPR retrieval, Neo4j, Streamlit; NeurIPS 2024). |
-| [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **under construction** (multi-agent GraphRAG + global memory; KDD 2026). |
+| [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **testing** (multi-agent GraphRAG + global memory; KDD 2026). |
 | [`agents_utils/`](agents_utils/) | Shared Python helpers (Qdrant memory, Langfuse tracing, logging, `.env` loading). Not a runnable app. |
-| [`Dockerfile`](Dockerfile) + [`build-image.sh`](build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
+| [`Dockerfile`](Dockerfile) + [`scripts/build-image.sh`](scripts/build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
+| [`scripts/`](scripts/README.md) | Composable **`start-langfuse`**, **`start-ollama`**, etc. |
 | [`.env-template`](.env-template) | Committed template; copy to **`.env`** (gitignored) for all experiments. |
 | [`docker-compose.langfuse.yml`](docker-compose.langfuse.yml) | Local Langfuse UI + Postgres/ClickHouse/Redis/MinIO. |
 | [`docker-compose.yml`](docker-compose.yml) | Alias: `docker compose up` → Langfuse stack only. |
@@ -29,7 +30,7 @@ cp agents/.env-template agents/.env
 Build the shared runtime image (repeat after `pyproject.toml` / lockfile changes):
 
 ```bash
-cd agents && ./build-image.sh
+cd agents && ./scripts/build-image.sh
 ```
 
 ## Shared services (optional but recommended)
@@ -37,9 +38,9 @@ cd agents && ./build-image.sh
 ReHarness tracing expects Langfuse on the **`agents_shared`** Docker network.
 
 ```bash
-cd agents
-docker compose -f docker-compose.langfuse.yml up -d
-# UI: http://localhost:3000 (port from LANGFUSE_UI_PORT in .env)
+./agents/scripts/start-langfuse.sh   # idempotent
+./agents/scripts/start-ollama.sh     # local LLM for HIPPORAG_OPENIE=llm / MEMGRAPHRAG_AGENTS=llm
+# Langfuse UI: http://localhost:3000 (LANGFUSE_UI_PORT)
 ```
 
 First boot creates the Langfuse project using `LANGFUSE_INIT_*` and the `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` in `.env`. Set tracing off with `LANGFUSE_TRACING_ENABLED=false` if you skip this stack.
@@ -61,12 +62,8 @@ Paper-style harness: retrieve reflections → tool-using agent → qualitative f
 **Run (typical):** two terminals from repo root.
 
 ```bash
-# Terminal 1 — Qdrant + FastAPI agent (follows logs)
-cd agents && ./reharness/run-agent.sh
-
-# Terminal 2 — Streamlit chat tester
-cd agents && ./reharness/run-ui.sh
-# → http://127.0.0.1:8501 (REHARNESS_UI_PORT)
+cd agents && ./reharness/run.sh   # Langfuse + Ollama (if down) + agent + Streamlit → :8501
+# Or stepwise: ./reharness/run-agent.sh && ./reharness/run-ui.sh
 ```
 
 Useful flags:
@@ -98,8 +95,8 @@ Graph + Personalized PageRank RAG for multi-hop retrieval ([arxiv:2405.14831](ht
 **Docs:** [`hipporag/README.md`](hipporag/README.md) · [`hipporag/PLAN.md`](hipporag/PLAN.md)
 
 ```bash
-cd agents && ./hipporag/run-agent.sh
-./hipporag/run-ui.sh
+cd agents && ./hipporag/run.sh          # Langfuse + Ollama (if down) + agent + Streamlit
+# Or stepwise: ./scripts/start-langfuse.sh && ./hipporag/run-agent.sh && ./hipporag/run-ui.sh
 curl -s http://localhost:8081/health
 ./hipporag/run-agent.sh stop
 ```
@@ -108,12 +105,13 @@ Uses port **8081** by default so ReHarness can stay on **8080**. UI port **8502*
 
 ### MemGraphRAG
 
-Multi-agent GraphRAG with **shared memory** (ontology / facts / passages) and conflict-aware indexing ([arxiv:2606.00610](https://arxiv.org/abs/2606.00610)). **Scaffold** — health API only.
+Multi-agent GraphRAG with **shared memory** (ontology / facts / passages) and conflict-aware indexing ([arxiv:2606.00610](https://arxiv.org/abs/2606.00610)). **Testing** — indexing agents (fixture or LLM), corpus/index/retrieve API, PPR retrieval; no Streamlit UI yet.
 
 **Docs:** [`memgraphrag/README.md`](memgraphrag/README.md) · [`memgraphrag/PLAN.md`](memgraphrag/PLAN.md)
 
 ```bash
-cd agents && ./memgraphrag/run-agent.sh --detach
+cd agents && ./memgraphrag/run.sh          # Langfuse + Ollama (if down) + agent
+# or: ./memgraphrag/run-agent.sh --detach
 curl -s http://localhost:8082/health
 ./memgraphrag/run-agent.sh stop
 ```

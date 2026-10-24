@@ -2,12 +2,13 @@
 # Build the shared agents Docker image (heavy uv sync — run when pyproject.toml / lock changes).
 #
 # Usage:
-#   ./agents/build-image.sh
-#   AGENTS_RUNTIME_IMAGE=my-agents:v1 ./agents/build-image.sh
+#   ./agents/scripts/build-image.sh
+#   AGENTS_RUNTIME_IMAGE=my-agents:v1 ./agents/scripts/build-image.sh
 
 set -euo pipefail
 
-AGENTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENTS_DIR="$(cd "${SCRIPTS_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${AGENTS_DIR}/.." && pwd)"
 IMAGE="${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}"
 

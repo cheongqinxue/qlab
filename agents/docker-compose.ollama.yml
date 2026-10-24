@@ -1,0 +1,22 @@
+# Local Ollama (OpenAI-compatible API on host loopback).
+#
+#   cd agents && docker compose -f docker-compose.ollama.yml up -d
+#
+# From agent containers use:
+#   OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+# (hipporag/memgraphrag compose should map host-gateway — see experiment compose.)
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ./.data/ollama:/root/.ollama
+    networks:
+      - ollama_local
+
+networks:
+  ollama_local:
+    driver: bridge
