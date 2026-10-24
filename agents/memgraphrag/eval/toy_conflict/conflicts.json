@@ -1,0 +1,10 @@
+{
+  "groups": [
+    {
+      "target_id": "f_newton_1643",
+      "related_ids": ["f_newton_1642"],
+      "kind": "hard",
+      "description": "Conflicting birth years for Isaac Newton"
+    }
+  ]
+}

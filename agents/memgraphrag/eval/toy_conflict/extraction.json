@@ -1,0 +1,22 @@
+{
+  "p1": {
+    "schemas": [{"id": "s_birth_year", "label": "PersonBirthYear"}],
+    "facts": [
+      {
+        "id": "f_newton_1642",
+        "text": "Isaac Newton was born in 1642.",
+        "passage_ids": ["p1"]
+      }
+    ]
+  },
+  "p2": {
+    "schemas": [{"id": "s_birth_year", "label": "PersonBirthYear"}],
+    "facts": [
+      {
+        "id": "f_newton_1643",
+        "text": "Isaac Newton was born in 1643.",
+        "passage_ids": ["p2"]
+      }
+    ]
+  }
+}

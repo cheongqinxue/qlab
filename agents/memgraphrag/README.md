@@ -32,7 +32,17 @@ Shared stack: **`agents-runtime:latest`**, **`agents/.env`**, optional Langfuse 
 
 ## Status
 
-**Scaffold only** — health API and folder layout. See [`PLAN.md`](PLAN.md).
+**Testing** — three-layer memory, fixture or LLM indexing agents (`MEMGRAPHRAG_AGENTS=fixture|llm`), memory-guided PPR retrieval, JSON persistence, optional Neo4j (`MEMGRAPHRAG_NEO4J=1`). See [`PLAN.md`](PLAN.md).
+
+### Tests
+
+From repo root (uses qlab `.venv`; disables conflicting pytest plugins if needed):
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run python -m pytest agents/memgraphrag/tests -q
+```
+
+**Memory graph / Neo4j / PPR (design + roadmap):** [`MEMORY_GRAPH.md`](MEMORY_GRAPH.md).
 
 ## Quick start
 
