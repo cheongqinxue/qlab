@@ -30,6 +30,8 @@ Both can share **`agents-runtime:latest`**, **`agents/.env`**, and optional Lang
 
 **Testing** — M1 vertical slice (indexing + PPR retrieval): Neo4j + fixture toy corpus, igraph PPR, FastAPI + Streamlit UI, pytest on toy multi-hop. Not production-hardened (see [`PLAN.md`](PLAN.md) for remaining phases). Paper PDF: `2405.14831v3.pdf`.
 
+**Graph / Neo4j / PPR (in depth):** [`MEMORY_GRAPH.md`](MEMORY_GRAPH.md).
+
 ### Tests
 
 From repo root (no Neo4j / no HF download in pytest):
