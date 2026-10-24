@@ -13,7 +13,10 @@ When in doubt, ask before changing the repo.
 
 ## Project pointers
 
-- **Agent harness experiments:** `agents/` — [`agents/README.md`](agents/README.md); **ReHarness** `agents/reharness/`; **HippoRAG** `agents/hipporag/`; **MemGraphRAG** `agents/memgraphrag/`.
+- **Agent harness experiments:** `agents/` — [`agents/README.md`](agents/README.md); **ReHarness** `agents/reharness/`; **HippoRAG** `agents/hipporag/`; **MemGraphRAG** `agents/memgraphrag/`; **CoVe** `agents/cove/`. **Import rule:** experiments must not import each other; shared code lives under **`agents/agents_utils/`** only.
+- **New demo experiment workflow:** skill [`agents-demo-experiment`](.cursor/skills/agents-demo-experiment/SKILL.md) (paper + reuse audit, fixtures-first, run scripts).
+- **Agents coding norms:** skill [`agents-harness-conventions`](.cursor/skills/agents-harness-conventions/SKILL.md) (import wall, encoders, tests, git).
+- **Agents Python review:** skill [`agents-python-review`](.cursor/skills/agents-python-review/SKILL.md) → `agents/REPOINDEX.md`, `agents/CODEREVIEW.md`.
 - **Pathology training + W&B logging:** `tutorials/pathologies/`
 - **BEV (local W&B viewer UI):** `tutorials/pathologies/bev/` — `backend/bev` (Python), `webui/`, `e2e/`, `sdk/`; see `bev/README.md` for build/run; roadmap in `bev/PLAN.md`; API + DB schema in `bev/docs/backend-reference.md`. Periodic carve-out/packaging audit: skill `bev-distribution-audit` (`.cursor/skills/bev-distribution-audit/`).
 
