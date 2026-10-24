@@ -2,7 +2,7 @@
 
 High-level map of the qlab agent harness tree. Entrypoints are **`main.py`** per experiment.
 
-**Last review:** 2026-10-24 — full `agents-python-review` with global `.mdc` checklist; API tests renamed per experiment (`test_*_api.py`).
+**Last review:** 2026-10-25 — H-MEM-only `agents-python-review` → [`hmem/CODEREVIEW.md`](hmem/CODEREVIEW.md). Prior: 2026-10-24 full agents review; API tests renamed per experiment (`test_*_api.py`).
 
 ## Shared (not runnable apps)
 
@@ -22,6 +22,7 @@ High-level map of the qlab agent harness tree. Entrypoints are **`main.py`** per
 | [`hipporag/`](hipporag/) | `hipporag_core` | 8081 | Streamlit 8502 |
 | [`memgraphrag/`](memgraphrag/) | `memgraphrag_core` | 8082 | — |
 | [`cove/`](cove/) | `cove_core` | 8083 | Streamlit 8503 |
+| [`hmem/`](hmem/) | `hmem_core` | 8084 | toy pytest (hybrid pipeline) |
 
 Typical layout per experiment:
 

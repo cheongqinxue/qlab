@@ -1,0 +1,44 @@
+# H-MEM agent only. Requires shared image + optional Langfuse network.
+#
+#   cd agents && ./scripts/build-image.sh
+#   docker compose -f hmem/docker-compose.yml up -d
+#
+# Env: agents/.env
+
+services:
+  agent:
+    image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    working_dir: /app/agents/hmem
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8084",
+      ]
+    env_file:
+      - ../.env
+    ports:
+      - "${HMEM_AGENT_PORT:-8084}:8084"
+    environment:
+      AGENT_NAME: hmem
+      HMEM_AGENTS: ${HMEM_AGENTS:-fixture}
+      HMEM_CONFIG: /app/agents/hmem/config/default.json
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      AGENT_LOG_DIR: /logs
+      AGENT_LOG_MAX_BYTES: "5242880"
+      AGENT_LOG_BACKUP_COUNT: "0"
+    volumes:
+      - ./.data/logs:/logs
+      - ./.data/hmem:/data/hmem
+    networks:
+      - agents_shared
+
+networks:
+  agents_shared:
+    external: true
+    name: agents_shared

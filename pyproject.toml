@@ -61,6 +61,7 @@ pythonpath = [
     "agents",
     "agents/hipporag",
     "agents/cove",
+    "agents/hmem",
     "agents",
 ]
 testpaths = [
@@ -70,5 +71,6 @@ testpaths = [
     "agents/hipporag/tests",
     "agents/memgraphrag/tests",
     "agents/cove/tests",
+    "agents/hmem/tests",
     "agents/agents_utils/tests",
 ]

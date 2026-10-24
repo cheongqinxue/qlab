@@ -11,6 +11,7 @@ Most of the repo lives under two top-level folders:
   - **`hipporag/`** — [HippoRAG](https://arxiv.org/abs/2405.14831): knowledge-graph indexing + Personalized PageRank retrieval (multi-hop RAG; **testing**).
   - **`memgraphrag/`** — [MemGraphRAG](https://arxiv.org/abs/2606.00610): multi-agent GraphRAG with shared global memory and hierarchical indexing (**testing**).
   - **`cove/`** — [Chain-of-Verification](https://arxiv.org/abs/2309.11495): draft → plan verification Qs → isolated answers → revised response (**testing**).
+  - **`hmem/`** — [H-MEM](https://arxiv.org/abs/2605.15701): hybrid temporal tree + knowledge graph for evolving agent memory (**testing**).
   - **`agents_utils/`** — Shared libraries used by agent experiments (Qdrant memory, Langfuse tracing, env/logging).
 
 - **`tutorials/`** — Smaller coding exercises and training sandboxes.

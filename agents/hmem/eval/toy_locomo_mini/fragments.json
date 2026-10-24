@@ -1,0 +1,30 @@
+{
+  "fragments": [
+    {
+      "id": "f1",
+      "timestamp": "2024-06-01T10:00:00Z",
+      "speaker": "user",
+      "text": "I adopted a cat named Mochi last weekend."
+    },
+    {
+      "id": "f2",
+      "timestamp": "2024-06-01T10:01:00Z",
+      "speaker": "assistant",
+      "text": "Congratulations on adopting Mochi!"
+    },
+    {
+      "id": "f3",
+      "timestamp": "2024-06-15T14:00:00Z",
+      "speaker": "user",
+      "text": "Mochi loves sitting on the blue armchair in the living room."
+    }
+  ],
+  "graph_edges": [
+    {"head": "Mochi", "relation": "likes", "tail": "blue armchair"},
+    {"head": "Mochi", "relation": "located_in", "tail": "living room"}
+  ],
+  "fixture_qa": {
+    "query": "What is the cat's name?",
+    "answer": "Mochi"
+  }
+}

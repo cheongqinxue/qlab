@@ -10,6 +10,7 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 | [`hipporag/`](hipporag/README.md) | HippoRAG **testing** (KG + PPR retrieval, Neo4j, Streamlit; NeurIPS 2024). |
 | [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **testing** (multi-agent GraphRAG + global memory; KDD 2026). |
 | [`cove/`](cove/README.md) | Chain-of-Verification **testing** (four-step self-check; ACL Findings 2024). |
+| [`hmem/`](hmem/README.md) | H-MEM **testing** (hybrid tree + KG index/retrieve; arXiv:2605.15701). |
 | [`agents_utils/`](agents_utils/) | Shared Python helpers (encoders, graph PPR, Qdrant memory, Langfuse tracing, logging, `.env`). Experiments must not import each other—only `agents_utils`. |
 | [`Dockerfile`](Dockerfile) + [`scripts/build-image.sh`](scripts/build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
 | [`scripts/`](scripts/README.md) | Composable **`start-langfuse`**, **`start-ollama`**, etc. |
@@ -134,6 +135,22 @@ curl -s -X POST http://localhost:8083/eval/bootstrap-toy
 
 Default port **8083** (`COVE_AGENT_PORT`). UI: `./cove/run-ui.sh` (default **8503**, `COVE_UI_PORT`). LLM: `COVE_AGENTS=llm`.
 
+### H-MEM
+
+Hybrid **tree + graph** long-term agent memory ([arxiv:2605.15701](https://arxiv.org/abs/2605.15701)). **Testing** — hybrid indexer, consolidation, retrieval pipeline, toy pytest; see [`UPSTREAM.md`](hmem/UPSTREAM.md) for author vs community code references.
+
+**Docs:** [`hmem/README.md`](hmem/README.md) · [`hmem/PLAN.md`](hmem/PLAN.md)
+
+```bash
+cd agents && ./hmem/run-agent.sh --detach
+curl -s http://localhost:8084/health
+curl -s -X POST http://localhost:8084/corpus/bootstrap-toy
+curl -s -X POST http://localhost:8084/ask -H 'Content-Type: application/json' -d '{"query":"What is the cat'\''s name?"}'
+./hmem/run-agent.sh stop
+```
+
+Default port **8084** (`HMEM_AGENT_PORT`). Fixture mode: `HMEM_AGENTS=fixture`.
+
 ---
 
 Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse. See skill [`.cursor/skills/agents-demo-experiment/`](../.cursor/skills/agents-demo-experiment/SKILL.md).
@@ -148,6 +165,7 @@ Single file: **`agents/.env`**. Key groups:
 - **HippoRAG:** `HIPPORAG_AGENT_PORT`, `HIPPORAG_*`
 - **MemGraphRAG:** `MEMGRAPHRAG_AGENT_PORT`, `MEMGRAPHRAG_*`
 - **CoVe:** `COVE_AGENT_PORT`, `COVE_AGENTS`
+- **H-MEM:** `HMEM_AGENT_PORT`, `HMEM_AGENTS`
 
 Full list: [`.env-template`](.env-template).
 
