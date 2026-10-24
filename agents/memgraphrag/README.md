@@ -1,6 +1,6 @@
 # MemGraphRAG experiment
 
-qlab scaffold for **MemGraphRAG** — a memory-based **multi-agent** GraphRAG system with shared global memory and hierarchical graph indexing, alongside [`../reharness/`](../reharness/README.md) and [`../hipporag/`](../hipporag/README.md).
+qlab **testing** harness for **MemGraphRAG** — a memory-based **multi-agent** GraphRAG system with shared global memory and hierarchical graph indexing, alongside [`../reharness/`](../reharness/README.md) and [`../hipporag/`](../hipporag/README.md).
 
 ## Paper
 
