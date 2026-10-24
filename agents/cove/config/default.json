@@ -1,0 +1,4 @@
+{
+  "verification_execution_mode": "factored",
+  "runs_data_dir": ".data/runs"
+}

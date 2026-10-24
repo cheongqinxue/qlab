@@ -1,0 +1,43 @@
+# CoVe agent only. Requires shared image + optional Langfuse network.
+#
+#   cd agents && ./scripts/build-image.sh
+#   docker compose -f cove/docker-compose.yml up -d
+#
+# Env: agents/.env
+
+services:
+  agent:
+    image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    working_dir: /app/agents/cove
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8083",
+      ]
+    env_file:
+      - ../.env
+    ports:
+      - "${COVE_AGENT_PORT:-8083}:8083"
+    environment:
+      AGENT_NAME: cove
+      COVE_CONFIG: /app/agents/cove/config/default.json
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      AGENT_LOG_DIR: /logs
+      AGENT_LOG_MAX_BYTES: "5242880"
+      AGENT_LOG_BACKUP_COUNT: "0"
+    volumes:
+      - ./.data/logs:/logs
+      - ./.data/runs:/data/runs
+    networks:
+      - agents_shared
+
+networks:
+  agents_shared:
+    external: true
+    name: agents_shared

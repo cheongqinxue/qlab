@@ -31,6 +31,7 @@ Shared helpers: [`_lib.sh`](_lib.sh) (paths, env, health waits).
 | ReHarness | [`../reharness/run.sh`](../reharness/run.sh) |
 | HippoRAG | [`../hipporag/run.sh`](../hipporag/run.sh) |
 | MemGraphRAG | [`../memgraphrag/run.sh`](../memgraphrag/run.sh) (agent only; no UI yet) |
+| CoVe | [`../cove/run.sh`](../cove/run.sh) (agent only; no UI yet) |
 
 If `agents-runtime:latest` is missing, `run-agent.sh` / `run.sh` exit with a message pointing at **`scripts/build-image.sh`**. Use **`--rebuild-image`** on `run-agent.sh` or `run.sh` to build then start.
 

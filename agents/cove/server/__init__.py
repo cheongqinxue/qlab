@@ -1,0 +1,1 @@
+"""CoVe FastAPI server package."""
