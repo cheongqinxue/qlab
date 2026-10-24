@@ -2,13 +2,33 @@
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum
 from math import sqrt
 from typing import Self
 
+import numpy as np
 from pydantic import BaseModel, Field, model_validator
+
+
+def encoded_to_dense_numpy(encoded: EncodedVector) -> np.ndarray:
+    """Return a 1-D ``float64`` array from a dense ``EncodedVector``.
+
+    Args:
+        encoded: Encoder output (must be ``EncoderKind.DENSE``).
+
+    Returns:
+        Copy of the dense vector as ``np.ndarray``.
+
+    Raises:
+        TypeError: When ``encoded`` is not dense.
+    """
+    if encoded.kind != EncoderKind.DENSE or not encoded.dense:
+        msg = "encoded_to_dense_numpy requires a dense EncodedVector"
+        raise TypeError(msg)
+    return np.asarray(encoded.dense, dtype=np.float64)
 
 
 class EncoderKind(str, Enum):
@@ -110,6 +130,9 @@ class BaseEncoder(ABC):
 
     Implementations include dense encoders (e.g. sentence-transformers) and
     multi-vector encoders (e.g. ColBERT). Storage backends consume ``EncodedVector``.
+
+    Subclasses implement **sync** ``encode_document`` / ``encode_query``. Async
+    variants delegate via ``asyncio.to_thread`` unless overridden.
     """
 
     @property
@@ -123,7 +146,7 @@ class BaseEncoder(ABC):
         """Vector dimension (per token for ``MULTI_VECTOR``)."""
 
     @abstractmethod
-    async def aencode_document(self, text: str) -> EncodedVector:
+    def encode_document(self, text: str) -> EncodedVector:
         """Encode text stored as a memory item (passage / document side).
 
         Args:
@@ -134,7 +157,7 @@ class BaseEncoder(ABC):
         """
 
     @abstractmethod
-    async def aencode_query(self, text: str) -> EncodedVector:
+    def encode_query(self, text: str) -> EncodedVector:
         """Encode text used at retrieval time (query side).
 
         Args:
@@ -143,6 +166,40 @@ class BaseEncoder(ABC):
         Returns:
             Encoded output matching ``kind``.
         """
+
+    async def aencode_document(self, text: str) -> EncodedVector:
+        """Async wrapper around :meth:`encode_document`."""
+        return await asyncio.to_thread(self.encode_document, text)
+
+    async def aencode_query(self, text: str) -> EncodedVector:
+        """Async wrapper around :meth:`encode_query`."""
+        return await asyncio.to_thread(self.encode_query, text)
+
+    def encode_document_numpy(self, text: str) -> np.ndarray:
+        """Dense document vector as NumPy (graph / sync retrieval code paths).
+
+        Args:
+            text: Raw text to encode.
+
+        Returns:
+            1-D ``float64`` array.
+
+        Raises:
+            TypeError: When ``kind`` is not ``DENSE``.
+        """
+        return encoded_to_dense_numpy(self.encode_document(text))
+
+    def encode_query_numpy(self, text: str) -> np.ndarray:
+        """Dense query vector as NumPy."""
+        return encoded_to_dense_numpy(self.encode_query(text))
+
+    async def aencode_document_numpy(self, text: str) -> np.ndarray:
+        """Async dense document vector as NumPy."""
+        return encoded_to_dense_numpy(await self.aencode_document(text))
+
+    async def aencode_query_numpy(self, text: str) -> np.ndarray:
+        """Async dense query vector as NumPy."""
+        return encoded_to_dense_numpy(await self.aencode_query(text))
 
     async def ascore(self, query: EncodedVector, document: EncodedVector) -> float:
         """Score a query–document pair.
