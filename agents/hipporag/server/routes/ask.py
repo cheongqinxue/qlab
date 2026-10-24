@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Request
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+
+from agents_utils.llm.openai_chat import create_chat_model
 
 from server.app_state import AppState
 from server.openie_factory import get_openie_extractor
@@ -35,8 +34,7 @@ async def ask(body: AskIn, request: Request) -> AskOut:
         top_k=body.top_k,
     )
     context = "\n\n".join(f"[{h.passage_id}] {h.text}" for h in hits)
-    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    llm = ChatOpenAI(model=model, temperature=0)
+    llm = create_chat_model()
     answer = llm.invoke(
         [
             SystemMessage(

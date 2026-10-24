@@ -45,6 +45,7 @@ services:
       - "${HIPPORAG_AGENT_PORT:-8081}:8081"
     environment:
       AGENT_NAME: hipporag
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
       HIPPORAG_CONFIG: /app/agents/hipporag/config/default.json
       LANGFUSE_BASE_URL: http://langfuse-web:3000
       AGENT_LOG_DIR: /logs

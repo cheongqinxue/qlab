@@ -6,7 +6,7 @@ import json
 from typing import Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+from agents_utils.llm.openai_chat import create_chat_model
 from pydantic import BaseModel, Field
 
 from hipporag_core.models import OpenIEExtraction, Triple
@@ -68,7 +68,7 @@ class LlmOpenIEExtractor:
 
     def __init__(self, model: str) -> None:
         """Bind chat model name from env."""
-        self._llm = ChatOpenAI(model=model, temperature=0)
+        self._llm = create_chat_model(model)
         self._ner = self._llm.with_structured_output(_NerResult)
         self._triples = self._llm.with_structured_output(_TripleResult)
 

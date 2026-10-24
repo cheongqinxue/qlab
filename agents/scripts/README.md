@@ -21,6 +21,7 @@ A single monolithic compose file would restart Langfuse/Ollama every time you to
 | [`stop-langfuse.sh`](stop-langfuse.sh) | Tear down Langfuse compose. |
 | [`start-ollama.sh`](start-ollama.sh) | Ensure Ollama API on `127.0.0.1:11434` (host or Docker). |
 | [`stop-ollama.sh`](stop-ollama.sh) | Stop **Docker** Ollama only. |
+| [`e2e-llm-all.sh`](e2e-llm-all.sh) | Docker LLM smoke for all five harnesses (`agents/.env`, `OPENAI_MODEL`). |
 
 Shared helpers: [`_lib.sh`](_lib.sh) (paths, env, health waits).
 
@@ -36,6 +37,16 @@ Shared helpers: [`_lib.sh`](_lib.sh) (paths, env, health waits).
 If `agents-runtime:latest` is missing, `run-agent.sh` / `run.sh` exit with a message pointing at **`scripts/build-image.sh`**. Use **`--rebuild-image`** on `run-agent.sh` or `run.sh` to build then start.
 
 Flags on `run.sh`: `--no-langfuse`, `--no-ollama`, `--agent-only` (skip Streamlit where applicable).
+
+## End-to-end LLM smoke
+
+From `agents/` with `OPENAI_API_KEY` and model in `.env` (for **gpt-6-luna**, set `OPENAI_TEMPERATURE=default`):
+
+```bash
+./scripts/e2e-llm-all.sh
+```
+
+Runs each stack sequentially: ReHarness task stream, HippoRAG `/ask`, MemGraphRAG LLM index + retrieve, CoVe `/verify`, H-MEM bootstrap + `/ask`.
 
 ## LLM from Docker agents → host Ollama
 

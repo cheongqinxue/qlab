@@ -27,6 +27,7 @@ services:
     environment:
       AGENT_NAME: hmem
       HMEM_AGENTS: ${HMEM_AGENTS:-fixture}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
       HMEM_CONFIG: /app/agents/hmem/config/default.json
       LANGFUSE_BASE_URL: http://langfuse-web:3000
       AGENT_LOG_DIR: /logs

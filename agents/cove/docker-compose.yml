@@ -26,6 +26,8 @@ services:
       - "${COVE_AGENT_PORT:-8083}:8083"
     environment:
       AGENT_NAME: cove
+      COVE_AGENTS: ${COVE_AGENTS:-fixture}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
       COVE_CONFIG: /app/agents/cove/config/default.json
       LANGFUSE_BASE_URL: http://langfuse-web:3000
       AGENT_LOG_DIR: /logs
