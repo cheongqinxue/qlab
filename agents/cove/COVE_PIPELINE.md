@@ -8,10 +8,10 @@ Paper: [2309.11495](https://arxiv.org/abs/2309.11495).
 
 | Step | Name | Input | Output | qlab |
 |------|------|-------|--------|------|
-| 1 | Baseline | User query | Draft response | `BaselineDrafter.draft` — **Implemented (fixture)** |
-| 2 | Plan | Query + draft | Verification questions | `VerificationPlanner.plan` — **Implemented (fixture)** |
-| 3 | Execute | Query + questions ( **not** draft) | Q/A pairs | `VerificationExecutor.execute` — **Implemented (fixture)** |
-| 4 | Revise | Query + draft + Q/A | Final response | `FinalReviser.revise` — **Implemented (fixture)** |
+| 1 | Baseline | User query | Draft response | `BaselineDrafter.draft` — **Implemented (fixture + LLM)** |
+| 2 | Plan | Query + draft | Verification questions | `VerificationPlanner.plan` — **Implemented (fixture + LLM)** |
+| 3 | Execute | Query + questions ( **not** draft) | Q/A pairs | `VerificationExecutor.execute` — **Implemented (fixture + LLM, factored)** |
+| 4 | Revise | Query + draft + Q/A | Final response | `FinalReviser.revise` — **Implemented (fixture + LLM)** |
 
 **Invariant (guardrail):** Step 3 must not condition on the baseline draft. The orchestrator passes only `query` and `questions` to the executor.
 

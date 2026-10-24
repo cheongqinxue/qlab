@@ -9,7 +9,7 @@ LLM **agent harness** experiments: shared Docker runtime, optional self-hosted *
 | [`reharness/`](reharness/README.md) | ReHarness continual-learning harness (Qdrant reflections, LangGraph agent, Streamlit UI). |
 | [`hipporag/`](hipporag/README.md) | HippoRAG **testing** (KG + PPR retrieval, Neo4j, Streamlit; NeurIPS 2024). |
 | [`memgraphrag/`](memgraphrag/README.md) | MemGraphRAG **testing** (multi-agent GraphRAG + global memory; KDD 2026). |
-| [`cove/`](cove/README.md) | Chain-of-Verification **scaffold** (four-step self-check; ACL Findings 2024). |
+| [`cove/`](cove/README.md) | Chain-of-Verification **testing** (four-step self-check; ACL Findings 2024). |
 | [`agents_utils/`](agents_utils/) | Shared Python helpers (encoders, graph PPR, Qdrant memory, Langfuse tracing, logging, `.env`). Experiments must not import each other—only `agents_utils`. |
 | [`Dockerfile`](Dockerfile) + [`scripts/build-image.sh`](scripts/build-image.sh) | Shared **`agents-runtime:latest`** image (repo `pyproject.toml` deps + this tree). |
 | [`scripts/`](scripts/README.md) | Composable **`start-langfuse`**, **`start-ollama`**, etc. |
@@ -121,7 +121,7 @@ Default port **8082** (`MEMGRAPHRAG_AGENT_PORT`).
 
 ### Chain-of-Verification (CoVe)
 
-Self-verification pipeline: baseline answer, verification questions, **isolated** Q/A, final revision ([arxiv:2309.11495](https://arxiv.org/abs/2309.11495)). **Scaffold** — fixture agents only.
+Self-verification pipeline: baseline answer, verification questions, **isolated** Q/A, final revision ([arxiv:2309.11495](https://arxiv.org/abs/2309.11495)). Fixture or LLM agents; optional Streamlit UI.
 
 **Docs:** [`cove/README.md`](cove/README.md) · [`cove/PLAN.md`](cove/PLAN.md) · [`cove/COVE_PIPELINE.md`](cove/COVE_PIPELINE.md)
 
@@ -132,7 +132,7 @@ curl -s -X POST http://localhost:8083/eval/bootstrap-toy
 ./cove/run-agent.sh stop
 ```
 
-Default port **8083** (`COVE_AGENT_PORT`). LLM steps: `COVE_AGENTS=llm` (stub until Phase 2).
+Default port **8083** (`COVE_AGENT_PORT`). UI: `./cove/run-ui.sh` (default **8503**, `COVE_UI_PORT`). LLM: `COVE_AGENTS=llm`.
 
 ---
 

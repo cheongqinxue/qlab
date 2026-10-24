@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot local test: shared services (if needed) → CoVe agent (no UI yet).
+# One-shot local test: shared services (if needed) → CoVe agent (UI: ./run-ui.sh).
 #
 # Usage:
 #   ./agents/cove/run.sh

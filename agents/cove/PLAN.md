@@ -9,10 +9,10 @@ Reference: [2309.11495](https://arxiv.org/abs/2309.11495), PDF in [`papers/2309.
 - [x] 3 Reuse audit (documented below)
 - [x] 4 Experiment core (`cove_core/`, `server/`, config)
 - [x] 5 Fixture path (`eval/`, factory, bootstrap API, pytest)
-- [ ] 6 LLM path (`COVE_AGENTS=llm`, factored execution prompts)
+- [x] 6 LLM path (`COVE_AGENTS=llm`, factored execution prompts)
 - [x] 7 Runnable stack (compose, `_run_common.sh`, `run-agent.sh`, `run.sh`)
 - [x] 8 Pipeline design doc ([`COVE_PIPELINE.md`](COVE_PIPELINE.md))
-- [x] 9 Register docs (root + `agents/README.md`, status **scaffold**)
+- [x] 9 Register docs (root + `agents/README.md`, status **testing**)
 - [ ] 10 Commits (user-requested)
 
 ## Phase 0 — Sources
@@ -58,13 +58,13 @@ No `BaseMemory` for v1 — runs are stateless; optional run history JSON under `
 
 ## Phase 2 — LLM agents
 
-- [ ] `LlmBaselineDrafter`, planner, factored executor, reviser
-- [ ] Structured outputs / prompts aligned with paper appendix
-- [ ] Langfuse spans per step
+- [x] `LlmBaselineDrafter`, planner, factored executor, reviser
+- [x] Structured planner output + paper-style prompts
+- [x] Langfuse callbacks / session metadata per step
 
 ## Phase 3 — Demo UX
 
-- [ ] Streamlit UI showing four stages side-by-side
+- [x] Streamlit UI showing four stages side-by-side (`ui/app.py`, `run-ui.sh`)
 - [ ] Optional retrieval-augmented verification (paper §3.3)
 
 ## Phase 4 — Eval

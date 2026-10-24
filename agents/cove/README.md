@@ -1,6 +1,6 @@
 # Chain-of-Verification (CoVe) experiment
 
-qlab **scaffold** for **Chain-of-Verification** — reduce hallucinations by drafting, planning verification questions, answering them in **isolation**, then revising ([arxiv:2309.11495](https://arxiv.org/abs/2309.11495)).
+qlab harness for **Chain-of-Verification** — reduce hallucinations by drafting, planning verification questions, answering them in **isolation**, then revising ([arxiv:2309.11495](https://arxiv.org/abs/2309.11495)).
 
 ## Paper
 
@@ -28,7 +28,7 @@ Shared stack: **`agents-runtime:latest`**, **`agents/.env`**, optional Langfuse 
 
 ## Status
 
-**Scaffold** — four-step orchestrator, fixture agents (`COVE_AGENTS=fixture`), `POST /verify`, toy eval. LLM agents stubbed (`COVE_AGENTS=llm` → not implemented yet).
+**Testing** — four-step orchestrator, fixture agents (`COVE_AGENTS=fixture`) and LLM agents (`COVE_AGENTS=llm`), `POST /verify`, toy eval, Streamlit UI (`run-ui.sh`).
 
 See [`PLAN.md`](PLAN.md) and [`COVE_PIPELINE.md`](COVE_PIPELINE.md).
 
@@ -45,4 +45,13 @@ cd agents && ./cove/run.sh
 curl -s http://localhost:8083/health
 curl -s -X POST http://localhost:8083/verify -H 'Content-Type: application/json' \
   -d '{"query_id":"mexican_american_war"}'
+# UI (separate terminal): ./cove/run-ui.sh  → http://127.0.0.1:8503
+```
+
+LLM mode (requires `OPENAI_API_KEY` or Ollama via `OPENAI_BASE_URL`):
+
+```bash
+COVE_AGENTS=llm ./cove/run-agent.sh --detach
+curl -s -X POST http://localhost:8083/verify -H 'Content-Type: application/json' \
+  -d '{"query":"When did the Mexican–American War start and end?"}'
 ```

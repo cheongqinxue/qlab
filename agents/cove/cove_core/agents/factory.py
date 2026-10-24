@@ -10,7 +10,7 @@ from cove_core.agents.fixture import (
     FixtureVerificationExecutor,
     FixtureVerificationPlanner,
 )
-from cove_core.agents.llm_stub import (
+from cove_core.agents.llm import (
     LlmBaselineDrafter,
     LlmFinalReviser,
     LlmVerificationExecutor,
