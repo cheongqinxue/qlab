@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 
+def _load_hipporag_app():
+    """Import HippoRAG ``main:app`` without colliding with other experiments."""
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("hipporag_main", root / "main.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module.app
+
+
 @pytest.fixture
-def api_client(monkeypatch: pytest.MonkeyPatch):
+def api_client() -> TestClient:
     """App with memory graph store (no Neo4j)."""
-
-    from main import app
-
-    with TestClient(app) as client:
+    with TestClient(_load_hipporag_app()) as client:
         yield client
 
 

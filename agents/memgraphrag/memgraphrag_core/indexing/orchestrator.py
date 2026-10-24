@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 
 from memgraphrag_core.agents.conflict_detect import FixtureConflictDetectionAgent
 from memgraphrag_core.agents.conflict_resolve import FixtureConflictResolutionAgent
@@ -24,7 +24,7 @@ class IndexOrchestrator:
     def __init__(
         self,
         memory: MemGraphGlobalMemory,
-        encoder: PhraseEncoder,
+        encoder: BaseEncoder,
         *,
         extraction: ExtractionAgent,
         detection: ConflictDetectionAgent,

@@ -28,7 +28,7 @@ The previous plan phases still apply; work is ordered **memory → agents → gr
 ## Phase 2 — Multi-agent indexing
 
 - [x] Wire `IndexOrchestrator` + fixture or LLM agents (`MEMGRAPHRAG_AGENTS`)
-- [x] Hierarchical indexing graph + igraph PPR (via HippoRAG `ppr.py`)
+- [x] Hierarchical indexing graph + igraph PPR (`agents_utils/graph/ppr.py`)
 
 ## Phase 3 — Memory-aware retrieval
 

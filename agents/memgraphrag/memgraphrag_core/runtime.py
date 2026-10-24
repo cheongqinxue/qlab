@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
+from agents_utils.memory.sentence_transformers_encoder import SentenceTransformersEncoder
 
 from memgraphrag_core.agents.factory import build_indexing_agents
 from memgraphrag_core.indexing.orchestrator import IndexOrchestrator
@@ -20,7 +21,7 @@ class MemgraphRuntime:
     """Handles for memory, indexing, and retrieval."""
 
     memory: MemGraphGlobalMemory
-    encoder: PhraseEncoder
+    encoder: BaseEncoder
     orchestrator: IndexOrchestrator
     retriever: MemoryGuidedRetriever
     neo4j: Neo4jMemoryProjection | None = None
@@ -31,21 +32,18 @@ class MemgraphRuntime:
             self.neo4j.close()
 
 
-def create_encoder() -> PhraseEncoder:
-    """Build phrase encoder (hash in tests, HF model otherwise)."""
-    if os.environ.get("MEMGRAPHRAG_TEST_ENCODER") == "hash" or os.environ.get(
-        "PYTEST_CURRENT_TEST"
-    ):
-        return PhraseEncoder()
-    model = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    return PhraseEncoder.from_env_model(model)
-
-
-def build_runtime(config: MemGraphMemoryConfig) -> MemgraphRuntime:
+def build_runtime(
+    config: MemGraphMemoryConfig,
+    *,
+    encoder: BaseEncoder | None = None,
+) -> MemgraphRuntime:
     """Construct runtime from config and environment."""
-    encoder = create_encoder()
-    memory = MemGraphGlobalMemory.build_or_restore(config, encoder=encoder)
-    memory.set_encoder(encoder)
+    resolved = encoder
+    if resolved is None:
+        model = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        resolved = SentenceTransformersEncoder(model)
+    memory = MemGraphGlobalMemory.build_or_restore(config, encoder=resolved)
+    memory.set_encoder(resolved)
 
     agents = build_indexing_agents()
     neo4j: Neo4jMemoryProjection | None = None
@@ -54,16 +52,16 @@ def build_runtime(config: MemGraphMemoryConfig) -> MemgraphRuntime:
 
     orchestrator = IndexOrchestrator(
         memory,
-        encoder,
+        resolved,
         extraction=agents[0],
         detection=agents[1],
         resolution=agents[2],
         neo4j=neo4j,
     )
-    retriever = MemoryGuidedRetriever(memory, encoder, config)
+    retriever = MemoryGuidedRetriever(memory, resolved, config)
     return MemgraphRuntime(
         memory=memory,
-        encoder=encoder,
+        encoder=resolved,
         orchestrator=orchestrator,
         retriever=retriever,
         neo4j=neo4j,

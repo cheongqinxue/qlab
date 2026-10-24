@@ -46,7 +46,11 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def memgraphrag_test_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def memgraphrag_test_env(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    hash_encoder,
+) -> None:
     """Point settings at repo config and avoid optional observability side effects."""
     cfg_data = json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
     cfg_data["memory_data_dir"] = str(tmp_path / "memory")
@@ -54,7 +58,6 @@ def memgraphrag_test_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     custom_config = tmp_path / "memgraphrag-config.json"
     custom_config.write_text(json.dumps(cfg_data), encoding="utf-8")
     monkeypatch.setenv("MEMGRAPHRAG_CONFIG", str(custom_config))
-    monkeypatch.setenv("MEMGRAPHRAG_TEST_ENCODER", "hash")
     monkeypatch.setenv("MEMGRAPHRAG_BOOTSTRAP_TOY", "0")
     monkeypatch.setenv("MEMGRAPHRAG_AGENTS", "fixture")
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
@@ -63,6 +66,23 @@ def memgraphrag_test_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     from server.settings import get_settings
 
     get_settings.cache_clear()
+
+    import memgraphrag_core.runtime as runtime_mod
+
+    _orig_build_runtime = runtime_mod.build_runtime
+
+    def _build_runtime(config, *, encoder=None):
+        return _orig_build_runtime(config, encoder=encoder or hash_encoder)
+
+    monkeypatch.setattr(runtime_mod, "build_runtime", _build_runtime)
+
+
+@pytest.fixture
+def hash_encoder():
+    """Deterministic dense encoder for unit tests (no HF download)."""
+    from agents_utils.memory.hash_dense_encoder import HashDenseEncoder
+
+    return HashDenseEncoder()
 
 
 @pytest.fixture

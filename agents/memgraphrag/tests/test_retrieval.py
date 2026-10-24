@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 
 from memgraphrag_core.memory.config import MemGraphMemoryConfig
 from memgraphrag_core.memory.memgraph_memory import MemGraphGlobalMemory
@@ -19,10 +19,11 @@ class TestRetrieval:
     """Filter, seeds, and retriever."""
 
     @pytest.fixture
-    def memory_with_graph(self) -> MemGraphGlobalMemory:
-        encoder = PhraseEncoder()
-        memory = MemGraphGlobalMemory(MemGraphMemoryConfig(retrieval_sim_threshold=0.0))
-        memory.set_encoder(encoder)
+    def memory_with_graph(self, hash_encoder: BaseEncoder) -> MemGraphGlobalMemory:
+        memory = MemGraphGlobalMemory(
+            MemGraphMemoryConfig(retrieval_sim_threshold=0.0),
+            encoder=hash_encoder,
+        )
         memory.layers.add_passage(PassageRecord(id="p1", text="Isaac Newton born 1642"))
         memory.layers.merge_ontology("s1", "BirthYear")
         memory.layers.add_fact(
@@ -33,7 +34,7 @@ class TestRetrieval:
                 schema_ids=["s1"],
             )
         )
-        memory.rebuild_index_graph(encoder)
+        memory.rebuild_index_graph(hash_encoder)
         return memory
 
     def test_filter_layers_returns_nodes(self, memory_with_graph: MemGraphGlobalMemory) -> None:

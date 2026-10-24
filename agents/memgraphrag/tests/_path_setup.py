@@ -1,4 +1,4 @@
-"""Ensure MemGraphRAG wins over HippoRAG for shared module names."""
+"""Ensure MemGraphRAG wins for shared module names (``main``, ``server``)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,11 @@ from pathlib import Path
 
 _MEMGRAPHRAG_ROOT = Path(__file__).resolve().parents[1]
 _AGENTS_ROOT = _MEMGRAPHRAG_ROOT.parent
-_HIPPORAG_ROOT = _AGENTS_ROOT / "hipporag"
 
 
 def ensure_memgraphrag_paths() -> None:
-    """Prepend MemGraphRAG (and deps) to ``sys.path``."""
-    for path in (_AGENTS_ROOT, _HIPPORAG_ROOT, _MEMGRAPHRAG_ROOT):
+    """Prepend MemGraphRAG (and ``agents_utils`` parent) to ``sys.path``."""
+    for path in (_AGENTS_ROOT, _MEMGRAPHRAG_ROOT):
         entry = str(path)
         while entry in sys.path:
             sys.path.remove(entry)

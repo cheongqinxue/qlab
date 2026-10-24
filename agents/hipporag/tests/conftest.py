@@ -4,25 +4,40 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-
-@pytest.fixture(autouse=True)
-def hipporag_test_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Avoid Neo4j / HuggingFace during unit tests."""
-    monkeypatch.setenv("HIPPORAG_GRAPH_BACKEND", "memory")
-    monkeypatch.setenv("HIPPORAG_TEST_ENCODER", "hash")
-    monkeypatch.setenv("HIPPORAG_BOOTSTRAP_TOY", "0")
+from agents_utils.memory.base_encoder import BaseEncoder
+from agents_utils.memory.fixed_dense_encoder import FixedDenseEncoder
 
 from hipporag_core.memory_graph_store import MemoryGraphStore
 from hipporag_core.models import OpenIEExtraction, Passage, Triple
-from hipporag_core.phrase_encoder import PhraseEncoder
+
+
+@pytest.fixture(autouse=True)
+def hipporag_test_env(
+    monkeypatch: pytest.MonkeyPatch,
+    phrase_encoder: BaseEncoder,
+) -> None:
+    """Avoid Neo4j / HuggingFace during unit tests."""
+    monkeypatch.setenv("HIPPORAG_GRAPH_BACKEND", "memory")
+    monkeypatch.setenv("HIPPORAG_BOOTSTRAP_TOY", "0")
+
+    import hipporag_core.runtime as runtime_mod
+
+    _orig_build_runtime = runtime_mod.build_runtime
+
+    def _build_runtime(*, encoder: BaseEncoder | None = None, **kwargs):
+        return _orig_build_runtime(
+            encoder=encoder or phrase_encoder,
+            **kwargs,
+        )
+
+    monkeypatch.setattr(runtime_mod, "build_runtime", _build_runtime)
 
 
 @pytest.fixture
-def phrase_encoder() -> PhraseEncoder:
-    """Deterministic tiny encoder for linking/synonymy tests (no HF download)."""
+def phrase_encoder() -> BaseEncoder:
+    """Deterministic encoder for linking/synonymy tests (no HF download)."""
 
-    return PhraseEncoder.from_vectors(
+    return FixedDenseEncoder(
         {
             "stanford": _unit(0),
             "professor thomas": _unit(1),
@@ -30,6 +45,10 @@ def phrase_encoder() -> PhraseEncoder:
             "harvard": _unit(3),
             "stanford university": _unit(0, jitter=0.02),
             "alzheimers": _unit(2, jitter=0.03),
+            "harvard university": _unit(3, jitter=0.02),
+            "massachusetts": _unit(4),
+            "california": _unit(5),
+            "memory": _unit(6),
         }
     )
 
@@ -142,7 +161,7 @@ def toy_openie_by_passage() -> dict[str, OpenIEExtraction]:
 def indexed_toy_graph(
     toy_passages: list[Passage],
     toy_openie_by_passage: dict[str, OpenIEExtraction],
-    phrase_encoder: PhraseEncoder,
+    phrase_encoder: BaseEncoder,
 ) -> MemoryGraphStore:
     """Toy corpus fully indexed in memory."""
 

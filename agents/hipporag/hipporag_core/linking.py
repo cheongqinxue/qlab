@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from hipporag_core.phrase_encoder import PhraseEncoder
+from agents_utils.memory.base_encoder import BaseEncoder
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ def link_query_entities(
     *,
     entity_texts: list[str],
     entity_vectors: np.ndarray,
-    encoder: PhraseEncoder,
+    encoder: BaseEncoder,
 ) -> list[EntityLink]:
     """Argmax cosine link each query entity to one graph node.
 
@@ -45,7 +45,7 @@ def link_query_entities(
         q = query.strip()
         if not q:
             continue
-        query_vec = encoder.encode(q)
+        query_vec = encoder.encode_query_numpy(q)
         sims = matrix @ query_vec
         best = int(np.argmax(sims))
         links.append(

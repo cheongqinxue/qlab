@@ -11,7 +11,7 @@ This document describes **how qlab’s HippoRAG experiment builds and updates th
 | Backend selection | `hipporag_core/graph_store.py` |
 | Indexing (OpenIE → graph) | `hipporag_core/indexer.py` |
 | PPR snapshot export | `memory_graph_store.export_ppr_snapshot()` → `ppr_snapshot.py` |
-| PPR execution | `hipporag_core/ppr.py` (igraph) |
+| PPR execution | `agents_utils/graph/ppr.py` (igraph) |
 | Query → seeds → passages | `hipporag_core/linking.py`, `retriever.py`, `passage_scoring.py` |
 | HTTP lifecycle | `server/routes/corpus.py`, `index.py`, `retrieve.py` |
 | Runtime wiring | `hipporag_core/runtime.py`, `main.py` |
@@ -215,7 +215,7 @@ Passage ids are sorted separately; passages with no indexed entities still appea
 ### 6.2 Query linking (`link_query_entities`)
 
 1. OpenIE (or fixture) extracts **query entity strings** from the question (`POST /retrieve`).
-2. For each query phrase, encode with `PhraseEncoder` **M**.
+2. For each query phrase, encode with `BaseEncoder` **M** (`encode_query_numpy`).
 3. **Argmax cosine** similarity against all `entity_vectors` → `EntityLink(entity_index, …)`.
 
 This is the paper’s link-to-graph step (dense similarity, one node per query entity).
@@ -281,7 +281,7 @@ Health (`GET /health`) reports passage/entity/triple counts from the store.
 
 Pytest sets `HIPPORAG_GRAPH_BACKEND=memory` in `tests/conftest.py` — **no Bolt**, fast graph tests.
 
-Encoder: under pytest or `HIPPORAG_TEST_ENCODER=hash`, `PhraseEncoder()` uses a deterministic hash embedding instead of HuggingFace.
+Encoder: tests inject `HashDenseEncoder` or `FixedDenseEncoder` via fixtures; production uses `SentenceTransformersEncoder` and `EMBEDDING_MODEL`.
 
 ---
 
@@ -328,7 +328,7 @@ Consider adding to Neo4j (not all present today):
 
 | Step | Files |
 |------|--------|
-| GDS PPR backend | New `hipporag_core/ppr_neo4j.py` or branch in `ppr.py` |
+| GDS PPR backend | New `hipporag_core/ppr_neo4j.py` or branch in `agents_utils/graph/ppr.py` |
 | Store facade | `graph_store.py`, `neo4j_graph_store.py` |
 | Retriever | Inject `PprBackend` interface; `retriever.py` |
 | Config | `server/settings.py`, `config/default.json`, `agents/.env-template` |
