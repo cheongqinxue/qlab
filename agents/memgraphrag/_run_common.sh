@@ -20,18 +20,24 @@ load_memgraphrag_env() {
 
 ensure_agents_runtime_image() {
   local rebuild="${1:-0}"
-  if [[ "${rebuild}" -eq 1 ]] || ! docker image inspect "${AGENTS_RUNTIME_IMAGE}" >/dev/null 2>&1; then
+  if [[ "${rebuild}" -eq 1 ]]; then
     echo "Building shared image ${AGENTS_RUNTIME_IMAGE} …"
-    "${AGENTS_DIR}/build-image.sh"
+    "${AGENTS_DIR}/scripts/build-image.sh"
+    return
+  fi
+  if ! docker image inspect "${AGENTS_RUNTIME_IMAGE}" >/dev/null 2>&1; then
+    echo "Docker image ${AGENTS_RUNTIME_IMAGE} not found." >&2
+    echo "Build it once: ${AGENTS_DIR}/scripts/build-image.sh" >&2
+    echo "Or pass --rebuild-image to build and start." >&2
+    exit 1
   fi
 }
 
 ensure_agents_shared_network() {
-  if ! docker network inspect agents_shared >/dev/null 2>&1; then
-    echo "Docker network agents_shared not found. Start Langfuse first:" >&2
-    echo "  cd ${AGENTS_DIR} && docker compose -f docker-compose.langfuse.yml up -d" >&2
-    exit 1
+  if docker network inspect agents_shared >/dev/null 2>&1; then
+    return 0
   fi
+  "${AGENTS_DIR}/scripts/start-langfuse.sh"
 }
 
 wait_for_memgraphrag_health() {

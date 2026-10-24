@@ -8,6 +8,8 @@
 services:
   agent:
     image: ${AGENTS_RUNTIME_IMAGE:-agents-runtime:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     working_dir: /app/agents/memgraphrag
     command:
       [
