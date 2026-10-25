@@ -13,11 +13,31 @@
     "[python]": {
         "editor.wordWrap": "bounded",
         "editor.wordWrapColumn": 100,
-        "editor.rulers": [100],
+        "editor.rulers": [
+            100
+        ],
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
             "source.organizeImports.ruff": "always"
         }
+    },
+    "rust-analyzer.inlayHints.typeHints.enable": true,
+    "rust-analyzer.inlayHints.parameterHints.enable": true,
+    "rust-analyzer.inlayHints.chainingHints.enable": true,
+    "rust-analyzer.inlayHints.closingBraceHints.enable": true,
+    "rust-analyzer.inlayHints.lifetimeElisionHints.enable": "always",
+    "rust-analyzer.inlayHints.reborrowHints.enable": "always",
+    "[rust]": {
+        // You can also put other Rust-specific settings here, like auto-formatting
+        "editor.formatOnSave": true,
+        "editor.suggest.snippetsPreventQuickSuggestions": false
+    },
+    // 3. UI and Theme adjustments also live at the root level
+    "workbench.colorCustomizations": {
+        "editorInlayHint.foreground": "#868686a0",
+        "editorInlayHint.background": "#00000000",
+        "editorInlayHint.typeForeground": "#5c755cf0",
+        "editorInlayHint.parameterForeground": "#5c755cf0"
     }
 }
