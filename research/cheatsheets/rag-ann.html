@@ -235,25 +235,161 @@
             <span class="cell-title">Major engines &amp; brands (2025–26)</span>
           </section>
 
-          <section class="cell">
-            <span class="cell-title">Libraries &amp; self-host</span>
-            <ul>
-              <li><strong>Faiss</strong> (Meta) — IVF, PQ, HNSW, GPU; research/production standard</li>
-              <li><strong>hnswlib</strong> — lightweight HNSW</li>
-              <li><strong>pgvector</strong> — Postgres extension; HNSW / IVFFlat indexes</li>
-              <li><strong>OpenSearch / Elasticsearch</strong> — dense_vector + HNSW</li>
-              <li><strong>Milvus</strong>, <strong>Qdrant</strong>, <strong>Weaviate</strong> — dedicated vector DBs</li>
-              <li><strong>Vespa</strong> — hybrid lexical + vector at scale</li>
-            </ul>
-          </section>
-
-          <section class="cell">
-            <span class="cell-title">Managed cloud</span>
-            <ul>
-              <li><strong>Pinecone</strong>, <strong>Zilliz Cloud</strong> (Milvus), <strong>Weaviate Cloud</strong>, <strong>Qdrant Cloud</strong></li>
-              <li>Hyperscaler: OpenSearch Serverless, Azure AI Search vector, Vertex Matching Engine, etc.</li>
-              <li>Pick on: metadata filters, ops burden, SLA, cost at your N and QPS</li>
-            </ul>
+          <section class="cell cell-span">
+            <span class="cell-title">Feature comparison (high level)</span>
+            <p>Legend: <strong>Y</strong> yes · <strong>P</strong> partial / optional · <strong>—</strong> not a focus. Verify on vendor docs — indexes change per release.</p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Feature</th>
+                    <th scope="col">Faiss</th>
+                    <th scope="col">pgvector</th>
+                    <th scope="col">Qdrant</th>
+                    <th scope="col">Milvus</th>
+                    <th scope="col">Weaviate</th>
+                    <th scope="col">Pinecone</th>
+                    <th scope="col">OpenSearch</th>
+                    <th scope="col">Vespa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>What it is</td>
+                    <td>C++ index library</td>
+                    <td>Postgres extension</td>
+                    <td>Vector database</td>
+                    <td>Vector database</td>
+                    <td>Vector + object store</td>
+                    <td>Managed vector SaaS</td>
+                    <td>Search cluster</td>
+                    <td>Search + serving engine</td>
+                  </tr>
+                  <tr>
+                    <td>Self-host</td>
+                    <td>Y (embed in app)</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>— (cloud)</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                  </tr>
+                  <tr>
+                    <td>HNSW ANN</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                  </tr>
+                  <tr>
+                    <td>IVF / clustering ANN</td>
+                    <td>Y (core)</td>
+                    <td>Y (IVFFlat)</td>
+                    <td>P</td>
+                    <td>Y</td>
+                    <td>P</td>
+                    <td>—</td>
+                    <td>P</td>
+                    <td>P</td>
+                  </tr>
+                  <tr>
+                    <td>PQ / SQ compression</td>
+                    <td>Y (PQ, SQ)</td>
+                    <td>P (halfvec, quant)</td>
+                    <td>P (quantization)</td>
+                    <td>Y (PQ-style)</td>
+                    <td>P</td>
+                    <td>P (managed)</td>
+                    <td>P</td>
+                    <td>Y</td>
+                  </tr>
+                  <tr>
+                    <td>GPU search</td>
+                    <td>Y</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>P</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>P</td>
+                  </tr>
+                  <tr>
+                    <td>Metadata pre-filter + ANN</td>
+                    <td>— (DIY)</td>
+                    <td>Y (SQL WHERE)</td>
+                    <td>Y (payload filter)</td>
+                    <td>Y (scalar/filter)</td>
+                    <td>Y (where)</td>
+                    <td>Y (metadata)</td>
+                    <td>Y (bool + knn)</td>
+                    <td>Y (YQL)</td>
+                  </tr>
+                  <tr>
+                    <td>Hybrid lexical + vector</td>
+                    <td>—</td>
+                    <td>P (Postgres FTS + vector)</td>
+                    <td>P (sparse vectors)</td>
+                    <td>P (sparse BM25)</td>
+                    <td>Y (BM25 fusion)</td>
+                    <td>P</td>
+                    <td>Y</td>
+                    <td>Y (native)</td>
+                  </tr>
+                  <tr>
+                    <td>Multi-tenant / namespaces</td>
+                    <td>—</td>
+                    <td>P (RLS, schemas)</td>
+                    <td>Y (collections)</td>
+                    <td>Y (partitions)</td>
+                    <td>Y (classes/tenant)</td>
+                    <td>Y (namespaces)</td>
+                    <td>Y (index per tenant)</td>
+                    <td>Y (apps/namespaces)</td>
+                  </tr>
+                  <tr>
+                    <td>SQL or familiar queries</td>
+                    <td>—</td>
+                    <td>Y (SQL)</td>
+                    <td>P (REST/gRPC)</td>
+                    <td>P (SDK)</td>
+                    <td>P (GraphQL)</td>
+                    <td>P (API)</td>
+                    <td>P (Query DSL)</td>
+                    <td>P (YQL)</td>
+                  </tr>
+                  <tr>
+                    <td>Managed cloud offering</td>
+                    <td>—</td>
+                    <td>P (Neon, RDS, etc.)</td>
+                    <td>Y</td>
+                    <td>Y (Zilliz)</td>
+                    <td>Y</td>
+                    <td>Y</td>
+                    <td>Y (Serverless)</td>
+                    <td>P</td>
+                  </tr>
+                  <tr>
+                    <td>Best fit</td>
+                    <td>Custom high-QPS index in-process</td>
+                    <td>Already on Postgres, RLS</td>
+                    <td>RAG API, filters, OSS</td>
+                    <td>Large scale, many index types</td>
+                    <td>Hybrid search + modules</td>
+                    <td>Minimal ops, fast start</td>
+                    <td>Existing ES/OS stack</td>
+                    <td>Production hybrid retrieval</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Also consider: Elasticsearch (same dense_vector story as OpenSearch), Redis vector sets, Chroma/LanceDB for local/dev, Vertex Matching Engine (ScaNN) on GCP.</p>
           </section>
 
           <section class="cell cell-span">

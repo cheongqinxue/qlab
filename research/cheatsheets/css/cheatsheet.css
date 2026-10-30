@@ -449,6 +449,39 @@ body {
   line-height: 1.35;
 }
 
+.cell-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.45em;
+  max-width: 100%;
+}
+
+.cell-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(0.72rem * var(--font-scale));
+  line-height: 1.35;
+}
+
+.cell-table th,
+.cell-table td {
+  border: 1px solid var(--border-cell);
+  padding: 0.35em 0.45em;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cell-table th {
+  background: var(--bg-cell-alt);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cell-table td:first-child {
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 7.5rem;
+}
+
 .func-chart {
   margin-top: 0.55em;
   width: 100%;
