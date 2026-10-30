@@ -37,7 +37,7 @@
     },
     {
       label: "Interview prep",
-      items: [{ href: "thoughtworks-ai-interview.html", label: "ThoughtWorks AI" }],
+      items: [{ href: "ai-engineer-interview.html", label: "AI Engineer" }],
     },
   ];
 
