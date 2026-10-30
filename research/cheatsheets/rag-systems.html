@@ -60,14 +60,9 @@
           <section class="cell">
             <span class="cell-title">Chunking</span>
             <p>
-              Split documents into pieces that fit the context window and embed model limits.
-              Too small loses context; too large dilutes the vector. Overlap (e.g. 10–20%) reduces boundary cuts mid-sentence.
+              Split documents before embed. Size trade-offs and paper-backed fixes (late chunking, contextual retrieval, RAPTOR, parent-doc) —
+              see <a href="rag-chunking.html">chunking sheet</a>.
             </p>
-            <ul>
-              <li>Fixed token windows — simple default</li>
-              <li>Structure-aware — by heading, paragraph, page</li>
-              <li>Parent–child — retrieve small, inject larger parent for LLM</li>
-            </ul>
           </section>
 
           <section class="cell">

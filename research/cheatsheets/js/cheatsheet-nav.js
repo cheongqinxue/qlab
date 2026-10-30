@@ -42,6 +42,7 @@
       label: "RAG",
       items: [
         { href: "rag-retrieval.html", label: "Retrieval" },
+        { href: "rag-chunking.html", label: "Chunking" },
         { href: "rag-systems.html", label: "RAG systems" },
       ],
     },
