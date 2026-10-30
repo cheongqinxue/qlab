@@ -140,17 +140,85 @@
           </section>
 
           <section class="cell cell-band cell-span">
-            <span class="cell-title">Other ANN families (newer / situational)</span>
+            <span class="cell-title">Other ANN families (beyond HNSW / IVF)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">ScaNN (Google scalable nearest neighbors)</span>
+            <p>
+              Combines <strong>coarse partitioning</strong> (similar spirit to IVF) with learned or optimized
+              <strong>anisotropic vector quantization (AQ)</strong> — quantization that respects which directions matter for distance, not just uniform bins.
+              Often strong recall/latency on CPU; shipped in Google Vertex Matching Engine and the open ScaNN library.
+            </p>
+            <p>Think: cluster → compress vectors aggressively → asymmetric distance at query time. Tuned as a bundle; less DIY than raw Faiss knobs.</p>
           </section>
 
           <section class="cell">
-            <span class="cell-title">Algorithms &amp; research lines</span>
+            <span class="cell-title">DiskANN (disk-resident graph)</span>
+            <p>
+              Builds a <strong>Vamana</strong> graph (related to NSW/HNSW family) but stores it on <strong>SSD</strong> with careful IO scheduling so billion-point search works when RAM cannot hold the full graph.
+              Query latency higher than in-RAM HNSW but footprint much smaller per point.
+            </p>
+            <p>Use when: corpus too large for RAM, still need graph-quality ANN, can tolerate ms–tens of ms disk IO.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CAGRA (NVIDIA cuVS)</span>
+            <p>
+              <strong>CAGRA</strong> — GPU-built and GPU-searched graph ANN (successor line to RAFT/cuML neighbors).
+              Targets batch and high-QPS search where GPU memory holds the index; very fast when data fits VRAM.
+            </p>
+            <p>Pair with GPU embedding pipelines; less common in tiny Postgres sidecars.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Annoy (approximate nearest neighbors oh yeah)</span>
+            <p>
+              Spotify’s <strong>Annoy</strong>: random hyperplane trees — binary splits on random directions, forests of trees, majority vote on candidates.
+              Simple, mmap-friendly, static indexes. High-dimensional semantic vectors often prefer HNSW, but Annoy remains easy for moderate dimension and frozen corpora.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">NSG / navigable small-world variants</span>
+            <p>
+              <strong>NSG</strong> (navigating spreading-out graph) and relatives build a sparse graph with monotonic greedy search guarantees similar to HNSW.
+              Faiss and research code expose NSG; some teams compare NSG vs HNSW on build time and recall — not a separate product category, but an alternative graph construction.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">LSH (locality-sensitive hashing)</span>
+            <p>
+              Hash similar vectors into same buckets with probability related to distance. Classic for very high-D sparse text; for dense neural embeddings,
+              graph (HNSW) or IVF+PQ usually wins on recall. Still seen in hybrid systems and teaching; <strong>SimHash</strong> for near-duplicate detection.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">FLAT / exact k-NN (brute force)</span>
+            <p>
+              Faiss <code>IndexFlatL2</code> / <code>IndexFlatIP</code>: compare query to every vector — exact, simple baseline.
+              Feasible up to ~low millions on GPU or small dims; use to <strong>measure ANN recall</strong> and for tiny collections where index overhead isn’t worth it.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tree indexes in high dimensions</span>
+            <p>
+              KD-trees and vanilla ball trees degrade when dimension is hundreds+ (curse of dimensionality). Random-projection forests (Annoy) and graphs (HNSW)
+              cope better with dense embeddings. Don’t assume “tree = fast” for modern embedding dim (768, 1536, …).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">When to pick which family</span>
             <ul>
-              <li><strong>ScaNN</strong> (Google) — anisotropic vector quantization + tree; strong on CPU/GCP</li>
-              <li><strong>DiskANN</strong> — graph index on SSD for billion-scale when RAM insufficient</li>
-              <li><strong>CAGRA</strong> (NVIDIA) — GPU-native graph ANN (cuVS)</li>
-              <li><strong>LSH</strong> (locality-sensitive hashing) — older; mostly superseded for dense embeddings</li>
-              <li><strong>Flat + brute force</strong> — exact on GPU for modest N; baseline before ANN</li>
+              <li><strong>Default RAG corpus in RAM</strong> — HNSW (pgvector, Qdrant, Milvus, Faiss HNSW)</li>
+              <li><strong>Huge N, tight RAM</strong> — IVF-PQ or ScaNN-style AQ; or DiskANN if graph quality on SSD</li>
+              <li><strong>GPU-heavy stack</strong> — Faiss GPU flat or CAGRA; batch queries</li>
+              <li><strong>Static snapshot, simple ops</strong> — Annoy mmap index</li>
+              <li><strong>Prove ANN quality</strong> — exact flat on sample + recall@k sweep on efSearch / nprobe</li>
             </ul>
           </section>
 
