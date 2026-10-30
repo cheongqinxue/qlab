@@ -58,8 +58,9 @@
           <section class="cell cell-span">
             <span class="cell-title">Vector index (approximate nearest neighbor)</span>
             <p>
-              Exact brute-force compare against every vector is slow at scale. Indexes like <strong>HNSW</strong> (hierarchical navigable small world)
-              trade a little recall for much faster search. Hosted options: Pinecone, Weaviate, Qdrant, pgvector, OpenSearch k-NN, etc.
+              Exact brute-force compare against every vector is slow at scale. Indexes like <strong>HNSW</strong> or <strong>IVF</strong>
+              trade a little recall for speed. Training and similarity: <a href="rag-representations.html">representations</a>.
+              HNSW, PQ, SQ, vendors: <a href="rag-ann.html">ANN sheet</a>.
             </p>
             <figure class="cell-diagram" aria-labelledby="fig-ann">
               <svg viewBox="0 0 300 80" xmlns="http://www.w3.org/2000/svg" role="img">

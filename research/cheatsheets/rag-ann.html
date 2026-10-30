@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — ANN indexes · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Fast approximate nearest neighbor search. Vectors → <a href="rag-representations.html">representations sheet</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">ANN retrieval &amp; indexes</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Exact k-NN vs ANN</span>
+            <p>
+              <strong>k-nearest neighbors (k-NN)</strong> compares the query to every vector — correct but $\mathcal{O}(N)$ per query.
+              <strong>Approximate nearest neighbor (ANN)</strong> trades a small amount of recall for much lower latency and RAM at millions–billions of vectors.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Graph — HNSW</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">HNSW (hierarchical navigable small world)</span>
+            <p>
+              Build a multi-layer proximity graph: upper layers for long jumps, bottom layer for fine search. Query greedy-walks from an entry point.
+              Default in many libraries (Faiss, hnswlib, Qdrant, pgvector option).
+            </p>
+            <ul>
+              <li><strong>M</strong> — max neighbors per node (accuracy vs memory)</li>
+              <li><strong>efConstruction</strong> — build-time search width (index quality)</li>
+              <li><strong>efSearch</strong> — query-time width (↑ recall, ↑ latency)</li>
+            </ul>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 200 90" xmlns="http://www.w3.org/2000/svg">
+                <text x="8" y="12" font-size="7" fill="var(--text-muted)">layer 2 (sparse)</text>
+                <circle cx="100" cy="22" r="4" fill="var(--accent)" />
+                <circle cx="140" cy="18" r="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <line x1="100" y1="22" x2="140" y2="18" stroke="var(--accent)" opacity="0.5" />
+                <text x="8" y="48" font-size="7" fill="var(--text-muted)">layer 0 (dense)</text>
+                <circle cx="60" cy="62" r="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="100" cy="68" r="4" fill="var(--accent)" />
+                <circle cx="130" cy="58" r="3" fill="var(--accent)" opacity="0.6" />
+                <line x1="60" y1="62" x2="100" y2="68" stroke="var(--border-cell)" />
+                <line x1="100" y1="68" x2="130" y2="58" stroke="var(--accent)" />
+                <text x="8" y="86" font-size="7" fill="var(--text-muted)">query enters top → descend → local greedy</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cluster — IVF</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">IVF (inverted file index)</span>
+            <p>
+              Train <strong>k-means</strong> on vectors → <code>nlist</code> clusters. Each vector assigned to a cluster (inverted list).
+              At query: find nearest centroids (<code>nprobe</code> clusters), search only those lists — sublinear when nprobe ≪ nlist.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">IVF + PQ (Faiss classic)</span>
+            <p>
+              <strong>IVF-PQ</strong> — cluster with IVF, then store each vector compactly with <strong>product quantization (PQ)</strong> inside lists.
+              Very memory-efficient; tune nprobe and PQ params for recall.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Compression</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PQ (product quantization)</span>
+            <p>
+              Split $D$-dim vector into $m$ subvectors; each subvector quantized to one of $k$ centroids (codebook per segment).
+              Store $m$ small codes instead of $D$ floats — asymmetric distance computation (ADC) at query time.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SQ (scalar quantization)</span>
+            <p>
+              <strong>Scalar quantization</strong> — per dimension (or block), map float32 → int8 (or binary). Simpler than PQ; common for
+              <strong>int8</strong> indexes (pgvector, some GPU paths). Often ~4× smaller with small recall loss if calibrated.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Other compressions</span>
+            <ul>
+              <li><strong>Binary / Hamming</strong> — extreme compression; recall hit on fine semantic tasks</li>
+              <li><strong>OPQ</strong> — optimized rotation before PQ (Faiss)</li>
+              <li><strong>Residual PQ</strong> — ColBERTv2-style on token stores</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Other ANN families (newer / situational)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Algorithms &amp; research lines</span>
+            <ul>
+              <li><strong>ScaNN</strong> (Google) — anisotropic vector quantization + tree; strong on CPU/GCP</li>
+              <li><strong>DiskANN</strong> — graph index on SSD for billion-scale when RAM insufficient</li>
+              <li><strong>CAGRA</strong> (NVIDIA) — GPU-native graph ANN (cuVS)</li>
+              <li><strong>LSH</strong> (locality-sensitive hashing) — older; mostly superseded for dense embeddings</li>
+              <li><strong>Flat + brute force</strong> — exact on GPU for modest N; baseline before ANN</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">HNSW vs IVF (rule of thumb)</span>
+            <ul>
+              <li><strong>HNSW</strong> — great default latency/recall up to large RAM-bound corpora; painful to rebuild huge indexes</li>
+              <li><strong>IVF</strong> — scales with training; good with PQ for RAM; needs nprobe tuning per dataset</li>
+              <li>Many engines expose both or hybrid (pre-filter metadata + HNSW)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Major engines &amp; brands (2025–26)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Libraries &amp; self-host</span>
+            <ul>
+              <li><strong>Faiss</strong> (Meta) — IVF, PQ, HNSW, GPU; research/production standard</li>
+              <li><strong>hnswlib</strong> — lightweight HNSW</li>
+              <li><strong>pgvector</strong> — Postgres extension; HNSW / IVFFlat indexes</li>
+              <li><strong>OpenSearch / Elasticsearch</strong> — dense_vector + HNSW</li>
+              <li><strong>Milvus</strong>, <strong>Qdrant</strong>, <strong>Weaviate</strong> — dedicated vector DBs</li>
+              <li><strong>Vespa</strong> — hybrid lexical + vector at scale</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Managed cloud</span>
+            <ul>
+              <li><strong>Pinecone</strong>, <strong>Zilliz Cloud</strong> (Milvus), <strong>Weaviate Cloud</strong>, <strong>Qdrant Cloud</strong></li>
+              <li>Hyperscaler: OpenSearch Serverless, Azure AI Search vector, Vertex Matching Engine, etc.</li>
+              <li>Pick on: metadata filters, ops burden, SLA, cost at your N and QPS</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Tuning &amp; gotchas</span>
+            <ul>
+              <li>Measure <strong>recall@k</strong> vs exact search on a held-out query set — ANN params are not portable across corpora</li>
+              <li>Re-embed → full rebuild unless engine supports online reindex</li>
+              <li>Normalize vectors if metric assumes cosine; Faiss inner product on normalized = cosine</li>
+              <li>Metadata pre-filter: confirm “filter + ANN” is integrated (not filter-after-ANN on small sets only)</li>
+              <li>PQ/SQ: store original or higher-precision rerank pass for top candidates if quality drops</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

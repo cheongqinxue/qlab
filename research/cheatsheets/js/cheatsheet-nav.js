@@ -41,7 +41,9 @@
     {
       label: "RAG",
       items: [
-        { href: "rag-retrieval.html", label: "Retrieval" },
+        { href: "rag-retrieval.html", label: "Retrieval overview" },
+        { href: "rag-representations.html", label: "Representations" },
+        { href: "rag-ann.html", label: "ANN indexes" },
         { href: "rag-chunking.html", label: "Chunking" },
         { href: "rag-systems.html", label: "RAG systems" },
       ],

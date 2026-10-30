@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — representations · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">How embedding vectors are trained and scored. Search indexes → <a href="rag-ann.html">ANN sheet</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Representations &amp; similarity</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What you are learning when you “embed”</span>
+            <p>
+              An <strong>embedding model</strong> maps text (or images) to vectors so that useful similarity in task space ≈ closeness in vector space.
+              Training chooses that geometry via losses and pairs of examples. Retrieval then uses
+              <strong>cosine similarity</strong> or dot product on those vectors (<a href="rag-ann.html">ANN sheet</a> finds neighbors fast).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Bi-encoder (two-tower / Siamese)</span>
+            <p>
+              <strong>Siamese</strong> usually means two inputs through the same (or tied) encoder; for retrieval, query and document each get one vector.
+              Score = similarity(query_vec, doc_vec). Fast at scale — encode docs offline, encode query once per search.
+            </p>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 260 72" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="20" width="48" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="32" y="36" text-anchor="middle" font-size="7">query</text>
+                <rect x="8" y="48" width="48" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="32" y="64" text-anchor="middle" font-size="7">doc</text>
+                <rect x="72" y="28" width="56" height="36" rx="3" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" /><text x="100" y="50" text-anchor="middle" font-size="7">shared encoder</text>
+                <line x1="56" y1="32" x2="72" y2="40" stroke="var(--accent)" />
+                <line x1="56" y1="60" x2="72" y2="52" stroke="var(--accent)" />
+                <line x1="128" y1="46" x2="160" y2="46" stroke="var(--accent)" />
+                <text x="180" y="50" font-size="9" fill="var(--text-muted)">sim(q,d)</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cross-encoder (not Siamese retrieval)</span>
+            <p>
+              Concatenate query + passage → one transformer forward → relevance score. Accurate reranking; too slow to run on every doc in the corpus.
+              Pattern: bi-encoder recall@50 → cross-encoder rerank to top‑5.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Cosine vs dot product</span>
+            <div class="formula">$$\cos(q,d)=\frac{q\cdot d}{\|q\|\,\|d\|},\quad q\cdot d=\sum_i q_i d_i$$</div>
+            <ul>
+              <li><strong>Cosine</strong> — direction only; invariant to vector length if models don’t normalize</li>
+              <li><strong>Dot product</strong> — length matters; common when vectors are L2-normalized (then dot = cosine)</li>
+              <li>Training often normalizes or uses temperature-scaled dot products in contrastive loss</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Training losses (contrastive family)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">InfoNCE / softmax contrastive</span>
+            <p>
+              For a query, one positive passage and many negatives: push similarity(pos) up, negatives down via softmax.
+              <strong>In-batch negatives</strong> — other queries’ positives in the batch act as negatives (cheap, standard in dual-encoder training).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Triplet loss</span>
+            <p>
+              Anchor (query), positive (relevant doc), negative (irrelevant): enforce
+              <code>sim(a,p) &gt; sim(a,n) + margin</code>. Older; InfoNCE-style often preferred at scale.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multiple negatives ranking (MNRL)</span>
+            <p>
+              Sentence-transformers style: one positive + many hard negatives per anchor with cross-entropy over scores — standard recipe for
+              <strong>BGE</strong>, <strong>E5</strong>, domain retrievers.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">ColBERT — late interaction</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Not one vector per document</span>
+            <p>
+              <strong>ColBERT</strong> keeps a vector <em>per token</em> for query and document. Score = sum over query tokens of
+              max similarity to any document token (<strong>MaxSim</strong>). Finer than a single pooled embedding; index is larger.
+            </p>
+            <p>ColBERTv2 + compression (residual PQ on token vectors) makes indexes more practical. Different from bi-encoder chunk pooling.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Matryoshka / “Russian doll” vectors (MRL)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Nested dimensions</span>
+            <p>
+              <strong>Matryoshka Representation Learning (MRL)</strong> trains embeddings so the <strong>first</strong> $d$ dimensions are useful for many $d$ values
+              (e.g. 64, 128, 256, 768). You can truncate at serving time for speed/memory with modest recall loss — same model, multiple operating points.
+            </p>
+            <p>OpenAI text-embedding-3 “dimensions” parameter and similar APIs expose this idea; not every open model supports arbitrary truncation without MRL training.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Images &amp; multimodal equivalents</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CLIP-style (image ↔ text)</span>
+            <p>
+              Two encoders (image CNN/ViT + text transformer); train on image–caption pairs with contrastive loss so matching pairs align in a shared space.
+              Enables text→image search and zero-shot classification via prompt templates.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Image ↔ image</span>
+            <ul>
+              <li>Same contrastive / Siamese idea on augmented views (self-supervised): SimCLR, MoCo, DINO</li>
+              <li>Supervised metric learning — triplet on class labels</li>
+              <li>Multimodal RAG: embed image patches or whole image; store alongside text chunks</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Classic IR training pairs</span>
+            <ul>
+              <li><strong>DPR (dense passage retrieval)</strong> — separate question and passage encoders; contrastive with hard negatives</li>
+              <li>MSMARCO-style finetune on top of pretrained language models</li>
+              <li>Domain fit: continue training on your query–doc clicks or synthetic Q from docs</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li>Default production: strong bi-encoder (API or BGE/E5 class) + cosine on normalized vectors</li>
+              <li>Need max recall@k: add cross-encoder reranker or ColBERT-style index</li>
+              <li>Need cheaper storage/latency: MRL truncation or <a href="rag-ann.html">PQ/SQ compression</a> (watch recall)</li>
+              <li>Images: CLIP or dedicated vision embedder; same ANN stack as text</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="js/katex-render.js"></script>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
