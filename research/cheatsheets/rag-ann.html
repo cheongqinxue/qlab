@@ -48,21 +48,46 @@
               <li><strong>efConstruction</strong> — build-time search width (index quality)</li>
               <li><strong>efSearch</strong> — query-time width (↑ recall, ↑ latency)</li>
             </ul>
-            <figure class="cell-diagram" aria-hidden="true">
-              <svg viewBox="0 0 200 90" xmlns="http://www.w3.org/2000/svg">
-                <text x="8" y="12" font-size="7" fill="var(--text-muted)">layer 2 (sparse)</text>
-                <circle cx="100" cy="22" r="4" fill="var(--accent)" />
-                <circle cx="140" cy="18" r="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
-                <line x1="100" y1="22" x2="140" y2="18" stroke="var(--accent)" opacity="0.5" />
-                <text x="8" y="48" font-size="7" fill="var(--text-muted)">layer 0 (dense)</text>
-                <circle cx="60" cy="62" r="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
-                <circle cx="100" cy="68" r="4" fill="var(--accent)" />
-                <circle cx="130" cy="58" r="3" fill="var(--accent)" opacity="0.6" />
-                <line x1="60" y1="62" x2="100" y2="68" stroke="var(--border-cell)" />
-                <line x1="100" y1="68" x2="130" y2="58" stroke="var(--accent)" />
-                <text x="8" y="86" font-size="7" fill="var(--text-muted)">query enters top → descend → local greedy</text>
+            <figure class="cell-diagram" aria-labelledby="fig-hnsw">
+              <svg class="diagram-tall" viewBox="0 0 340 130" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-hnsw">HNSW: coarse hops on upper layers, fine search on bottom layer</title>
+                <!-- Layer 2 - sparse -->
+                <text x="4" y="14" font-size="8" fill="var(--text-muted)">Layer 2 (few nodes — long jumps)</text>
+                <circle cx="80" cy="28" r="5" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="200" cy="24" r="5" fill="var(--accent)" stroke="var(--accent-strong)" />
+                <text x="200" y="16" text-anchor="middle" font-size="6" fill="var(--accent-strong)">entry</text>
+                <line x1="80" y1="28" x2="200" y2="24" stroke="var(--border-cell)" />
+                <!-- Layer 1 -->
+                <text x="4" y="52" font-size="8" fill="var(--text-muted)">Layer 1 (medium)</text>
+                <circle cx="120" cy="64" r="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="200" cy="60" r="4" fill="var(--accent)" opacity="0.7" stroke="var(--accent)" />
+                <circle cx="260" cy="66" r="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <line x1="120" y1="64" x2="200" y2="60" stroke="var(--border-cell)" />
+                <line x1="200" y1="60" x2="260" y2="66" stroke="var(--border-cell)" />
+                <!-- Layer 0 - dense -->
+                <text x="4" y="88" font-size="8" fill="var(--text-muted)">Layer 0 (all vectors — local greedy walk)</text>
+                <circle cx="90" cy="108" r="3.5" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="130" cy="112" r="3.5" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="170" cy="104" r="3.5" fill="var(--accent)" stroke="var(--accent)" />
+                <circle cx="210" cy="110" r="3.5" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <circle cx="248" cy="106" r="4.5" fill="var(--accent-strong)" stroke="var(--accent-strong)" />
+                <text x="248" y="98" text-anchor="middle" font-size="6" fill="var(--accent-strong)">q</text>
+                <line x1="90" y1="108" x2="130" y2="112" stroke="var(--border-cell)" />
+                <line x1="130" y1="112" x2="170" y2="104" stroke="var(--border-cell)" />
+                <line x1="170" y1="104" x2="210" y2="110" stroke="var(--accent)" />
+                <line x1="210" y1="110" x2="248" y2="106" stroke="var(--accent)" />
+                <!-- Search path: entry down to near q -->
+                <path d="M 200 24 L 200 60 L 170 104 L 248 106" fill="none" stroke="var(--accent-strong)" stroke-width="1.5" stroke-dasharray="4 3" />
+                <text x="300" y="40" font-size="7" fill="var(--text-muted)">1. Start at</text>
+                <text x="300" y="50" font-size="7" fill="var(--text-muted)">   top entry</text>
+                <text x="300" y="68" font-size="7" fill="var(--text-muted)">2. Greedy hop</text>
+                <text x="300" y="78" font-size="7" fill="var(--text-muted)">   toward q</text>
+                <text x="300" y="96" font-size="7" fill="var(--text-muted)">3. Drop to</text>
+                <text x="300" y="106" font-size="7" fill="var(--text-muted)">   denser layer</text>
+                <text x="300" y="124" font-size="7" fill="var(--text-muted)">4. Local walk → neighbors of q</text>
               </svg>
             </figure>
+            <p class="cell-caption">Each dot is one stored embedding. Upper layers skip across the space; bottom layer finds the actual nearest neighbors.</p>
           </section>
 
           <section class="cell cell-band cell-span">
