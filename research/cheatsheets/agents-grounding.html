@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — grounding &amp; hallucination · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Agent <strong>issue</strong>: unfaithful or invented content. Policy limits →
+          <a href="agents-trust-policy.html">trust &amp; use policy</a>. Tool safety →
+          <a href="agents-system-security.html">system &amp; security</a>. RAG pipeline →
+          <a href="rag-systems.html">RAG systems</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — grounding &amp; hallucination</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Issue vs tool</span>
+            <p>
+              The <strong>issue</strong> is <strong>hallucination</strong> — confident claims not supported by allowed evidence: wrong facts, fake citations,
+              invented tool arguments, or fluent answers when retrieval was empty. <strong>Grounding</strong> means tying statements to sources, tool JSON, or explicit uncertainty.
+              <strong>Guardrails</strong> here are tools: citation checks, score thresholds, CoVe, schema validation — applied to this issue, not a separate product category.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Failure modes</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Types of ungrounded output</span>
+            <ul>
+              <li><strong>Intrinsic</strong> — model fills gaps from priors.</li>
+              <li><strong>Extrinsic</strong> — misreads or merges retrieved chunks.</li>
+              <li><strong>Tool hallucination</strong> — wrong or nonexistent function calls (<a href="agents-system-security.html">harness validation</a>).</li>
+              <li><strong>Empty-context answer</strong> — reply despite weak or empty RAG.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Symptoms in prod</span>
+            <ul>
+              <li>Citation ids missing from index; quotes not substrings of source.</li>
+              <li>Numbers disagree with SQL/calculator tools.</li>
+              <li>Observation summaries that add facts (<a href="agents-memory.html#context-management">context shaping</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Mitigations (tools)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Retrieval &amp; abstention</span>
+            <ul>
+              <li><strong>Score threshold</strong> — abstain when max similarity &lt; τ.</li>
+              <li><strong>Required citations</strong> — post-check chunk ids were in prompt.</li>
+              <li><strong>Closed-book mode</strong> — “only use provided context.”</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Verification loops</span>
+            <ul>
+              <li><strong>Chain-of-verification (CoVe)</strong> — verify then revise.</li>
+              <li><strong>Self-consistency</strong> — sample multiple answers; disagree → escalate.</li>
+              <li><strong>NLI / cross-encoder</strong> — entailment vs context for high-stakes sentences.</li>
+              <li><strong>Tool-as-source-of-truth</strong> — figures from tool JSON, not prose.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Structured output</span>
+            <p>
+              JSON with <code>answer</code>, <code>citations[]</code>, <code>confidence</code>; harness validates before UI. Still verify citations.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Measurement</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric</th>
+                    <th scope="col">What it catches</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Citation precision / recall</td>
+                    <td>Fake or irrelevant refs</td>
+                  </tr>
+                  <tr>
+                    <td>Faithfulness (RAGAS-class)</td>
+                    <td>Answer not supported by context</td>
+                  </tr>
+                  <tr>
+                    <td>Tool argument exact match</td>
+                    <td>Invented parameters</td>
+                  </tr>
+                  <tr>
+                    <td>Abstention on empty retrieve</td>
+                    <td>Guessing without evidence</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>FAQ RAG</strong> → threshold + citations + quote substring check.</li>
+              <li><strong>Analytics agent</strong> → numbers only from SQL tool output.</li>
+              <li><strong>Creative tasks</strong> → relax grounding; <a href="agents-trust-policy.html">policy</a> still applies.</li>
+              <li><strong>Regulated Q&amp;A</strong> → CoVe + human queue on low confidence.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

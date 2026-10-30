@@ -127,7 +127,7 @@
             <ul>
               <li>Embed: open or hosted embedding API</li>
               <li>Store: Postgres pgvector or managed vector DB</li>
-              <li>App: retrieve top‑k → optional rerank → LLM API with context block</li>
+              <li>App: retrieve top‑k (bi-encoder ANN) → optional ColBERT rescore and/or cross-encoder rerank → LLM — <a href="rag-retrieval.html">stages</a></li>
               <li>AuthZ on metadata filters per request</li>
             </ul>
           </section>

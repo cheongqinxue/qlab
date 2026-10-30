@@ -16,7 +16,7 @@
       <nav class="sheet-nav" aria-label="Cheatsheet topics">
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
-        <p class="nav-footer">KV cache, head layouts, exact fast kernels, sparse and alternative attention.</p>
+        <p class="nav-footer">KV cache, head layouts, exact fast kernels, sparse attention. Prod runtimes → <a href="transformers-serving.html">serving &amp; hosting</a>. Quant → <a href="transformers-compression.html">compression</a>.</p>
       </nav>
 
       <header class="sheet-header">
@@ -365,7 +365,7 @@
             <ul>
               <li>Latency includes router + dispatch; small k helps (e.g. 2 experts/token)</li>
               <li>Batching: tokens in a batch may hit different experts → harder to keep GPUs full</li>
-              <li>Quantization (GPTQ/FP8) applies per expert; EP serving matches training shard layout when possible</li>
+              <li>Quantization (GPTQ/FP8) applies per expert; EP serving matches training shard layout when possible — see <a href="transformers-compression.html">compression</a></li>
               <li>Not a KV-cache trick — pair MoE with <strong>GQA/MLA</strong> for long-context decode</li>
             </ul>
           </section>

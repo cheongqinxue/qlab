@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — system &amp; security design · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Agent <strong>issue</strong>: unsafe action and untrusted input becoming execution. App security →
+          <a href="security-access-control.html">concepts</a>,
+          <a href="security-implementation.html">implement &amp; deploy</a>.
+          Loops → <a href="agents-patterns.html">control patterns</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — system &amp; security design</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Issue vs tool</span>
+            <p>
+              The <strong>issue</strong> is that agents <strong>act</strong> in the world: tools, credentials, and user data can be abused via model output or injected text.
+              Fixes are mostly <strong>system design</strong> — allowlists, AuthZ on tools, sandboxes — not a single classifier.
+              <a href="agents-trust-policy.html">Policy moderation</a> does not stop bulk email if SMTP is wired with admin creds.
+              <a href="agents-grounding.html">Grounding</a> does not stop prompt injection in a PDF.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Action abuse &amp; tool surface</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Least privilege</span>
+            <ul>
+              <li><strong>Tool allowlist</strong> — no arbitrary fetch unless sandboxed.</li>
+              <li><strong>Scoped credentials</strong> — per-user OAuth, read-only DB — not master keys in the agent process.</li>
+              <li><strong>Side-effect tiers</strong> — writes need HITL (<a href="agents-patterns.html">graph checkpoints</a>).</li>
+              <li><strong>Budgets</strong> — step/token caps (<a href="agents-reliability.html">reliability</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Harness validation</span>
+            <p>
+              Parse tool JSON against schema; parameterized SQL; isolated code workers. The harness enforces AuthZ — not the model.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Prompt injection</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Direct vs indirect</span>
+            <ul>
+              <li><strong>Direct</strong> — user overrides system instructions.</li>
+              <li><strong>Indirect</strong> — instructions in RAG, email, web, or tool output in context.</li>
+            </ul>
+            <p>
+              Mitigations: separate instruction vs data channels, delimit untrusted blocks, sandbox browsing, never execute RAG text as code.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Agent patterns</span>
+            <ul>
+              <li>Mark tool results as untrusted data.</li>
+              <li>HITL when retrieved text triggers high-impact actions.</li>
+              <li>Avoid poisoning long-term <a href="agents-memory.html">memory</a> with unverified tool text.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Identity, secrets, supply chain</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tenancy &amp; AuthZ</span>
+            <p>
+              Propagate user id into retrieval and tools. The LLM is not an AuthZ bypass (<a href="security-access-control.html">AuthN vs AuthZ</a>).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Secrets, logging, sandbox</span>
+            <ul>
+              <li>Secrets from vault/env only; redact trajectories for <a href="agents-learning.html">training</a>.</li>
+              <li>CodeAct / browser agents: ephemeral VMs, allowlisted egress.</li>
+              <li>MCP/plugins: untrusted servers; pin tool schemas at deploy.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Read-only Q&amp;A</strong> → injection defenses + retrieval ACL; minimal tools.</li>
+              <li><strong>Ops agent</strong> → allowlist, HITL on writes, user-scoped creds.</li>
+              <li><strong>Autonomous customer agent</strong> → assume hostile input; no single-shot high-impact actions.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — trust, safety &amp; use policy · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Agent <strong>issue</strong>: staying inside acceptable use. Related:
+          <a href="agents-grounding.html">grounding</a>,
+          <a href="agents-system-security.html">system &amp; security</a>,
+          <a href="agents-reliability.html">reliability</a>.
+          Loop shape → <a href="agents-patterns.html">control patterns</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — trust, safety &amp; use policy</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Issue vs tool</span>
+            <p>
+              This page is about an <strong>agent-related problem</strong>: output and behavior that violate safety, law, or product scope.
+              <strong>Guardrails</strong> (in the industry sense) are <strong>tools</strong> — classifiers, filters, workflow gates, policy prompts — you deploy against that problem.
+              Do not confuse the issue with the mechanism: “we need guardrails” usually means “we need to enforce trust, safety, and use policy.”
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Collective term</span>
+            <p>
+              Harm reduction, compliance, and brand/scope limits share one goal:
+              <strong>keep what the agent says and implies inside what your organization accepts on this surface</strong>.
+              Shorthand: <strong>trust, safety, and use policy</strong> (separate from technical security — see
+              <a href="agents-system-security.html">system &amp; security design</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Three pillars</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Safety (harm reduction)</span>
+            <p>
+              Block, soften, or escalate content that violates safety policies: violence, sexual content involving minors, self-harm facilitation, hate,
+              harassment, malware instructions, and similar high-severity classes.
+            </p>
+            <ul>
+              <li><strong>Input and output</strong> — scan user prompts and model replies; output-only gates miss jailbreak setup in the user turn.</li>
+              <li><strong>Severity tiers</strong> — hard block vs warn vs log-only for internal tools.</li>
+              <li>Distinct from wrong facts — that is <a href="agents-grounding.html">grounding &amp; hallucination</a>.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Compliance &amp; regulatory policy</span>
+            <p>
+              Rules from law, regulator, or contract: financial disclaimers, health boundaries, data minimization in replies, export controls, age gating, audit logs.
+              The agent must not present as a licensed professional when the product is not one.
+            </p>
+            <ul>
+              <li>Often <strong>jurisdiction- and SKU-specific</strong> — same model, different policy packs per region.</li>
+              <li>Auditors want classifier version, policy doc hash, refusal reason codes.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Product, brand &amp; scope</span>
+            <p>
+              Keeps the assistant inside the job you ship: support bot vs coding agent vs HR copilot. Off-topic requests, fake capabilities
+              (“I booked your flight” with no booking tool), or off-brand tone.
+            </p>
+            <ul>
+              <li><strong>Scope limits</strong> — “answer only from retrieved help articles.”</li>
+              <li><strong>Voice &amp; brand</strong> — tone, forbidden phrases; HITL (human in the loop) for customer-facing copy.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Common tools (guardrails)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Layers</span>
+            <ol>
+              <li><strong>System instructions</strong> — necessary, not sufficient.</li>
+              <li><strong>Pre-filters</strong> — on prompts before the main model call.</li>
+              <li><strong>Post-filters</strong> — classifiers on draft output; templated refusals.</li>
+              <li><strong>Workflow</strong> — human approval or narrow tools for high-risk intents.</li>
+            </ol>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Refuse vs redirect</span>
+            <p>
+              Good refusals are <strong>short, non-judgmental, and actionable</strong>. Log category codes internally; avoid storing full toxic text in clear-text logs.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Eval</span>
+            <ul>
+              <li><strong>Red-team / golden violation set</strong> — prompts that must refuse — regression each release.</li>
+              <li>Track false positives on legitimate use.</li>
+              <li>Separate metrics from <a href="agents-grounding.html">hallucination</a> and <a href="agents-system-security.html">tool abuse</a>.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Consumer chat</strong> → vendor safety API + post-classifier + clear refuse copy.</li>
+              <li><strong>Enterprise copilot</strong> → scope + compliance first; workplace harassment/PII, not only public toxicity.</li>
+              <li><strong>Internal tool</strong> → lighter moderation; still scope limits on exfiltration via creative tasks.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

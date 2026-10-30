@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — memory &amp; state · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Where agent knowledge lives between steps — not the control loop itself (<a href="agents-patterns.html">control patterns</a>).
+          Corpus retrieval → <a href="rag-systems.html">RAG</a>. Weights trained with the model →
+          <a href="transformers-models.html#internal-memory">internal memory banks</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — memory &amp; state</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Why memory is its own topic</span>
+            <p>
+              An agent’s <strong>control pattern</strong> (ReAct, graph, planner) decides <em>what happens next</em>.
+              <strong>Memory</strong> decides <em>what the model is allowed to see</em> when it decides — chat history, tool outputs, user profile,
+              past failures, reusable skills, and retrieved documents. Most production incidents are context mistakes (stale facts, wrong thread, unbounded logs),
+              not wrong loop syntax.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Three layers (mental model)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Working memory</span>
+            <p>
+              Everything in the <strong>current prompt</strong>: system instructions, user messages, tool observations, scratchpad notes.
+              Bounded by the context window; expensive if you paste entire tool logs every step.
+            </p>
+            <ul>
+              <li><strong>Compaction</strong> — summarize older turns; keep last-k raw tool outputs.</li>
+              <li><strong>Structured state</strong> — JSON artifact (plan, extracted fields) smaller than full chat replay.</li>
+              <li><strong>Graph checkpoints</strong> — persist working state between runs (<a href="agents-patterns.html">state machine</a> nodes).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Episodic memory</span>
+            <p>
+              <strong>Records of past episodes</strong>: prior sessions, successful trajectories, error traces, “what we tried on ticket #4821.”
+              Usually stored outside the model weights — vector DB, event log, or document store — and retrieved when a new task looks similar.
+            </p>
+            <ul>
+              <li>Keyed by user, project, or tenant — never leak episodes across ACL boundaries.</li>
+              <li>Often paired with embeddings over (goal, outcome, tools used) tuples.</li>
+              <li><strong>Reflexion</strong>-style critiques are episodic hints for the <em>next retry</em> (<a href="agents-patterns.html">patterns</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Semantic memory</span>
+            <p>
+              <strong>Stable facts and reusable skills</strong>: user preferences, API quirks, “always use read-only DB role,” or a library of
+              verified code snippets. Updated less often than chat; should be versioned and auditable.
+            </p>
+            <ul>
+              <li><strong>Skill libraries</strong> — e.g. Voyager-style stored programs that solved a class of environment tasks.</li>
+              <li><strong>Profile / prefs</strong> — short bullet summaries maintained by a background job, not raw chat dumps.</li>
+              <li>Distinct from <strong>RAG corpus</strong> — semantic memory is agent-centric; RAG is org documents (<a href="rag-systems.html">RAG systems</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Not the same as …</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Mechanism</th>
+                    <th scope="col">What is stored</th>
+                    <th scope="col">Typical update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Agent memory (this page)</strong></td>
+                    <td>Runs, skills, prefs, compact state</td>
+                    <td>After sessions; retrieval at query time</td>
+                  </tr>
+                  <tr>
+                    <td><strong>RAG index</strong></td>
+                    <td>Source documents, chunks</td>
+                    <td>Ingest pipeline; agent calls retrieve tool</td>
+                  </tr>
+                  <tr>
+                    <td><strong>KV cache</strong></td>
+                    <td>Past token keys/values for decode</td>
+                    <td>Inference-only; not user-facing memory</td>
+                  </tr>
+                  <tr>
+                    <td><strong>E2E memory banks</strong></td>
+                    <td>Learnable latent slots in the model</td>
+                    <td>Pretrain / continued training — see <a href="transformers-models.html#internal-memory">model banks</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span" id="context-management">
+            <span class="cell-title">Context management strategies</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">The problem</span>
+            <p>
+              Every agent step pays for <strong>all tokens currently in the prompt</strong>. Tool dumps, long chats, and repeated system text add cost, latency, and
+              <strong>lost-in-the-middle</strong> failures (models overlook facts buried mid-prompt). Context management is the harness job:
+              decide <strong>what stays in-window, in what shape, and what moves to external memory</strong> — independent of which
+              <a href="agents-patterns.html">control pattern</a> you use.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Truncation &amp; sliding window</span>
+            <p>
+              Keep the <strong>last N user–assistant turns</strong> (or last M tokens) and drop the rest. Cheapest strategy; good for stateless chat.
+            </p>
+            <ul>
+              <li>Always preserve <strong>system</strong> + <strong>current task spec</strong> — never truncate the only copy of the goal.</li>
+              <li>Prefer dropping <strong>middle</strong> tool spam while keeping first setup + recent observations (sandwich) when logs allow.</li>
+              <li>Weak for long projects unless paired with summaries or external state.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Rolling &amp; hierarchical summarization</span>
+            <p>
+              A side model (or the same LLM on a schedule) writes a <strong>running summary</strong> of older turns; the prompt becomes
+              <code>summary + recent verbatim messages</code>. Hierarchical: summarize chunks, then summarize summaries for month-long threads.
+            </p>
+            <ul>
+              <li>Extract <strong>decisions, open questions, constraints</strong> explicitly — generic “they discussed X” summaries lose actionable detail.</li>
+              <li>Re-summarize when summary length exceeds a budget; keep a short immutable “contract” block (IDs, dates, user hard rules).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Structured state instead of chat replay</span>
+            <p>
+              Replace growing message history with a <strong>JSON artifact</strong>: plan steps done/pending, extracted entities, last tool errors, citation ids.
+              The model sees state + last k messages, not every Thought/Action/Observation line ever emitted.
+            </p>
+            <ul>
+              <li>Natural fit for <strong>plan-and-execute</strong> and graph checkpoints (<a href="agents-patterns.html">state machines</a>).</li>
+              <li>Handoffs between sub-agents pass the artifact, not full sibling traces.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tool observation shaping</span>
+            <p>
+              Raw tool output is often the biggest token hog. Shrink before it hits the model:
+            </p>
+            <ul>
+              <li><strong>Truncate + pointer</strong> — first/last lines + “full log id 7f3a in store.”</li>
+              <li><strong>Structured extract</strong> — SQL → rows as table or aggregates; HTML → main text; PDF tool → cited spans only.</li>
+              <li><strong>Progressive disclosure</strong> — list files, then read one file on demand; never paste whole repo trees.</li>
+              <li><strong>Deterministic post-process</strong> — regex/JSON parse beats asking the LLM to “ignore the noise.”</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Retrieval budgeting (RAG + memory)</span>
+            <p>
+              Retrieval adds context on purpose — cap it so it does not crowd out reasoning:
+            </p>
+            <ul>
+              <li>Fixed <strong>top-k</strong> and <strong>max chars per chunk</strong>; rerank then cut (<a href="rag-retrieval.html">retrieval stages</a>).</li>
+              <li><strong>Query-conditioned</strong> fetch each step, not one mega-retrieval at session start (stale for agents).</li>
+              <li>Separate slots: <strong>corpus RAG</strong> vs <strong>episodic memory</strong> hits — label sources so the model does not merge them.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Priority tiers &amp; token budget</span>
+            <p>
+              Assign a <strong>budget</strong> (e.g. 8k tokens) and fill in order until full:
+            </p>
+            <ol>
+              <li>System + safety + tool schemas (stable → good for <strong>prefix caching</strong> on some APIs).</li>
+              <li>Current user goal and constraints.</li>
+              <li>Structured state / rolling summary.</li>
+              <li>Fresh tool observations and retrieved chunks.</li>
+              <li>Oldest chat tail — first to drop or summarize.</li>
+            </ol>
+            <p class="cell-caption">Long-context models (128k+) reduce emergencies but still cost linearly — budgeting remains an ops lever.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Compression &amp; routing (optional)</span>
+            <ul>
+              <li><strong>Prompt compression</strong> (LLMLingua-class) — drop low-salience tokens in filler text; test on your tool formats.</li>
+              <li><strong>Small model condenser</strong> — cheap model shrinks logs; frontier model plans next action.</li>
+              <li><strong>Sub-agent isolation</strong> — workers get task-local context; supervisor merges short reports only.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Strategy chooser</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Situation</th>
+                    <th scope="col">Lead strategy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Short support chat</td>
+                    <td>Sliding window + observation truncate</td>
+                  </tr>
+                  <tr>
+                    <td>Multi-day thread</td>
+                    <td>Rolling summary + immutable contract block</td>
+                  </tr>
+                  <tr>
+                    <td>Heavy tools (SQL, logs, code)</td>
+                    <td>Structured extract + progressive disclosure</td>
+                  </tr>
+                  <tr>
+                    <td>Multi-agent crew</td>
+                    <td>Artifact handoffs; no shared full trace</td>
+                  </tr>
+                  <tr>
+                    <td>Very long horizon</td>
+                    <td>External store + explicit paging (<a href="#memgpt-paging">MemGPT-style</a>)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Patterns &amp; systems</span>
+          </section>
+
+          <section class="cell" id="memgpt-paging">
+            <span class="cell-title">MemGPT-style virtual context</span>
+            <p>
+              Treat the context window like <strong>RAM</strong> and external stores like <strong>disk</strong>. The agent (or harness) explicitly
+              <strong>pages</strong> content in and out: archive a long tool log to storage, fetch a summary or chunk when needed.
+              Same frozen LLM; the innovation is <strong>memory management policy</strong> — when to write, what to evict, what to retrieve.
+              Implements several strategies above (paging, summarization, retrieval) as first-class agent actions.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Generative Agents–style reflection</span>
+            <p>
+              Periodic <strong>reflection</strong> over recent events produces higher-level summaries (“user is preparing a launch”).
+              <strong>Importance scoring</strong> decides what enters long-term store vs is forgotten.
+              Useful for simulations and long-horizon personal assistants; needs guardrails so inferred traits are not treated as ground truth.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Temporal &amp; graph memory</span>
+            <p>
+              Some stacks keep <strong>time-stamped facts</strong> and entity edges (who said what, when a doc changed) so retrieval respects
+              recency and contradiction. Helps “what did we decide last Tuesday?” without stuffing full chat into every prompt.
+              Implementation varies (SQL + embeddings, graph + LLM extraction); pattern is <strong>structured recall + semantic search</strong>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Skill &amp; procedure stores</span>
+            <p>
+              After a successful episode, extract a <strong>named procedure</strong> (code, API sequence, checklist) into a library.
+              New tasks retrieve similar skills and adapt them — learning without weight updates.
+              Quality depends on <strong>verification</strong> before promote-to-library (<a href="agents-learning.html">learning sheet</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Engineering checklist</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What to store per episode</span>
+            <ul>
+              <li>Goal, final outcome, success/failure signal, tools called, latency, model version.</li>
+              <li>Hashes of retrieved chunks (for RAG debug) — not necessarily full text if ACL-sensitive.</li>
+              <li>Optional: user-approved summary for long-term semantic memory.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Failure modes</span>
+            <ul>
+              <li><strong>Context stuffing</strong> — every observation forever → cost, distraction, lost needle facts.</li>
+              <li><strong>Stale semantic memory</strong> — old prefs contradict new instructions; need TTL and user override.</li>
+              <li><strong>Cross-tenant bleed</strong> — episodic retrieval without strict filters.</li>
+              <li><strong>Poisoned memory</strong> — attacker plants a “lesson” that future sessions retrieve (<a href="security-implementation.html">security</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Short tasks, single session</strong> → working memory only + tight compaction.</li>
+              <li><strong>Returning users / long projects</strong> → episodic + semantic stores with retrieval tool.</li>
+              <li><strong>Large org knowledge</strong> → RAG corpus; agent memory holds <em>session-specific</em> residue only.</li>
+              <li><strong>Repeated environment tasks</strong> → verified skill library before fine-tuning the base model.</li>
+              <li><strong>Improve over time</strong> → pair memory with offline learning pipeline (<a href="agents-learning.html">learning &amp; improvement</a>).</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

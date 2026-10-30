@@ -114,10 +114,14 @@
               <strong>ColBERT</strong> keeps a vector <em>per token</em> for query and document. Score = sum over query tokens of
               max similarity to any document token (<strong>MaxSim</strong>). Finer than a single pooled embedding; index is larger.
             </p>
-            <p>ColBERTv2 + compression (residual PQ on token vectors) makes indexes more practical. Different from bi-encoder chunk pooling.</p>
+            <p>
+              ColBERTv2 + compression (residual PQ on token vectors) makes indexes more practical. Different from bi-encoder chunk pooling.
+              ColBERT is retrieval scoring (late interaction), not the usual cross-encoder rerank step — see
+              <a href="rag-retrieval.html">retrieval stages</a>.
+            </p>
           </section>
 
-          <section class="cell cell-band cell-span">
+          <section class="cell cell-band cell-span" id="mrl">
             <span class="cell-title">Matryoshka / “Russian doll” vectors (MRL)</span>
           </section>
 
@@ -151,6 +155,29 @@
             </ul>
           </section>
 
+          <section class="cell cell-span" id="embeddinggemma2">
+            <span class="cell-title">EmbeddingGemma 2 — unified multimodal space</span>
+            <p>
+              <strong>EmbeddingGemma 2</strong> (Google; <a href="https://arxiv.org/abs/2610.37364">arXiv 2610.37364</a>) is an open
+              <strong>embedding</strong> model — not a chat LM — that maps <strong>text (incl. code), image, video, audio, and interleaved mixes</strong>
+              into one shared vector space (768‑d by default). Same retrieval pattern as bi-encoders: encode items offline, encode query once, ANN search
+              (<a href="rag-ann.html">indexes</a>).
+            </p>
+            <p><strong>vs CLIP-style dual towers:</strong> modality encoders produce <strong>soft token sequences</strong> fed into a shared
+              <strong>bidirectional transformer</strong> backbone (Gemma 4 lineage), then pool to one vector — not separate frozen image/text towers with contrastive pairing only.</p>
+            <ul>
+              <li><strong>Modular footprint</strong> — ~271M text-only · ~439M vision+text · ~577M audio+text · ~744M all modalities (load only encoders you need).</li>
+              <li><strong>Training</strong> — multi-stage curriculum (text first, then multimodal); mix of <strong>distillation</strong> (Gemini Embedding 2 teacher), contrastive, and regularization objectives.</li>
+              <li><strong>MRL</strong> — native truncation 128 / 256 / 512 / 768 dims (same idea as <a href="#mrl">Matryoshka</a> section above).</li>
+              <li><strong>Task prefixes</strong> — short instruction strings steer the vector for search vs classification vs clustering (task-steered embeddings).</li>
+              <li><strong>Deploy</strong> — 8k-token context; vision token budget tunable; <strong>QAT</strong> weight checkpoints for edge — ties to <a href="transformers-compression.html">compression</a>.</li>
+            </ul>
+            <p>
+              <strong>RAG angle:</strong> one embedder for “slide + caption + transcript snippet” in the same index if your pipeline normalizes on this model;
+              cross-modal query (text question → video/audio/image docs) without swapping CLIP + text embedder. Still one vector per indexed unit unless you move to ColBERT-style late interaction.
+            </p>
+          </section>
+
           <section class="cell">
             <span class="cell-title">Classic IR training pairs</span>
             <ul>
@@ -160,13 +187,142 @@
             </ul>
           </section>
 
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Domain adapt with little human labeling</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Bottleneck mindset</span>
+            <p>
+              Million hand-labeled query–passage pairs are unrealistic. Default playbook: <strong>generate or mine silver labels from your corpus</strong>,
+              use <strong>automatic negatives</strong> (in-batch + retriever hard negatives), and keep a <strong>small human set</strong> (dozens, not thousands) as a regression gate.
+              Human effort goes to spot-checking failure modes, not exhaustively annotating training data.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Order of operations</span>
+            <ol>
+              <li><strong>Baseline</strong> — off-the-shelf embedder + chunking/index (<a href="rag-chunking.html">chunking</a>, <a href="rag-ann.html">ANN</a>); fix hybrid BM25 and prefixes before training.</li>
+              <li><strong>Synthetic eval</strong> — hold out random chunks/docs; generate questions from them; positive = source chunk by construction (no human gold).</li>
+              <li><strong>Scale train pairs</strong> — same generators + filters; add mined hard negatives from the baseline retriever.</li>
+              <li><strong>Fine-tune</strong> — contrastive / MNRL for 1–3 epochs; prefer <strong>LoRA</strong> on embedder (<a href="transformers-peft.html">PEFT</a>).</li>
+              <li><strong>Re-embed corpus</strong>, rebuild index; compare on synthetic eval + tiny human slice + sampled RAG checks (<a href="rag-systems.html">systems</a>).</li>
+            </ol>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Synthetic query–passage pairs (scale)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">From each chunk (most common)</span>
+            <ul>
+              <li>LLM prompt: “Write $n$ user questions this paragraph alone answers” — positive doc = that chunk (DPR-style synthetic data).</li>
+              <li>Vary prompts: FAQ style, keyword search, troubleshooting, “how do I …” — diversity beats one template.</li>
+              <li><strong>Multi-question per chunk</strong> — multiplies pairs without new human input; cap per chunk to avoid near-duplicates.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Structure-aware silver labels (no LLM)</span>
+            <ul>
+              <li><strong>Title / heading → body</strong> — query = section title or first sentence; positive = chunk under that heading.</li>
+              <li><strong>Key terms</strong> — TF-IDF or entity strings as pseudo-queries; positive = chunk containing them (noisy but free).</li>
+              <li><strong>Parent doc</strong> — query from child chunk; positives = siblings in same section; negatives = random other sections (weak signal, cheap).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Cleaning synthetic data (quality &gt; quantity)</span>
+            <ul>
+              <li><strong>Self-filter</strong> — drop Q if BM25 or baseline embedder does not rank source chunk in top‑$k$ (question not grounded).</li>
+              <li><strong>LLM judge (batch)</strong> — “Is this question answered by the passage?” yes/no on a sample; tune filters, not full manual label.</li>
+              <li><strong>Small cross-encoder</strong> — score (Q, chunk); discard bottom percentile pairs before training.</li>
+              <li><strong>Deduplicate</strong> — near-duplicate questions and chunks (min-hash on text) so 100k pairs are not 100 copies.</li>
+              <li><strong>Hold out docs</strong> — entire files excluded from train generators; use only for eval so leakage does not inflate metrics.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Negatives without labeling</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Hard negatives (automatic)</span>
+            <ul>
+              <li><strong>In-batch negatives</strong> — other rows’ positives in the same training batch (free with InfoNCE/MNRL).</li>
+              <li><strong>Retriever mine</strong> — for each synthetic query, top retrieved chunks <em>except</em> the source = hard negatives (refresh after each fine-tune round).</li>
+              <li><strong>Same-doc wrong chunk</strong> — adjacent or sibling chunks as negatives (harder than random corpus draws).</li>
+              <li>No human “irrelevant” labels needed — only the positive is supervised (source chunk id).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Weak organic signal (when you have any)</span>
+            <ul>
+              <li>Search logs, thumbs-up on answers, agent tool traces with chunk id — use as <strong>extra</strong> positives without building a full labeled set.</li>
+              <li>Session co-click: query text + opened doc chunk — silver pair; down-weight vs synthetic if noisy.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Measuring progress (minimal humans)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Mostly automatic metrics</span>
+            <ul>
+              <li><strong>Synthetic recall@k</strong> — on held-out chunks with generated Q; positive id known; track k you use in RAG (<a href="rag-retrieval.html">metrics</a>).</li>
+              <li><strong>Retrieval swap test</strong> — same index size; did fine-tuned model move source chunk rank up vs baseline?</li>
+              <li><strong>Sampled RAG judge</strong> — LLM scores faithfulness on 20–50 real user queries (not full passage labeling).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Minimum human set</span>
+            <p>
+              <strong>~20–50 queries</strong> you care about (real tickets or product questions), human picks acceptable chunk(s) once — regression only when you change embedder or filters.
+              Not for training at scale; for catching jargon and policy failures synthetic pipelines miss.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">When not to fine-tune</span>
+            <ul>
+              <li>Wrong <code>query:</code> / <code>passage:</code> prefix, chunking, or missing hybrid — looks like “bad embeddings.”</li>
+              <li>Synthetic pipeline fails self-filter (source rarely in top‑k) — fix generation prompts or corpus parse first.</li>
+              <li>Corpus &lt; few hundred chunks — prefer reranker only; contrastive overfits.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Fine-tune recipe (silver-label friendly)</span>
+            <ul>
+              <li>Base: <strong>BGE / E5 / GTE / EmbeddingGemma</strong> — shared query/doc encoder; match production prefixes.</li>
+              <li>Loss: <strong>MNRL</strong> or InfoNCE + in-batch + mined negatives; 1–3 epochs, low LR ($10^{-5}$–$10^{-4}$).</li>
+              <li><strong>LoRA</strong> first — enough for domain vocabulary; full fine-tune only if LoRA plateaus on synthetic eval.</li>
+              <li>Train on filtered synthetic; optionally mix small weight on organic silver pairs.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Ship checklist</span>
+            <ul>
+              <li>Version embedder + filter recipe; <strong>full re-index</strong> after any embedder change.</li>
+              <li>Report: synthetic recall@k <em>and</em> small human regression set; sample RAG faithfulness.</li>
+              <li>Log prod queries + top chunk ids to feed the next hard-negative mine (still no manual labels).</li>
+            </ul>
+          </section>
+
           <section class="cell cell-span">
             <span class="cell-title">Chooser</span>
             <ul>
               <li>Default production: strong bi-encoder (API or BGE/E5 class) + cosine on normalized vectors</li>
-              <li>Need max recall@k: add cross-encoder reranker or ColBERT-style index</li>
+              <li>Domain gap: synthetic Q from chunks + mined negatives + LoRA → re-embed; ~50 human queries as regression gate only</li>
+              <li>Need better recall@k: ColBERT index/rescore (stage 1b) and/or cross-encoder rerank (stage 2) — <a href="rag-retrieval.html">when to stack</a></li>
               <li>Need cheaper storage/latency: MRL truncation or <a href="rag-ann.html">PQ/SQ compression</a> (watch recall)</li>
-              <li>Images: CLIP or dedicated vision embedder; same ANN stack as text</li>
+              <li>Images / audio / video in one index: unified multimodal embedder (e.g. <a href="#embeddinggemma2">EmbeddingGemma 2</a>) vs CLIP + text model pair</li>
             </ul>
           </section>
         </div>

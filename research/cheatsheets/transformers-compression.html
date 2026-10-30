@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — compression · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Quantization math, PTQ/QAT, formats, pruning, and what hardware actually runs. Serving context →
+          <a href="transformers-efficiency.html">efficiency</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — compression</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What we compress</span>
+            <ul>
+              <li><strong>Weights</strong> — largest static footprint (7B FP16 ≈ 14 GB); main target for INT4/FP8 checkpoints.</li>
+              <li><strong>Activations</strong> — matter for training memory and for <strong>W8A8</strong> / FP8 inference (matmul inputs must match kernel support).</li>
+              <li><strong>KV cache</strong> — runtime buffer at decode; own quant knob — <a href="#kv-quant">KV quant tile</a> (not the same as weight INT4).</li>
+              <li><strong>Pruning</strong> — remove weights or structures; can combine with quant (sparse + low-bit).</li>
+            </ul>
+            <p>Vector index PQ/SQ is a different “quantization” — see <a href="rag-ann.html">ANN sheet</a>. Here: <strong>neural network weights and activations</strong>.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Quantization math (affine)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Encode &amp; decode</span>
+            <p>
+              <strong>Quantization</strong> maps a floating tensor $x$ to low-bit integers $q$, with <strong>scale</strong> $s$ and optional <strong>zero-point</strong> $z$ (asymmetric):
+            </p>
+            <div class="formula">
+              $$q = \mathrm{clip}\left(\left\lfloor \frac{x}{s} \right\rceil + z,\; q_{\min},\, q_{\max}\right), \qquad
+              \hat{x} = s \cdot (q - z)$$
+            </div>
+            <p>
+              <strong>Symmetric</strong> (common for weights): $z=0$, $q_{\min}=-2^{b-1}$, $q_{\max}=2^{b-1}-1$ for $b$-bit signed INT.
+              <strong>Asymmetric</strong>: $z$ shifts the bin grid when values are not centered on zero (often activations).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Granularity</span>
+            <ul>
+              <li><strong>Per-tensor</strong> — one $(s,z)$ for the whole matrix; simplest, worst error on outlier channels.</li>
+              <li><strong>Per-channel</strong> — one scale per output channel (row of weight); default for INT8/INT4 weights in LLMs.</li>
+              <li><strong>Block-wise</strong> — scale every $g$ consecutive elements (GPTQ/AWQ blocks); balances tables vs accuracy.</li>
+              <li><strong>Group size</strong> — smaller groups → more scales stored → better SNR, slightly larger file.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Integer matmul (why formats differ)</span>
+            <p>
+              Idealized INT8 dot-product uses integer accumulators then rescales:
+              $\hat{y} = s_x s_w \sum q_x q_w$.
+              Hardware may require <strong>symmetric</strong> weights, <strong>channel scales</strong>, or <strong>FP8</strong> paths with fused scale vectors.
+              If the runtime only supports <strong>weight-only INT4</strong>, activations stay FP16/BF16 and weights are dequant on the fly inside the kernel — still a win from bandwidth.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Numeric formats (reference)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Format</th>
+                    <th scope="col">Typical use</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>FP32</td>
+                    <td>Reference, some CPU</td>
+                    <td>Baseline quality; slow/large for LLM serve</td>
+                  </tr>
+                  <tr>
+                    <td>BF16 / FP16</td>
+                    <td>Training, GPU inference</td>
+                    <td>BF16 range; FP16 needs loss scaling in training sometimes</td>
+                  </tr>
+                  <tr>
+                    <td>FP8 (E4M3 / E5M2)</td>
+                    <td>H100+ training &amp; inference</td>
+                    <td>Transformer Engine; often per-tensor or block scale; W8A8 or weight+activation</td>
+                  </tr>
+                  <tr>
+                    <td>INT8</td>
+                    <td>W8A8 on datacenter GPU, some CPU</td>
+                    <td>SmoothQuant-style activation handling; good throughput when kernels match</td>
+                  </tr>
+                  <tr>
+                    <td>INT4 (GPTQ/AWQ/GGUF)</td>
+                    <td>Consumer GPU, CPU, edge</td>
+                    <td>Weight-only common; 4-bit storage, FP16/BF16 activations</td>
+                  </tr>
+                  <tr>
+                    <td>NF4</td>
+                    <td>QLoRA training</td>
+                    <td>4-bit NormalFloat codebook for frozen base weights during adapter train</td>
+                  </tr>
+                  <tr>
+                    <td>FP4 / NVFP4</td>
+                    <td>Newest NVIDIA stacks</td>
+                    <td>Hardware-dependent; check TensorRT-LLM / vendor support matrix</td>
+                  </tr>
+                  <tr>
+                    <td>INT1 / ternary (BitNet)</td>
+                    <td>Research / special kernels</td>
+                    <td>Needs custom matmul; not generic cuBLAS</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">GGUF names (Q4_K_M, Q5_K_S, …) are <strong>mixed bit-width layouts</strong> per tensor — not one global INT4.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Weight quant vs activation quant</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Weights</span>
+            <p>
+              <strong>Static</strong> after training: same matrices every forward pass. Outliers are per-channel and predictable — INT4/INT8
+              <strong>weight-only</strong> (GPTQ, AWQ, GGUF) works well because activations stay high precision.
+            </p>
+            <ul>
+              <li>Compresses <strong>model size</strong> and <strong>weight bandwidth</strong> (often the decode bottleneck).</li>
+              <li>Scales usually <strong>per output channel</strong> or per block; computed once in PTQ.</li>
+              <li>Does not reduce activation RAM during a long prefill unless you also quant activations.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Activations</span>
+            <p>
+              <strong>Dynamic range</strong> per layer and per token: strong outliers (attention logits, FFN intermediates) make naive INT8 activations hard.
+              Quantizing activations enables true <strong>W8A8</strong> integer GEMMs and smaller activation footprints — but errors compound through depth.
+            </p>
+            <ul>
+              <li>Need calibration or QAT; scales may be <strong>static</strong> (fixed from sample batches) or <strong>dynamic</strong> (see below).</li>
+              <li>Transient layer outputs during prefill are activations; <strong>stored K/V past tokens</strong> are the KV cache — see <a href="#kv-quant">KV quant</a>.</li>
+              <li>Weight-only W4A16 avoids this pain: matmul is effectively dequant(weights) × FP16 activations in one fused kernel.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Naming: W4A16, W8A8, …</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Label</th>
+                    <th scope="col">Weights</th>
+                    <th scope="col">Activations</th>
+                    <th scope="col">Typical deploy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>W4A16 / W4A16b</td>
+                    <td>INT4 (or NF4 storage)</td>
+                    <td>FP16/BF16</td>
+                    <td>llama.cpp, GPTQ/AWQ + vLLM — default “quantize the model”</td>
+                  </tr>
+                  <tr>
+                    <td>W8A16</td>
+                    <td>INT8</td>
+                    <td>FP16/BF16</td>
+                    <td>Middle ground; less size win than INT4</td>
+                  </tr>
+                  <tr>
+                    <td>W8A8</td>
+                    <td>INT8</td>
+                    <td>INT8</td>
+                    <td>Datacenter INT8 Tensor Cores; needs SmoothQuant/QAT + matching kernels</td>
+                  </tr>
+                  <tr>
+                    <td>FP8WFP8A</td>
+                    <td>FP8</td>
+                    <td>FP8</td>
+                    <td>Hopper+ Transformer Engine, NVIDIA recipes</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p><strong>LoRA on quant base</strong> — adapters in FP16 on INT4/NF4 base (<a href="transformers-peft.html">PEFT</a>); merge or serve side-by-side.</p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="kv-quant">
+            <span class="cell-title">KV cache quantization</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What the KV cache is</span>
+            <p>
+              At <strong>decode</strong> (one new token per step), self-attention needs keys and values for <em>every past token</em>.
+              The runtime appends projected <strong>K</strong> and <strong>V</strong> tensors per layer instead of recomputing them — the <strong>KV cache</strong>.
+              It is <strong>not part of the checkpoint</strong>; it is allocated per request and grows with <code>seq_len</code> × batch × layers.
+            </p>
+            <p>
+              Rough bytes (FP16/BF16) per layer: $2 \times n_{\mathrm{kv\_heads}} \times d_k \times \mathrm{seq\_len} \times \mathrm{bytes\_per\_elem}$.
+              Full stack × $L$ layers — see <a href="transformers-efficiency.html">efficiency — KV size</a>.
+              <strong>Weight-only INT4</strong> shrinks the model file but <em>does not</em> shrink this buffer unless you separately quantize stored K/V.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Why KV quant exists</span>
+            <ul>
+              <li><strong>Decode is bandwidth-bound</strong> — each step reads the entire past KV from memory; halving bytes ≈ halving that traffic (when kernels support it).</li>
+              <li><strong>Long context</strong> — KV can exceed weight RAM for multi-user or 100k-token sessions; KV quant is a serving lever, not a training artifact.</li>
+              <li><strong>Complements GQA / MLA</strong> — fewer heads or latent KV reduces size; quant reduces bytes <em>per stored element</em>. Stack both when available.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What you quantize</span>
+            <p>
+              After $K = X W_K$ and $V = X W_V$ (or MLA latent then up-project), the <strong>cached tensors</strong> are cast to low precision for storage.
+              On each decode step, the new query $Q$ attends over stored $\hat{K}, \hat{V}$ — either via <strong>dequant inside the attention kernel</strong> or <strong>FP8/INT8 SDPA</strong> paths that fuse scale.
+            </p>
+            <ul>
+              <li><strong>K and V separately</strong> — may use different scales or dtypes per tensor type in some runtimes.</li>
+              <li><strong>Granularity</strong> — often <strong>per token</strong> (scale when the slot is written at prefill or append) or <strong>per head / per block</strong> within the cache line.</li>
+              <li><strong>MLA</strong> — if the cache holds compressed latents $c^{KV}$, quant applies to that smaller tensor before expand — extra savings vs full-head KV.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Formats &amp; static scales</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">KV dtype</th>
+                    <th scope="col">Size vs FP16</th>
+                    <th scope="col">Typical notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>FP16 / BF16</td>
+                    <td>1× baseline</td>
+                    <td>Default; no extra scale metadata</td>
+                  </tr>
+                  <tr>
+                    <td>FP8 (e.g. E4M3)</td>
+                    <td>~2× smaller</td>
+                    <td>Common on Hopper+ serve stacks; per-tensor or per-token scale</td>
+                  </tr>
+                  <tr>
+                    <td>INT8</td>
+                    <td>~2× smaller</td>
+                    <td>Affine $s,z$ per block/token; watch attention softmax sensitivity</td>
+                  </tr>
+                  <tr>
+                    <td>INT4 / NVFP4 (KV)</td>
+                    <td>~4× smaller</td>
+                    <td>Emerging in vendor recipes; stronger quality risk on very long ctx</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              KV quant is almost always <strong>static at write time</strong>: when token $t$ is processed, compute scale from that token’s K/V (or block),
+              store $(q, s)$ in the cache slot. You do not re-run full calibration offline — scales are <strong>online but fixed per slot</strong> once written.
+              That differs from <strong>dynamic activation quant</strong> on transient tensors, which recomputes scale every forward on the same logical tensor shape.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Accuracy &amp; eval</span>
+            <ul>
+              <li>Errors in $\hat{K},\hat{V}$ bias attention weights — hurts <strong>long-range retrieval</strong> (needle-in-haystack) before short-chat quality moves.</li>
+              <li>Ablation: same prompt at 4k / 32k / 128k with KV FP8 vs FP16; watch RAG cite drift if KV quant is on in prod.</li>
+              <li>Prefill often stays FP16 for the new token’s projections; only <strong>cache storage dtype</strong> changes — confirm your engine’s policy.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Runtime &amp; toggles</span>
+            <ul>
+              <li><strong>vLLM</strong> — FP8 KV and related cache dtypes (model/GPU dependent); must match checkpoint and CUDA capability.</li>
+              <li><strong>TensorRT-LLM</strong> — FP8/INT8 KV options in build config; fused kernels vary by head size.</li>
+              <li><strong>llama.cpp</strong> — primarily weight quant; KV often FP16 unless specific build flags / backends.</li>
+              <li>Mismatch → engine falls back to FP16 cache (safe) or refuses load — always read release notes for dtype pairs.</li>
+            </ul>
+            <p><strong>Chooser:</strong> long multi-turn or big batch decode → enable KV FP8/INT8 <em>after</em> GQA/MLA; keep weight quant separate; eval long-context tasks.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Static vs dynamic quantization</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Static</span>
+            <p>
+              <strong>Scale and zero-point fixed</strong> after offline calibration (representative prompts, C4 slice, your RAG queries).
+              At inference: same $s, z$ every token — fast, predictable, works on NPUs and TRT-style compilers.
+            </p>
+            <ul>
+              <li>Best for: <strong>weights</strong>, and activations when distribution is stable layer-to-layer.</li>
+              <li>Risk: calibration domain mismatch (code-heavy calib, chat-heavy serve) → silent quality drop.</li>
+              <li>PTQ default for GPTQ/AWQ weight scales; SmoothQuant produces static per-channel scales for W8A8.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dynamic</span>
+            <p>
+              <strong>Scales computed at runtime</strong> from the actual activation tensor (per batch, per token, or per block):
+              $s = \max(|x|)/q_{\max}$ on the fly. No calib file for that tensor — adapts to outlier tokens.
+            </p>
+            <ul>
+              <li>Best for: <strong>activations</strong> with heavy tail outliers when you still want INT8 math.</li>
+              <li>Cost: extra reduction (max/absmax) each layer — small overhead vs matmul, but harder to fuse on some NPUs.</li>
+              <li>PyTorch <code>torch.quantized</code> dynamic LSTM/Linear patterns; LLM serve stacks often prefer <strong>static W8A8</strong> after SmoothQuant for peak throughput.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">When to pick which</span>
+            <ul>
+              <li><strong>Ship INT4 weights on consumer GPU</strong> → static weight scales (GPTQ/AWQ); activations FP16.</li>
+              <li><strong>Max INT8 GEMM on H100</strong> → static W8A8 (SmoothQuant or QAT); dynamic activations only if accuracy fails static.</li>
+              <li><strong>Exploratory accuracy rescue</strong> → try dynamic activation quant on failing layers before abandoning INT8.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Hessian-aware compression</span>
+          </section>
+
+          <section class="cell cell-span" id="hessian-aware">
+            <span class="cell-title">What the Hessian is (plain language)</span>
+            <p>
+              When you train a model, the <strong>gradient</strong> tells you which direction to nudge each weight to reduce the loss on the next step.
+              The <strong>Hessian</strong> is the next level up: it describes <strong>curvature</strong> — how sensitive the loss is when you change
+              <em>one</em> weight, <em>two</em> weights together, or many at once. A flat direction in the loss landscape means small weight changes barely
+              hurt quality; a sharp direction means a tiny mistake in one weight can cost a lot unless neighboring weights are adjusted to compensate.
+            </p>
+            <p>
+              For a layer with millions of weights, the full Hessian would be a gigantic matrix (one row and column per weight). Nobody stores that for an LLM.
+              <strong>Hessian-aware</strong> compression methods still borrow the <em>idea</em>: they use a local quadratic picture of the loss around the
+              current weights to decide <strong>what to remove or round</strong> and <strong>how to fix the survivors</strong> so the layer’s output stays close
+              to the original on real calibration prompts.
+            </p>
+            <p>
+              <strong>What that delivers:</strong> better one-shot INT4 weights (<strong>GPTQ</strong>) and less perplexity blow-up when you zero out many
+              weights at once (<strong>SparseGPT</strong>, <strong>OWL</strong>) compared with “drop the smallest |weight| and hope for the best.”
+              Magnitude-only rules treat every weight as equally important; Hessian-aware rules ask “if I distort this weight, how much does the loss actually move
+              on the data I care about?”
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Why it is expensive</span>
+            <p>
+              Hessian-aware algorithms need a <strong>calibration pass</strong>: forward (and sometimes backward) passes on hundreds or thousands of tokens so
+              the method can estimate curvature from activations and errors. That is already non-trivial on a 70B model.
+            </p>
+            <ul>
+              <li>
+                A <strong>exact</strong> Hessian for one linear layer scales with the square of its parameter count; storing or inverting it is infeasible at LLM width.
+              </li>
+              <li>
+                Even a <strong>block</strong> inverse used while processing weights in order still costs heavy linear algebra (Cholesky-style updates) per column or block —
+                much slower than round-to-nearest or magnitude pruning.
+              </li>
+              <li>
+                Memory spikes during offline compression: you hold layer weights, activation statistics, and temporary inverse factors; multi-GPU sharding helps but
+                the job remains a batch offline step, not something you run on every deploy.
+              </li>
+            </ul>
+            <p>
+              <strong>Drawback in practice:</strong> strong accuracy per bit, but <strong>slow, memory-hungry PTQ/prune jobs</strong> and more moving parts than AWQ-style
+              activation scaling. Teams accept that trade when INT4 quality matters; they skip it when RTN or AWQ is good enough.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Approximations researchers use</span>
+            <p>
+              Methods never use the full global Hessian. They use cheap stand-ins that capture “which directions hurt” on calibration data:
+            </p>
+            <ul>
+              <li>
+                <strong>Gauss–Newton / Fisher picture</strong> — for a linear layer, curvature is often approximated from outer products of activations
+                ($H \approx X^\top X$ in spirit). That matches the classical <strong>Optimal Brain Surgeon</strong> intuition without building a billion-by-billion matrix.
+              </li>
+              <li>
+                <strong>Diagonal or block-diagonal</strong> — only keep curvature along the weight column or block you are quantizing or pruning right now; ignore
+                cross-talk elsewhere. GPTQ and SparseGPT process weights sequentially and maintain a <strong>running inverse</strong> for the current block only.
+              </li>
+              <li>
+                <strong>Empirical Fisher</strong> — use squared gradients on calib batches as a diagonal importance score; common in structured pruning research
+                (related to the Fisher row in the tools table below).
+              </li>
+              <li>
+                <strong>Cheaper proxies (not full Hessian)</strong> — <strong>Wanda</strong> scores $|w_{ij}| \times \|x_j\|$ (weight times activation norm).
+                No matrix inverse; much faster, slightly weaker at high sparsity, but often “good enough” for a first mask.
+              </li>
+            </ul>
+            <p>
+              Mental model: Hessian-aware code is <strong>error compensation</strong> — quantize or delete a weight, measure the local linear/quadratic knock-on effect,
+              nudge remaining weights to cancel it. Approximations trade exact curvature for something you can compute in hours, not years.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">PTQ vs QAT</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PTQ — post-training quantization</span>
+            <p>
+              Start from a trained FP16/BF16 model; choose scales (and maybe clip outliers) using a small <strong>calibration</strong> set — no full retrain.
+            </p>
+            <ul>
+              <li><strong>RTN</strong> (round-to-nearest) — fast baseline; weak at INT4 without extra steps.</li>
+              <li><strong>GPTQ</strong> — layer-wise <a href="#hessian-aware">Hessian-aware</a> compensation after INT4 rounding; strong <strong>weight-only</strong> PTQ.</li>
+              <li><strong>AWQ</strong> — scale salient weight channels using activation statistics; fast INT4 serve.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">SmoothQuant (W8A8 PTQ)</span>
+            <p>
+              <strong>Problem:</strong> LLM activations are harder to INT8-quantize than weights (outliers in FFN and attention).
+              <strong>SmoothQuant</strong> (MIT/Hao et al.) applies an equivalent per-channel transform before quant:
+              for smoothing factor $s_j \ge 1$ on channel $j$,
+            </p>
+            <div class="formula">
+              $$Y = X W \quad \Rightarrow \quad Y = \underbrace{(X \oslash s)}_{\text{easier to quant}} \cdot \underbrace{(s \odot W)}_{\text{absorbs scale}}$$
+            </div>
+            <p>
+              ($\oslash$ = divide activations by $s$, $\odot$ = multiply weights by $s$.) Mathematically identical in FP32; numerically,
+              you shrink activation dynamic range and widen weight range so <strong>both</strong> fit INT8 static grids after calibration.
+              $s_j$ is chosen from activation magnitudes (migration strength hyperparameter trades weight difficulty vs activation difficulty).
+            </p>
+            <ul>
+              <li>Output: <strong>static</strong> INT8 weights + static activation scales → friendly to TensorRT, torchao, NVIDIA ModelOpt flows.</li>
+              <li>Does not replace INT4 weight-only paths — it targets <strong>W8A8 throughput</strong>, not 4-bit storage.</li>
+              <li>Often paired with <strong>per-token</strong> or <strong>per-tensor</strong> activation quant policies in the runtime — verify your exporter’s spec.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">QAT — quantization-aware training</span>
+            <p>
+              Insert <strong>fake quant</strong> (quantize → dequantize) in the forward pass during training or a short fine-tune so weights adapt to rounding.
+            </p>
+            <ul>
+              <li><strong>STE</strong> (straight-through estimator) — backward ignores quant step; standard trick.</li>
+              <li><strong>Learned scales</strong> — $s$ can be trainable parameters per channel/block.</li>
+              <li><strong>When worth it</strong> — INT8 W8A8 at scale, edge deployment with tight accuracy budget, or FP8 pretrain recipes.</li>
+              <li><strong>Cost</strong> — more training time than PTQ; often best quality at same bit width.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pruning</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Unstructured vs structured</span>
+            <ul>
+              <li><strong>Unstructured</strong> — zero individual weights by importance score. High sparsity % but irregular pattern.</li>
+              <li><strong>Structured</strong> — drop heads, FFN dims, layers, or MoE experts → smaller dense shapes.</li>
+              <li><strong>N:M semi-structured</strong> — e.g. 2:4 (two zeros per four weights); NVIDIA sparse Tensor Cores on Ampere+.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Tools &amp; criteria — what to prune where</span>
+            <p>Common signals and libraries (pick score → mask → optional recover fine-tune):</p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Method / tool</th>
+                    <th scope="col">What it uses</th>
+                    <th scope="col">Typical target</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Magnitude</strong> (PyTorch prune, basic scripts)</td>
+                    <td>|weight| smallest first</td>
+                    <td>Quick baseline; weak for LLMs at moderate sparsity</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Wanda</strong></td>
+                    <td>|weight| × activation norm (no retrain for mask)</td>
+                    <td>Unstructured one-shot LLM pruning</td>
+                  </tr>
+                  <tr>
+                    <td><strong>SparseGPT</strong> / <strong>OWL</strong></td>
+                    <td><a href="#hessian-aware">Hessian-aware</a> one-shot mask + survivor updates (vs Wanda’s cheap proxy)</td>
+                    <td>High unstructured sparsity with less perplexity blow-up</td>
+                  </tr>
+                  <tr>
+                    <td><strong>LLM-Pruner</strong></td>
+                    <td>Gradient-based importance for structures (heads, channels)</td>
+                    <td>Structured cuts + recover FT</td>
+                  </tr>
+                  <tr>
+                    <td><strong>N:M tools</strong> (ASP, nvidia-modelopt, sparsity-aware QAT)</td>
+                    <td>Pattern-enforced masks during train or PTQ</td>
+                    <td>2:4 for sparse Tensor Core speedups</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Neural Compressor</strong> (Intel)</td>
+                    <td>Prune + quant orchestration</td>
+                    <td>CPU/Xeon pipelines</td>
+                  </tr>
+                  <tr>
+                    <td><strong>torchao / optimum / AutoGPTQ</strong></td>
+                    <td>Mostly quant; some sparsity experiments</td>
+                    <td>HF ecosystem integration</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Fisher / gradient saliency</strong></td>
+                    <td>Curvature or ∂loss/∂weight</td>
+                    <td>Research structured pruning; costly at 70B scale</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Workflow: run score on calib batches → apply mask → <strong>recover fine-tune</strong> (even few hundred steps) before trusting evals.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Do people prune production LLMs?</span>
+            <p>
+              <strong>Rarely at frontier scale</strong> compared to quantization and distillation. Reasons:
+            </p>
+            <ul>
+              <li><strong>Unstructured sparsity</strong> — 50% zeros does not halve latency unless kernels skip zeros; dense checkpoints + INT4/FP8 usually win on ops complexity.</li>
+              <li><strong>2:4 sparse</strong> — real speedups on NVIDIA, but extra training/sparsity pipeline and accuracy tuning; less universal than AWQ/GPTQ across hardware.</li>
+              <li><strong>Structured prune</strong> (drop layers/heads) — works in research and for bespoke small models; changing shape breaks standard weight formats and many serve runtimes unless you ship a custom checkpoint.</li>
+              <li><strong>MoE</strong> — “prune experts” is emerging, but routing and EP serving make it a research/integration problem, not default ops.</li>
+              <li><strong>What teams actually do</strong> — <strong>INT4/FP8 quant</strong>, <strong>smaller dense models</strong> (distill/Chinchilla-optimal), <strong>speculative decoding</strong>, <strong>GQA/MLA</strong> — predictable tooling and vendor support.</li>
+            </ul>
+            <p>
+              <strong>When pruning still makes sense:</strong> you control the full stack (custom CUDA), need 2:4 on Ampere/Hopper, academic compression benchmarks,
+              or structured shrink to a fixed edge budget where no small base model exists. Otherwise quant + right-sized model is the default playbook.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pruning + quant order</span>
+            <ul>
+              <li><strong>Prune → recover FT → GPTQ/AWQ</strong> — common experiment order for unstructured.</li>
+              <li><strong>Quant then prune</strong> — can destroy saliency estimates; compare both on your metric.</li>
+              <li>Always eval task accuracy, not perplexity alone.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Hardware &amp; runtime compatibility</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What “supported” really means</span>
+            <p>
+              A checkpoint bit width is not enough — you need a <strong>kernel + runtime</strong> that implements that layout on your device.
+              Mismatch → silent dequant to FP32 (slow) or load failure.
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Stack</th>
+                    <th scope="col">Typical sweet spot</th>
+                    <th scope="col">Watch-outs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>NVIDIA GPU</strong> (TensorRT-LLM, vLLM, torch.compile)</td>
+                    <td>FP16/BF16, FP8 (Hopper+), INT8/INT4 weight-only (model-dependent), 2:4 sparse</td>
+                    <td>Kernel must match head dim, group size, AWQ vs GPTQ layout; EP for MoE</td>
+                  </tr>
+                  <tr>
+                    <td><strong>llama.cpp / GGUF</strong></td>
+                    <td>CPU + Apple Metal; Q4_K_M, Q8_0, IQ quants</td>
+                    <td>Custom formats; great edge; not identical numerics to PyTorch GPTQ</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Apple Silicon</strong> (MLX, Core ML)</td>
+                    <td>4-bit/8-bit weights, ANE where graph converts cleanly</td>
+                    <td>Ops fall back to GPU/CPU if unsupported; measure end-to-end</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Qualcomm / mobile NPU</strong></td>
+                    <td>INT8 W8A8, sometimes INT4 weights via SNPE/QNN</td>
+                    <td>Fixed op set; ONNX export + vendor quant toolchains</td>
+                  </tr>
+                  <tr>
+                    <td><strong>AMD ROCm</strong></td>
+                    <td>FP16, improving INT/FP8 via vLLM/HT kernels</td>
+                    <td>Verify model card against ROCm version</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CPU (AVX2/AVX512)</strong></td>
+                    <td>INT8 dot-product, Q4 blocks in ggml</td>
+                    <td>Bandwidth-bound decode; thread pinning matters</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Checklist before ship</span>
+            <ul>
+              <li>Same <strong>tokenizer + chat template</strong> as FP baseline.</li>
+              <li>Eval perplexity <em>and</em> task metrics (MMLU slice, your RAG hit rate) — quant hurts tail behaviors first.</li>
+              <li>Confirm <strong>max context</strong> with quant KV if enabled.</li>
+              <li>Pin <strong>runtime version</strong> (vLLM/TRT-LLM/llama.cpp) — quant layouts tie to loader code.</li>
+              <li>For regulated deployments: log model hash + quant recipe (GPTQ vs AWQ, group size).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Fastest path to smaller GPU RAM</strong> → AWQ or GPTQ INT4 weight-only + vLLM/llama.cpp.</li>
+              <li><strong>Best INT8 throughput on H100</strong> → FP8 or W8A8 with vendor recipe (often QAT or strong PTQ).</li>
+              <li><strong>Fine-tune on laptop</strong> → QLoRA (NF4 base) + FP16 adapters.</li>
+              <li><strong>Edge phone NPU</strong> → vendor ONNX/QNN pipeline; expect structured models.</li>
+              <li><strong>Already memory-bound on decode</strong> → pair weight quant with <strong>KV FP8</strong> and GQA/MLA.</li>
+              <li><strong>Chasing FLOPs</strong> → structured prune + N:M if your GPU generation supports it; else quant first.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="js/katex-render.js"></script>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — patterns · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          How the LLM is wired into loops, tools, and state — “agent <strong>patterns</strong>” (also called architectures or orchestration styles).
+          Memory → <a href="agents-memory.html">memory &amp; state</a>. Getting better over time →
+          <a href="agents-learning.html">learning &amp; improvement</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — control patterns</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Pattern vs model</span>
+            <p>
+              The <strong>base LLM</strong> is one forward pass (maybe long CoT). An <strong>agent</strong> wraps it in a
+              <strong>control loop</strong>: read state → call model → parse action → run tools → update state → repeat until stop.
+              This page names common <strong>patterns</strong> for that loop — not specific products (LangChain, CrewAI, etc.), but the ideas they implement.
+            </p>
+            <ul>
+              <li><strong>Tool</strong> — search, SQL, code runner, HTTP, MCP server — deterministic side effect + observation string.</li>
+              <li><strong>State</strong> — messages, scratchpad, plan, retrieved docs (<a href="rag-systems.html">RAG</a> is often one tool).</li>
+              <li><strong>Policy</strong> — who decides the next action: model text, structured JSON, separate planner, or graph edges.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">ReAct — reason + act interleaved</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">ReAct (Reason + Act)</span>
+            <p>
+              The model emits a repeating trace: <strong>Thought</strong> (private reasoning), <strong>Action</strong> (tool name + args),
+              then the harness injects <strong>Observation</strong> (tool output), then the model continues. No full plan upfront — the next step depends on what tools return.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-react">
+              <svg viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-react">ReAct loop</title>
+                <rect x="4" y="24" width="52" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--accent)" />
+                <text x="30" y="40" text-anchor="middle" font-size="7">Thought</text>
+                <line x1="56" y1="36" x2="72" y2="36" stroke="var(--accent)" />
+                <rect x="76" y="24" width="48" height="24" rx="3" fill="var(--accent)" opacity="0.35" stroke="var(--accent)" />
+                <text x="100" y="40" text-anchor="middle" font-size="7">Action</text>
+                <line x1="124" y1="36" x2="140" y2="36" stroke="var(--accent)" />
+                <rect x="144" y="24" width="62" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="175" y="40" text-anchor="middle" font-size="7">Observation</text>
+                <path d="M 206 36 H 248" stroke="var(--accent)" marker-end="url(#none)" />
+                <path d="M 248 36 Q 280 36 280 12 T 30 12 T 30 24" fill="none" stroke="var(--text-muted)" stroke-dasharray="4 3" />
+                <text x="248" y="8" font-size="6" fill="var(--text-muted)">until answer</text>
+              </svg>
+            </figure>
+            <ul>
+              <li><strong>Strengths</strong> — simple harness; easy to debug from logs; adapts when first tool call fails.</li>
+              <li><strong>Weaknesses</strong> — many LLM calls; model may hallucinate tool args; long traces burn context.</li>
+              <li><strong>Production note</strong> — same idea as native <strong>function / tool calling</strong>, but ReAct originally used free-form text parsing.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Other single-agent patterns</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Function / tool calling (API-native)</span>
+            <p>
+              Model returns structured <strong>JSON</strong> tool invocations (OpenAI-style, Anthropic tools, Gemini function declarations).
+              Harness executes and appends tool results as special messages. Same loop as ReAct, but <strong>schema-constrained</strong> actions — less regex, better for production.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Plan-and-Execute</span>
+            <p>
+              <strong>Planner</strong> LLM writes a multi-step plan (often bullet list); <strong>executor</strong> (same or smaller model) runs one step at a time with tools.
+              Planner may replan after failures. Good when tasks decompose cleanly (travel, ETL); plan can go stale if world changes mid-run.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ReWOO (Reasoning WithOut Observation in loop)</span>
+            <p>
+              Planner produces steps with <strong>placeholder variables</strong> for tool outputs; worker fills them in batch-style.
+              Fewer round-trips than tight ReAct interleaving — trades flexibility for latency and cost.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reflexion</span>
+            <p>
+              After a failed episode (wrong answer, test failure), model writes a <strong>verbal critique</strong> stored in memory; next attempt conditions on that reflection.
+              Outer loop over trials — not a different tool syntax, but a <strong>learning-from-mistakes</strong> pattern on top of ReAct or code agents.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CodeAct / code as action</span>
+            <p>
+              Actions are <strong>Python (or shell) blocks</strong> in a sandbox; stdout/stderr become observation. One action can chain many ops (pandas, APIs).
+              Common for data and SWE agents; security boundary is the sandbox (<a href="security-implementation.html">security</a>).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Toolformer-style (training-time)</span>
+            <p>
+              Model learns to insert <strong>API call tokens</strong> during pretraining/fine-tune so tool use is native in generation — pattern at <em>training</em> time;
+              serve loop still looks like action → observation at inference.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Autonomous loop (AutoGPT-class)</span>
+            <p>
+              Persistent goal in prompt + memory store + self-prompted subtasks until stop condition. High autonomy, high cost and drift risk —
+              usually tightened in prod into bounded graphs or human checkpoints.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Search &amp; multi-step reasoning</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tree / graph search (LATS, ToT-style)</span>
+            <p>
+              <strong>Language Agent Tree Search</strong> and <strong>Tree of Thoughts</strong> expand multiple reasoning branches, score states, backtrack or beam-search.
+              Many LLM calls; used when single CoT is unreliable (puzzles, planning). Often overkill for simple tool RAG.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Explicit state machine (LangGraph-style)</span>
+            <p>
+              Nodes = functions or model calls; edges = conditional routing (human approval, tool success, budget).
+              ReAct becomes one node; you add retries, fallbacks, and persistence explicitly — common for <strong>production agents</strong>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Multi-agent patterns</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Pattern</th>
+                    <th scope="col">Roles</th>
+                    <th scope="col">When it helps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Supervisor / router</strong></td>
+                    <td>One model delegates to worker agents (research, code, writer)</td>
+                    <td>Clear sub-skills; isolate tool access per worker</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Debate / critic</strong></td>
+                    <td>Proposer vs reviewer rounds until consensus</td>
+                    <td>Quality on high-stakes drafts; expensive</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Hierarchical crews</strong></td>
+                    <td>Manager breaks goal; specialists execute</td>
+                    <td>Long projects with human-like division of labor</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Handoff</strong></td>
+                    <td>Sequential agents pass structured artifact</td>
+                    <td>Pipelines (extract → validate → publish)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Multi-agent is still mostly <strong>orchestration</strong> — each agent is usually ReAct or tool-calling under the hood.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Comparison (single-agent focus)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Pattern</th>
+                    <th scope="col">Plan upfront?</th>
+                    <th scope="col">Typical LLM calls</th>
+                    <th scope="col">Best when</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Zero-shot CoT</td>
+                    <td>No tools</td>
+                    <td>1</td>
+                    <td>Knowledge in weights; no fresh data</td>
+                  </tr>
+                  <tr>
+                    <td>ReAct / tool calling</td>
+                    <td>No — interleaved</td>
+                    <td>Many</td>
+                    <td>Dynamic tool results, interactive debug</td>
+                  </tr>
+                  <tr>
+                    <td>Plan-and-Execute</td>
+                    <td>Yes</td>
+                    <td>Medium</td>
+                    <td>Decomposable tasks, stable environment</td>
+                  </tr>
+                  <tr>
+                    <td>ReWOO</td>
+                    <td>Yes (with vars)</td>
+                    <td>Fewer than ReAct</td>
+                    <td>Known tool chain, latency-sensitive</td>
+                  </tr>
+                  <tr>
+                    <td>Reflexion</td>
+                    <td>Episode-level</td>
+                    <td>Many × trials</td>
+                    <td>Verifiable success/failure signal</td>
+                  </tr>
+                  <tr>
+                    <td>LATS / ToT</td>
+                    <td>Search tree</td>
+                    <td>Very many</td>
+                    <td>Hard reasoning, budget for search</td>
+                  </tr>
+                  <tr>
+                    <td>State machine graph</td>
+                    <td>Designed by engineer</td>
+                    <td>Varies</td>
+                    <td>Compliance, HITL, retries, SLAs</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Default prod</strong> → schema tool calling + bounded graph (timeouts, max steps, allowlisted tools).</li>
+              <li><strong>Research / ad hoc</strong> → ReAct text trace for readability.</li>
+              <li><strong>Fixed playbook</strong> → plan-and-execute or ReWOO.</li>
+              <li><strong>Code/data</strong> → CodeAct sandbox + Reflexion on test failures.</li>
+              <li><strong>Need citations</strong> → RAG tool inside any pattern above — pattern does not replace retrieval.</li>
+              <li><strong>Auth &amp; tools</strong> → per-tool credentials, no prompt-only security (<a href="security-access-control.html">AuthN/AuthZ</a>).</li>
+              <li><strong>Persistent user/project context</strong> → <a href="agents-memory.html#context-management">context management</a> + <a href="agents-memory.html">memory</a>.</li>
+              <li><strong>Improve from production runs</strong> → verifiers + logs first — <a href="agents-learning.html">learning &amp; improvement</a>.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

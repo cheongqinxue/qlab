@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — learning &amp; improvement · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          How agents get better over days — verifiers, logs, fine-tunes — vs in-loop control (<a href="agents-patterns.html">patterns</a>)
+          and what they remember (<a href="agents-memory.html">memory</a>).
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — learning &amp; improvement</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">“Self-learning” is not one thing</span>
+            <p>
+              People use <strong>self-learning agent</strong> for anything from “retries with a written critique” to “nightly fine-tune on production logs.”
+              Those differ in <strong>what changes</strong> (prompt context only vs external memory vs model weights), <strong>risk</strong>, and <strong>who approves</strong>.
+              Production teams usually combine <strong>verifiers + logging + periodic offline updates</strong>, not continuous online weight learning.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Taxonomy — what actually updates</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Kind</th>
+                    <th scope="col">Updates</th>
+                    <th scope="col">Examples</th>
+                    <th scope="col">Prod?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>In-episode adaptation</strong></td>
+                    <td>Same task, same weights — longer context / retries</td>
+                    <td>Replan, <a href="agents-patterns.html">Reflexion</a> critique in scratchpad</td>
+                    <td>Common, low risk</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Memory-only learning</strong></td>
+                    <td>Episodic or semantic store</td>
+                    <td>Skill library, user prefs, “lessons” index (<a href="agents-memory.html">memory</a>)</td>
+                    <td>Common with ACL + review</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Prompt / policy learning</strong></td>
+                    <td>System prompts, tool docs, routing rules</td>
+                    <td>A/B eval winners, human-edited playbooks</td>
+                    <td>Very common</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Offline trajectory learning</strong></td>
+                    <td>LoRA / full FT on filtered traces</td>
+                    <td>DPO on good vs bad runs, STaR-style self-generated data + filter</td>
+                    <td>Growing; batch jobs</td>
+                  </tr>
+                  <tr>
+                    <td><strong>RL on tools / env</strong></td>
+                    <td>Policy weights from reward</td>
+                    <td>Web navigation RL, tool-call bandits</td>
+                    <td>Mostly research / narrow domains</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Online continual FT</strong></td>
+                    <td>Live model during serve</td>
+                    <td>Self-training loops without gates</td>
+                    <td>Rare — drift, forgetting, abuse</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Verifiers — gate before you “learn”</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Outcome verifiers</span>
+            <p>
+              Hard checks on the <strong>final artifact</strong>: unit tests pass, SQL result row count, JSON schema valid, citation span matches source chunk.
+              Without a verifier, “successful” trajectories are noise — you will fine-tune on hallucinated wins.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Process &amp; consistency checks</span>
+            <ul>
+              <li><strong>Tool allowlists</strong> — reject traces that called exfiltration endpoints.</li>
+              <li><strong>Chain-of-verification (CoVe)</strong> — model generates verification questions and answers them before commit; reduces confident errors in logs marked “good.”</li>
+              <li><strong>LLM-as-judge</strong> — useful for drafts; weak as sole gate for safety or math — pair with deterministic checks.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Promotion pipeline (memory or weights)</span>
+            <p>
+              Treat learning like a <strong>CI pipeline</strong>: episode completes → automated checks → optional human review → write to skill library
+              or queue for training batch. Never promote directly from a single unverified success in a hostile environment (web, user-uploaded docs).
+            </p>
+            <ul>
+              <li>Version skills and memory entries; rollback when eval regresses.</li>
+              <li>Hold out a <strong>fixed eval set</strong> (see below) — same idea as embedding regression gates on <a href="rag-representations.html">representations</a>.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Research patterns (names worth knowing)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reflexion &amp; critique loops</span>
+            <p>
+              Failed episode → natural-language critique → next attempt sees critique in context.
+              <strong>Learning</strong> is within-task only unless you persist critiques to episodic memory for similar future goals.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Voyager-style skill acquisition</span>
+            <p>
+              Agent explores an environment (e.g. Minecraft APIs), proposes code skills, keeps those that pass environment feedback.
+              Outer loop builds a <strong>library</strong> — memory learning, not gradient step on the LLM each time.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">STaR / self-training from traces</span>
+            <p>
+              Model generates reasoning traces; filter to those that reach correct answers; fine-tune on survivors.
+              Risk: <strong>confirmation bias</strong> and error propagation — needs strong filters and fresh held-out tasks.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RLHF / DPO / RLAIF on agent data</span>
+            <p>
+              Log preferred vs rejected trajectories (human or AI judge) → preference optimization.
+              Best when actions are structured (tool JSON) and rewards are clear; expensive to label at scale — often subsample critical failures only.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Evaluation — agents ≠ chat benchmarks</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Benchmark / family</th>
+                    <th scope="col">What it stresses</th>
+                    <th scope="col">Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>SWE-bench</strong> (and variants)</td>
+                    <td>Real repo issues, patch + tests</td>
+                    <td>CodeAct + sandbox; good end-to-end verifier</td>
+                  </tr>
+                  <tr>
+                    <td><strong>WebArena / visual web agents</strong></td>
+                    <td>Multi-step site interaction</td>
+                    <td>Fragile to UI change; high LLM cost</td>
+                  </tr>
+                  <tr>
+                    <td><strong>τ-bench / tool-centric sims</strong></td>
+                    <td>API tool sequences, stateful env</td>
+                    <td>Closer to prod tool calling</td>
+                  </tr>
+                  <tr>
+                    <td><strong>AgentBench-style suites</strong></td>
+                    <td>Multi-domain tool + reasoning</td>
+                    <td>Useful regression; not one number for “AGI”</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Your own golden tasks</strong></td>
+                    <td>Tenant workflows, ACL, latency SLAs</td>
+                    <td>Ship gate — 20–50 tasks often enough</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Track tool-call accuracy, recovery after tool error, and cost per success — not just final string match.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Safety &amp; abuse in learning loops</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Poisoned observations</strong> — RAG or web tool returns “ignore policy”; do not write that into semantic memory without sanitization.</li>
+              <li><strong>Feedback hijacking</strong> — thumbs-down spam or adversarial edits to preference data.</li>
+              <li><strong>Overfitting to eval</strong> — tuning prompts on the same 50 tasks until memoration — rotate holdouts.</li>
+              <li><strong>Credential leakage into training</strong> — scrub logs before FT; see <a href="security-implementation.html">security implementation</a>.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Production playbook</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Default safe stack</span>
+            <ol>
+              <li>Bounded <a href="agents-patterns.html">control graph</a> + structured tool calling.</li>
+              <li>Log trajectories with verifiers and tenant id.</li>
+              <li>Improve prompts and tool docs from failure clusters (human review).</li>
+              <li>Promote verified skills to <a href="agents-memory.html">semantic memory</a>.</li>
+              <li>Quarterly (or triggered) LoRA/DPO on filtered logs — full regression on golden tasks.</li>
+            </ol>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">When to avoid weight updates</span>
+            <ul>
+              <li>Low volume or noisy rewards; regulated domains without audit trail.</li>
+              <li>You can fix the issue with retrieval, memory, or a clearer tool schema instead.</li>
+              <li>Multi-tenant data mixing — train per tenant or use federated / segregated stores.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>User says “remember this”</strong> → semantic memory row + confirm UI; not automatic FT.</li>
+              <li><strong>Same failure twice</strong> → episodic retrieval + prompt fix before fine-tune.</li>
+              <li><strong>Verifiable domain (code, SQL)</strong> → Reflexion + tests; then skill library.</li>
+              <li><strong>Scale quality</strong> → offline DPO on verified wins/losses; keep base model frozen between releases.</li>
+              <li><strong>Research autonomy</strong> → RL / self-training only with sandbox + human gates — treat as experiment, not deploy default.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

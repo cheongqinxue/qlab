@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — model lineage · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Seminal architectures and recent ideas by bottleneck — not leaderboard scores. Mechanics →
+          <a href="transformers-core.html">core</a>, <a href="transformers-efficiency.html">efficiency</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — seminal &amp; recent models</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">How to read this page</span>
+            <p>
+              Benchmarks move every month; this sheet tracks <strong>ideas that changed the default stack</strong> or
+              <strong>attack a real pain point</strong> — context, decode cost, reasoning, multimodal glue, <strong>persistent memory</strong>,
+              <strong>non-AR generation</strong> (diffusion LMs, NCM), <strong>end-to-end memory banks</strong>, <strong>looped depth</strong>,
+              <strong>decision-only models</strong> (Jev), and <strong>sub‑3B deploy</strong>.
+              For attention math and blocks, see <a href="transformers-core.html">core</a>; for KV cache, MoE serving, and kernels,
+              see <a href="transformers-efficiency.html">efficiency</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(a) Seminal models — mechanism &amp; why they stuck</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Foundations (2017–2020)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">How it works (one line)</th>
+                    <th scope="col">Why significant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Transformer</strong> (2017)</td>
+                    <td>Encoder–decoder stacks of <strong>multi-head self-attention</strong> + FFN; no recurrence.</td>
+                    <td>Made long-range dependencies parallel to train; template for almost everything after.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>BERT</strong> (2018)</td>
+                    <td><strong>Encoder-only</strong>; masked language modeling (MLM) sees bidirectional context.</td>
+                    <td>“Pre-train then fine-tune” for NLP; strong embeddings and classifiers; not a chat model.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GPT-2 / GPT-3</strong> (2019–20)</td>
+                    <td><strong>Decoder-only</strong> causal LM — predict next token on web-scale text.</td>
+                    <td>Scale → few-shot <strong>in-context learning</strong> without weight updates; path to assistants.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>T5</strong> (2020)</td>
+                    <td>Encoder–decoder; every task framed as <strong>text-to-text</strong> with task prefixes.</td>
+                    <td>Unified recipe for summarization, QA, translation; influenced instruction formatting.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Vision Transformer (ViT)</strong> (2020)</td>
+                    <td>Image <strong>patches</strong> as tokens + transformer encoder.</td>
+                    <td>Showed CNNs were not mandatory at scale; link to <a href="transformers-vision.html">vision sheet</a>.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CLIP</strong> (2021)</td>
+                    <td>Dual encoders trained with <strong>contrastive</strong> image–text pairs.</td>
+                    <td>Shared embedding space → zero-shot classification and retrieval; RAG over images.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Open decoder recipe &amp; scaling laws (2022–2023)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model / result</th>
+                    <th scope="col">Mechanism</th>
+                    <th scope="col">Why significant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Chinchilla</strong> (2022)</td>
+                    <td>Empirical <strong>compute-optimal</strong> trade-off: model size vs training tokens.</td>
+                    <td>Stopped “bigger params always win”; same budget → train smaller models on more data.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>LLaMA</strong> (2023)</td>
+                    <td>Decoder-only: <strong>RoPE</strong>, <strong>RMSNorm</strong>, <strong>SwiGLU</strong> FFN, no bias; open weights.</td>
+                    <td>Canonical open stack; enabled local inference, fine-tuning, and agent/RAG ecosystems.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>InstructGPT / RLHF</strong> (2022)</td>
+                    <td>SFT on demonstrations → <strong>reward model</strong> → PPO alignment to human preferences.</td>
+                    <td>Made base LMs usable as assistants; later simplified by DPO-class losses (training, not arch).</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Whisper</strong> (2022)</td>
+                    <td>Encoder–decoder on weakly supervised speech → text.</td>
+                    <td>General ASR without heavy feature engineering; see <a href="transformers-audio.html">audio sheet</a>.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Stable Diffusion / DiT line</strong></td>
+                    <td>Latent diffusion; transformer <strong>DiT</strong> as denoiser over patches.</td>
+                    <td>Generative stack decoupled from autoregressive LMs — <a href="transformers-image-gen.html">image gen sheet</a>.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Three families (still the map)</span>
+            <ul>
+              <li><strong>Encoder-only</strong> — embed, classify, bi-encoder retrieval (BERT, modern E5/BGE class)</li>
+              <li><strong>Decoder-only</strong> — chat, code, agents, most “LLM” products (GPT, LLaMA, Qwen, …)</li>
+              <li><strong>Encoder–decoder</strong> — seq2seq, speech, some translation (T5, Whisper)</li>
+            </ul>
+            <p>Detail: <a href="transformers-core.html">core — three families</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What “seminal” does not mean</span>
+            <ul>
+              <li>Not “best on MMLU today” — many seminal papers are obsolete as products.</li>
+              <li>Not every SOTA checkpoint — only designs that rewired engineering defaults.</li>
+              <li>Leaderboards reward breadth; production often rewards cost, latency, and reliability on <em>your</em> task.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(b) Recent directions — bottlenecks &amp; promised fixes</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Pain point map</span>
+            <p>
+              Below: <strong>problem → idea → examples</strong>. Dates are approximate; vendors ship overlapping features.
+              Prefer tracing the <em>mechanism</em> over memorizing model names.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">KV cache &amp; decode memory</span>
+            <p>
+              <strong>Bottleneck:</strong> autoregressive decode reads growing key/value tensors every step — bandwidth-bound on long chats.
+            </p>
+            <ul>
+              <li><strong>GQA / MQA</strong> — share keys/values across heads (LLaMA&nbsp;2+ class); fewer bytes per token in cache.</li>
+              <li><strong>MLA (multi-head latent attention)</strong> — compress KV into a low-rank latent (DeepSeek-V2/V3 class); strong cache savings.</li>
+              <li><strong>Quantized KV</strong> — FP8/INT cache (inference stack, not a single paper model).</li>
+            </ul>
+            <p><a href="transformers-efficiency.html">Efficiency sheet — GQA, MLA</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Long context &amp; prefill cost</span>
+            <p>
+              <strong>Bottleneck:</strong> attention grows with context; huge prompts are slow and RAM-heavy at prefill.
+            </p>
+            <ul>
+              <li><strong>RoPE scaling</strong> (YaRN, PI, …) — extend positions without full retrain from scratch.</li>
+              <li><strong>Sliding / local windows</strong> — each layer sees a band (Mistral early layers + SWA pattern); linear-ish memory for very long streams.</li>
+              <li><strong>Ring / sequence parallel</strong> — split context across devices (systems idea paired with long-context models).</li>
+              <li><strong>SSM hybrids</strong> — sub-quadratic recurrence mixed with attention layers (Jamba-class).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Training &amp; inference FLOPs</span>
+            <p>
+              <strong>Bottleneck:</strong> dense transformers activate full FFN on every token; training clusters are expensive.
+            </p>
+            <ul>
+              <li><strong>MoE (mixture of experts)</strong> — router activates top‑k FFN experts per token; more params, fewer active FLOPs (Switch, Mixtral, DeepSeek-MoE/V3).</li>
+              <li><strong>Chinchilla-style data scaling</strong> — mid-size models on more tokens (Phi, many open “3B–8B” strong baselines).</li>
+              <li><strong>Distillation</strong> — teacher LM labels for smaller deployable students (not novel arch, but default cost lever).</li>
+            </ul>
+            <p><a href="transformers-core.html">Core — MoE block</a> · <a href="transformers-efficiency.html">MoE serving</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Sub-quadratic sequence models</span>
+            <p>
+              <strong>Bottleneck:</strong> pure self-attention is $\mathcal{O}(n^2)$ in sequence length for prefill.
+            </p>
+            <ul>
+              <li><strong>Mamba / Mamba-2 (SSM)</strong> — selective state-space layers; linear-time recurrence with gating.</li>
+              <li><strong>Jamba and hybrids</strong> — alternate SSM blocks with standard attention layers for recall + speed.</li>
+              <li><strong>Structured sparse attention</strong> — block-sparse, native sparse patterns in some research/industrial stacks.</li>
+            </ul>
+            <p>Trade-off: long-range copy and exact recall vs attention; hybrid stacks are the pragmatic middle.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reasoning &amp; tool use</span>
+            <p>
+              <strong>Bottleneck:</strong> next-token LM loss does not guarantee multi-step math, planning, or verifiable chains.
+            </p>
+            <ul>
+              <li><strong>Chain-of-thought (CoT)</strong> — elicit intermediate steps at inference (prompting + scale).</li>
+              <li><strong>Process / outcome supervision</strong> — train on step labels or verifiable rewards (math, code tests).</li>
+              <li><strong>RLVR / RL on verifiable rewards</strong> — DeepSeek-R1 class: reinforcement when answers are checkable.</li>
+              <li><strong>Test-time compute</strong> — more inference steps (search, self-consistency, o-series style); buys accuracy for latency/cost.</li>
+            </ul>
+            <p>Mostly <strong>training and inference recipes</strong> on top of decoder stacks — not a replacement for attention.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multimodal friction</span>
+            <p>
+              <strong>Bottleneck:</strong> bolt-on vision encoders + projection adapters lag behind native text quality and add latency.
+            </p>
+            <ul>
+              <li><strong>LLaVA-style</strong> — frozen ViT + lightweight connector into LM; fast to ship, ceiling limited.</li>
+              <li><strong>Native interleaved tokens</strong> — image/video patches in the same transformer as text (Gemini, Qwen2-VL, LLaMA&nbsp;3.2 vision class).</li>
+              <li><strong>Unified speech</strong> — audio tokens or encoders in one chat model (GPT-4o-style pipelines).</li>
+            </ul>
+            <p><a href="transformers-vision.html">Vision</a> · <a href="transformers-audio.html">Audio</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Adaptation without full fine-tune</span>
+            <p>
+              <strong>Bottleneck:</strong> full weight updates are slow, risky, and multi-tenant expensive.
+            </p>
+            <ul>
+              <li><strong>LoRA / adapters / IA³</strong> — low-rank or small modules on frozen base (production default).</li>
+              <li><strong>Prompt tuning / soft prompts</strong> — learn continuous prefix vectors only.</li>
+            </ul>
+            <p><a href="transformers-peft.html">PEFT sheet</a>.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Diffusion &amp; non-AR text generation</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Diffusion language models (DLMs)</span>
+            <p>
+              <strong>Bottleneck:</strong> autoregressive (AR) decode is strictly serial — one token at a time — so long outputs mean many forward passes and a growing KV cache.
+              <strong>Diffusion language models</strong> treat text as a sequence of masked or noised discrete tokens and <strong>refine the whole sequence over many steps</strong>,
+              so many positions can update in parallel within a step (like image diffusion, but on token grids).
+            </p>
+            <ul>
+              <li><strong>Mechanism</strong> — start from noise or masks; a transformer predicts cleaner tokens or denoising targets; repeat for $T$ steps (number of function evaluations, NFE).</li>
+              <li><strong>Promise</strong> — parallel generation paths, potential alternatives to AR for throughput-sensitive workloads.</li>
+              <li><strong>Pain today</strong> — quality often needs many steps; full-sequence updates each step are expensive; training and sampling recipes are less mature than AR + KV cache ecosystems.</li>
+              <li><strong>Examples (research line)</strong> — Diffusion-LM, masked discrete diffusion (MDLM class), semi-autoregressive hybrids; compare to strong AR baselines on your task before betting production on NFE.</li>
+            </ul>
+            <p>Image/video diffusion (latent space, DiT) is the same <em>iterative denoising</em> idea on pixels or latents — see <a href="transformers-image-gen.html">image generation sheet</a>. Text DLMs apply that loop to <strong>tokens</strong>, not patches.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">NCM — Next-Concept Modeling</span>
+            <p>
+              <strong>Bottleneck:</strong> DLMs still revisit the <em>entire</em> sequence each step; AR models revisit the entire <em>history</em> via KV cache. Both can waste work on fine details early in generation.
+              <strong>Next-Concept Modeling (NCM)</strong> (Stanford/HazyResearch, 2026) is a <strong>coarse-to-fine</strong> alternative: learn a hierarchy of discrete codes, then generate <strong>one level at a time</strong>, with <strong>all positions within a level in parallel</strong>.
+            </p>
+            <ul>
+              <li><strong>Stage 1</strong> — multiscale residual <strong>VQ-VAE</strong> (vector-quantized variational autoencoder): text → $K$ levels of codes (short coarse → longer fine).</li>
+              <li><strong>Stage 2</strong> — transformer predicts level $1 \ldots K$ sequentially; inside each level, codes are parallel (like next-scale prediction in image models).</li>
+              <li><strong>Why it matters</strong> — only $K$ sequential steps (often $K \ll$ token length); early levels are short → less compute per step; reported large speedups vs diffusion LM baselines at matched-ish quality on some benchmarks.</li>
+              <li><strong>Caveat</strong> — two-stage training (tokenizer + generator); ecosystem is young vs AR; evaluate Gen-PPL / task metrics on <em>your</em> domain, not leaderboard alone.</li>
+            </ul>
+            <p><strong>Map:</strong> AR = serial tokens · DLM = parallel positions, many full-sequence steps · NCM = parallel within level, few hierarchical steps.</p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="internal-memory">
+            <span class="cell-title">Internal memory banks (trained end-to-end)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What this means (vs other “memory”)</span>
+            <p>
+              Here: <strong>extra parameters shaped as a memory bank</strong> — latent slots or vectors — that are <strong>randomly initialized and trained with the same LM objective</strong> as the transformer stack.
+              Layers <strong>read</strong> the bank (usually cross-attention: token stream → queries, bank → keys/values) and gradients update bank contents like any other weights.
+              That is different from <strong>KV cache</strong> (inference-only past tokens), <strong>RAG</strong> (external text index at query time), and from modules that mostly <strong>write memory only at test time</strong> without classic pretrain joint optimization.
+            </p>
+            <p>
+              <strong>Bottleneck addressed:</strong> capacity in FFN + attention weights is an implicit hash of facts; an explicit bank adds <strong>addressable, scalable storage</strong> without lengthening the context window linearly.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Core pattern</span>
+            <ul>
+              <li><strong>Bank</strong> — $M$ learnable memory tokens (or compressed latents), not tied to one document string.</li>
+              <li><strong>Read</strong> — one or more layers cross-attend from the current hidden states into the bank (sparse or routed reads at scale).</li>
+              <li><strong>Train</strong> — next-token (or denoising) loss backprops into bank + backbone together; no separate retrieval index build step.</li>
+              <li><strong>Scale axis</strong> — increase $M$ or shard the bank (MoE-style routing) for more associative capacity at bounded read cost.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Representative lines (mechanism-first)</span>
+            <ul>
+              <li><strong>Mixture of Chapters</strong> — learnt sparse memory banks + <strong>chapter routing</strong> (MoE-like subsets of the bank per input); iso-FLOP gains on pretrain and instruction tuning; argues for memory as a scaling dimension and better phase-to-phase retention.</li>
+              <li><strong>MemoryLLM</strong> — fixed-size <strong>memory pool in latent space</strong> inside the transformer; trained for self-update semantics (inject new text into the pool) while keeping earlier injections — blurs “weights vs writable state” but bank is part of the architecture.</li>
+              <li><strong>Titans (persistent branch)</strong> — includes <strong>learnable, data-independent memory parameters</strong> (task prior) alongside short-window attention and a separate <strong>neural long-term module</strong> that updates at test time; read the paper for which parts are pure e2e pretrain vs test-time write.</li>
+              <li><strong>Memorizing Transformers</strong> — external kNN over past keys plus learned integration (hybrid; influential on “attention + store”).</li>
+              <li><strong>Transformer-XL / segment recurrence</strong> — cache hidden states across segments during training (context extension; precursor idea, not a large latent bank).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Design tensions</span>
+            <ul>
+              <li><strong>Read cost</strong> — dense cross-attention to $M$ slots is $\mathcal{O}(M)$ per layer; routing/sparsity (chapters, top‑k slots) needed at large $M$.</li>
+              <li><strong>Interpretability</strong> — bank entries are latents, not human-readable chunks (unlike RAG citations).</li>
+              <li><strong>Fresh facts after deploy</strong> — e2e banks freeze at checkpoint unless you continue training, add an updatable pool (MemoryLLM-style), or still use RAG for live docs.</li>
+              <li><strong>Eval</strong> — probe knowledge retention, continued pretrain → SFT forgetting, and long-horizon needle tasks — not MMLU alone.</li>
+            </ul>
+            <p class="cell-caption">Product “memory” (MemGPT, tool notes, <a href="rag-systems.html">RAG</a>) is orthogonal — orchestration around a frozen LM, not a jointly trained bank.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Looped transformers (weight-tied depth)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Idea</span>
+            <p>
+              A standard stack uses <strong>different weights per layer</strong> — depth and parameter count grow together.
+              A <strong>looped transformer</strong> reuses the same physical block(s) for multiple <strong>recurrence</strong> steps $r$, so
+              <strong>logical depth</strong> $L_{\mathrm{eff}} \approx n_{\mathrm{prelude}} + r \cdot n_{\mathrm{recur}} + n_{\mathrm{coda}}$ while storing far fewer unique layers.
+              Same bottleneck family as “more reasoning compute without a bigger checkpoint” — but via <strong>latent iteration</strong>, not necessarily longer chain-of-thought text.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Prelude · recurrent core · coda</span>
+            <p>
+              Common 2025–26 recipe (Huginn, depth-recurrent LMs, iso-depth scaling papers):
+            </p>
+            <ul>
+              <li><strong>Prelude $P$</strong> — untied early layers embed tokens into a working latent space.</li>
+              <li><strong>Recurrent core $R$</strong> — tied weights applied $r$ times; maintains a latent state $\mathbf{s}_i$ updated each loop (input may be re-injected each step — design choice).</li>
+              <li><strong>Coda $C$</strong> — untied upper layers + LM head read out from final state.</li>
+            </ul>
+            <p>
+              Contrast <strong>Universal Transformer</strong> (2018): loop the same transition with optional adaptive halting (ACT) — early seminal form of tied depth.
+              <strong>ALBERT</strong> ties weights across layers but does not usually expose “run 32 loops at test time” as a product knob.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Why loop — bottlenecks</span>
+            <ul>
+              <li><strong>Test-time compute (TTC)</strong> — increase $r$ at inference for harder tokens (latent “thinking”) without generating 10k CoT tokens.</li>
+              <li><strong>Parameter efficiency</strong> — effective depth of 100+ block applications from a small physical stack (e.g. 8 real layers × many recurrences).</li>
+              <li><strong>KV / context</strong> — some designs share cache across recurrences or keep reasoning in hidden state (model-dependent).</li>
+              <li><strong>Adaptive compute</strong> — per-example or per-token loop count (train with random $r$, infer with larger $r$ when needed).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Design axes (not all loops are equal)</span>
+            <p>Controlled ablations (“looped models done right”) show gains depend on details, not only $r$:</p>
+            <ul>
+              <li><strong>Iteration envelope</strong> — where $P$, $R$, $C$ sit; full-stack recurrence (Ouro-style) vs sandwich recurrence (Huginn-style).</li>
+              <li><strong>Input injection</strong> — whether each loop sees fresh token embeddings, a fixed prelude encoding, or only the evolving state.</li>
+              <li><strong>Latent-state init</strong> — $\mathbf{s}_0$ from embeddings vs separate learned/init state; optional fast/slow state splits.</li>
+              <li><strong>Training stability</strong> — tied depth aggregates gradients onto the same weights; <strong>DeepLoop</strong> adjusts residual scaling with loop count (visit-aware DeepNorm-style exponents).</li>
+              <li><strong>Iso-depth scaling</strong> — one recurrence is <em>not</em> worth one untied layer; equivalence exponent ≈ 0.46 in recent scaling-law fits — tune $r$ with measurement, not analogy.</li>
+            </ul>
+            <p><strong>Hyperloop Transformers</strong> — loop-level hyper-connections between recurrent passes (stabilize signal across visits). MoE + looped cores appear in matched-parameter studies — sparse FFN and recurrence compose but must be co-designed.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Map vs neighbors</span>
+            <ul>
+              <li><strong>CoT / o-series token reasoning</strong> — extra compute in <em>visible tokens</em>; looped models spend compute in <em>hidden recurrence</em> (can combine both).</li>
+              <li><strong>Mamba / SSM recurrence</strong> — linear-time state update along sequence; looped transformers recurrence along <em>depth</em> on a fixed chunk (orthogonal axes).</li>
+              <li><strong>Internal memory banks</strong> — extra stored slots cross-attended each forward; loops reuse <em>weights</em> on evolving states (some papers hybridize).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Decision models — JEV &amp; “not a chat LM”</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">JEV (TypeSafe AI System One)</span>
+            <p>
+              <strong>Bottleneck:</strong> using a full chat LLM for routing, classification, or policy choices forces you to parse free text, invites hallucinated labels, and burns latency on generation you never needed.
+              <strong>Jev</strong> is a <strong>decision-only</strong> model: you send state (text or structured data) plus typed questions; it returns <strong>probabilities over discrete choices</strong> (and confidence), not prose.
+            </p>
+            <ul>
+              <li><strong>Mechanism</strong> — parallel evaluation of many questions in one pass; outputs are typed (choice, score, etc.) for direct use in code.</li>
+              <li><strong>Promise</strong> — calibrated routing, guardrails, and workflow branches without an LLM-as-classifier prompt hack.</li>
+              <li><strong>Limits (vendor docs)</strong> — not a replacement for reasoning or open-ended generation; keep arithmetic, counting, and precise date logic in deterministic code when docs flag weakness.</li>
+            </ul>
+            <p>Pattern: <strong>Jev (or small classifiers) for gates</strong> → <strong>LLM for language</strong> → <strong>tools for facts</strong>. Not an acronym in official branding — a product name in a new “decision model” category.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Very small language models (sub‑3B)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Why tiny models are a separate design lane</span>
+            <p>
+              <strong>Bottleneck:</strong> cloud APIs add cost, latency, and compliance friction; phones and laptops have tight RAM; many tasks need narrow skills, not MMLU breadth.
+              Below ~3B parameters, quality comes less from scaling laws and more from <strong>data curation</strong>, <strong>distillation</strong>, and <strong>inference stack</strong> (quantization, kernels).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Family (examples)</th>
+                    <th scope="col">Typical size</th>
+                    <th scope="col">What makes them usable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Phi-3 / Phi-4 mini class</td>
+                    <td>3–4B (mini smaller)</td>
+                    <td>Synthetic + filtered textbooks; strong for size on reasoning-ish drills</td>
+                  </tr>
+                  <tr>
+                    <td>SmolLM / SmolLM2</td>
+                    <td>135M–1.7B</td>
+                    <td>Training recipe transparency; extreme edge and teaching baselines</td>
+                  </tr>
+                  <tr>
+                    <td>Qwen2.5 / Gemma 2 / Llama 3.2</td>
+                    <td>0.5B–3B tiers</td>
+                    <td>Open weights + multilingual; vendor “small” tiers for deploy</td>
+                  </tr>
+                  <tr>
+                    <td>BitNet b1.58 class</td>
+                    <td>varies</td>
+                    <td>1-bit weights → memory bandwidth win (when runtime supports it)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ul>
+              <li><strong>Serving</strong> — GGUF/ONNX, INT4/INT8, CPU + Apple/Qualcomm NPU paths — <a href="transformers-compression.html">compression sheet</a>.</li>
+              <li><strong>Quality levers</strong> — distill from a larger teacher; task-specific SFT; <a href="transformers-peft.html">LoRA</a> on a 1–3B base beats raw 7B for one domain sometimes.</li>
+              <li><strong>Draft models</strong> — tiny LM for speculative decoding with a larger verifier (speed, not solo quality).</li>
+              <li><strong>Honest ceiling</strong> — fragile multi-step reasoning and broad world knowledge; pair with RAG, tools, or escalate to a bigger model on uncertainty.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Recent names → mechanism (quick index)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Checkpoint / family</th>
+                    <th scope="col">Novelty that matters (not rank)</th>
+                    <th scope="col">Bottleneck targeted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>LLaMA&nbsp;2 / 3</td>
+                    <td>GQA, longer context, improved data; 3.x adds native multimodal variants</td>
+                    <td>Decode memory, context, open ecosystem</td>
+                  </tr>
+                  <tr>
+                    <td>Mistral / Mixtral</td>
+                    <td>SWA + efficient decoders; MoE in Mixtral</td>
+                    <td>Cost vs quality, long streams</td>
+                  </tr>
+                  <tr>
+                    <td>Qwen2.5 / Qwen3 class</td>
+                    <td>Strong open multilingual + tool-friendly training; long context in product tiers</td>
+                    <td>Deployment outside English-only stacks</td>
+                  </tr>
+                  <tr>
+                    <td>DeepSeek-V2 / V3</td>
+                    <td>MLA + large MoE; training efficiency narrative</td>
+                    <td>KV size, FLOPs per token</td>
+                  </tr>
+                  <tr>
+                    <td>DeepSeek-R1</td>
+                    <td>RL on verifiable tasks; distills into smaller reasoners</td>
+                    <td>Math/code reliability</td>
+                  </tr>
+                  <tr>
+                    <td>Phi / SmolLM / 0.5B–3B open tiers</td>
+                    <td>Data quality, distillation, quant-friendly deploy</td>
+                    <td>Edge, privacy, cost per query</td>
+                  </tr>
+                  <tr>
+                    <td>MDLM / diffusion LM line</td>
+                    <td>Parallel token refinement; many NFE steps</td>
+                    <td>Serial AR decode latency</td>
+                  </tr>
+                  <tr>
+                    <td>NCM</td>
+                    <td>Multiscale VQ codes + coarse-to-fine parallel levels</td>
+                    <td>DLM step cost + AR token depth</td>
+                  </tr>
+                  <tr>
+                    <td>Jev</td>
+                    <td>Typed probabilistic decisions, not text generation</td>
+                    <td>LLM-as-classifier reliability &amp; cost</td>
+                  </tr>
+                  <tr>
+                    <td>Mixture of Chapters / learnt banks</td>
+                    <td>Cross-attn into e2e-trained latent memory tokens + routing</td>
+                    <td>Implicit param capacity &amp; catastrophic forgetting</td>
+                  </tr>
+                  <tr>
+                    <td>MemoryLLM</td>
+                    <td>Latent memory pool inside transformer; update semantics</td>
+                    <td>Post-train knowledge without full retrain</td>
+                  </tr>
+                  <tr>
+                    <td>Huginn / depth-recurrent LM</td>
+                    <td>Prelude–tied core–coda; variable loop count = test-time depth</td>
+                    <td>TTC without huge param count or long CoT</td>
+                  </tr>
+                  <tr>
+                    <td>DeepLoop / iso-depth loop laws</td>
+                    <td>Stable residuals + “cost” of one recurrence vs one layer</td>
+                    <td>Training instability when $r$ is large</td>
+                  </tr>
+                  <tr>
+                    <td>Mamba-2 / Jamba</td>
+                    <td>SSM + attention hybrids</td>
+                    <td>Prefill scaling, long sequences</td>
+                  </tr>
+                  <tr>
+                    <td>OpenAI o-series (concept)</td>
+                    <td>Hidden extended reasoning at inference</td>
+                    <td>Hard reasoning vs latency bill</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Replace rows as the field moves; keep the bottleneck column when evaluating newcomers.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser — what to study for which pain</span>
+            <ul>
+              <li><strong>Serving long chats cheaply</strong> → GQA/MLA, KV quant, context trimming; maybe sliding window arch.</li>
+              <li><strong>100k+ document ingestion</strong> → long-context RoPE + RAG (retrieval still usually beats brute-force context).</li>
+              <li><strong>GPU budget fixed, quality hungry</strong> → MoE APIs or strong mid-size open models; distillation.</li>
+              <li><strong>Agents &amp; code</strong> → reasoning recipes + tools; model choice second to eval harness.</li>
+              <li><strong>On-device / &lt;3B</strong> → SmolLM/Phi/Qwen-mini class + INT4 + task LoRA; RAG for facts; escalate when stuck.</li>
+              <li><strong>Test-time compute without longer outputs</strong> → looped depth-recurrent LMs (tune $r$); measure — one loop ≠ one layer.</li>
+              <li><strong>Generation latency architecture</strong> → stay AR unless eval proves DLMs or NCM win on your length and hardware.</li>
+              <li><strong>Routing &amp; policy</strong> → decision models (Jev-style) or small classifiers; reserve LLM for language-heavy steps.</li>
+              <li><strong>More knowledge in-weights without 128k context</strong> → e2e memory banks (MoC-class) in research stacks; live doc freshness still often needs <a href="rag-systems.html">RAG</a>.</li>
+              <li><strong>Understanding the stack</strong> → read seminal table top-down, then map your bottleneck to section (b).</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

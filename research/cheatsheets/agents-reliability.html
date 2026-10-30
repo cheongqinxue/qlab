@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — reliability &amp; ops · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Agent <strong>issue</strong>: runaway cost, hangs, and fragile dependencies. Sister topics:
+          <a href="agents-trust-policy.html">trust &amp; policy</a>,
+          <a href="agents-grounding.html">grounding</a>,
+          <a href="agents-system-security.html">system &amp; security</a>.
+          Inference efficiency → <a href="transformers-efficiency.html">transformers efficiency</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — reliability &amp; ops</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Issue vs tool</span>
+            <p>
+              The <strong>issue</strong> is operational failure: infinite loops, hung tools, provider outages, context overflow, spend spikes.
+              <strong>Tools</strong> include timeouts, step caps, circuit breakers, fallbacks, and tracing — often called “guardrails” in vendor docs, but the underlying issue is <strong>reliability and operability</strong> of agent features.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Bounds &amp; backpressure</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Per-request limits</span>
+            <ul>
+              <li>Wall-clock <strong>timeout</strong> (request + per tool).</li>
+              <li><strong>Max agent steps</strong> — stop ReAct loops.</li>
+              <li><strong>Token / cost cap</strong> per session or tenant.</li>
+              <li><strong>Concurrency</strong> queues and 429 when saturated.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Rate limiting &amp; fairness</span>
+            <p>
+              Per user, tenant, and global limits on LLM and expensive tools so one customer cannot exhaust shared capacity.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Degradation &amp; fallbacks</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Graceful paths</span>
+            <ul>
+              <li>Fallback model or cached FAQ when primary fails.</li>
+              <li>Feature flag: disable agent mode, keep simple RAG+LLM.</li>
+              <li>Partial success (show retrieval if generation fails).</li>
+              <li>Idempotent retries on read tools; idempotency keys on writes.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Circuit breakers</span>
+            <p>
+              Fail fast when a dependency error rate spikes; probe with canaries before full restore.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Observability &amp; SLOs</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Logging</span>
+            <ul>
+              <li>Trace id, model id, latency breakdown, step count, status.</li>
+              <li>Redact prompts per <a href="agents-system-security.html">security</a> policy.</li>
+              <li>Cost per request for finance controls.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SLO examples</span>
+            <ul>
+              <li>p95/p99 latency with step cap.</li>
+              <li>Separate availability for “RAG answer” vs “full agent.”</li>
+              <li>Error budgets tied to releases.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Packages &amp; platforms (reference)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Pick by layer — you do not need all of these. Prefer <strong>one trace system</strong>, <strong>one retry/breaker library</strong>, and
+              <strong>limits at the API edge</strong> before adding more. Names change quickly; verify license and self-host vs SaaS for your compliance tier.
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Concern</th>
+                    <th scope="col">Examples (2025–26 ecosystem)</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>LLM/agent tracing</strong></td>
+                    <td><strong>Langfuse</strong> (OSS), <strong>LangSmith</strong>, <strong>Arize Phoenix</strong>, <strong>Weave</strong> (W&amp;B), <strong>Literal AI</strong>, <strong>Helicone</strong></td>
+                    <td>Spans per step, token/cost, session replay; Langfuse/Phoenix good for self-host</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Generic APM / traces</strong></td>
+                    <td><strong>OpenTelemetry</strong> → Grafana Tempo, Jaeger, Datadog, Honeycomb</td>
+                    <td>Wire OTel in your FastAPI/Node harness; same trace id as LLM UI</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Gateway: fallback, budget, routing</strong></td>
+                    <td><strong>LiteLLM</strong> (proxy), <strong>Portkey</strong>, <strong>OpenRouter</strong></td>
+                    <td>Model fallbacks, key rotation, per-team budgets at one HTTP hop</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Retries &amp; backoff</strong></td>
+                    <td><strong>tenacity</strong> (Python), <strong>urllib3 Retry</strong>, <strong>httpx</strong> timeouts</td>
+                    <td>Retry only idempotent reads; cap total wait below user timeout</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Circuit breakers</strong></td>
+                    <td><strong>pybreaker</strong>, <strong>aiobreaker</strong> (async), Envoy/Istio outlier detection</td>
+                    <td>Per dependency (vector DB, tool API), not one global flag</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Rate limits &amp; quotas</strong></td>
+                    <td><strong>slowapi</strong> / <strong>fastapi-limiter</strong>, Redis sliding window, <strong>Kong</strong> / <strong>nginx</strong> limit_req</td>
+                    <td>Enforce at edge + app; separate LLM QPS from cheap health routes</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Queues &amp; backpressure</strong></td>
+                    <td><strong>Celery</strong> + Redis/RabbitMQ, <strong>ARQ</strong>, <strong>SQS</strong>, <strong>BullMQ</strong> (Node)</td>
+                    <td>Long agent jobs async; return job id + poll/WebSocket</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Durable workflows / checkpoints</strong></td>
+                    <td><strong>Temporal</strong>, <strong>Inngest</strong>, <strong>Trigger.dev</strong>; <strong>LangGraph</strong> checkpointers (Postgres, Redis, SQLite)</td>
+                    <td>Resume after crash; HITL pause; see <a href="agents-patterns.html">state machines</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Feature flags &amp; kill switches</strong></td>
+                    <td><strong>OpenFeature</strong>, <strong>Unleash</strong>, <strong>LaunchDarkly</strong></td>
+                    <td>Disable agent mode without redeploy; per-tenant experiments</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Structured output / repair</strong></td>
+                    <td><strong>Instructor</strong>, <strong>Outlines</strong>, <strong>jsonschema</strong>, Pydantic validation in harness</td>
+                    <td>Malformed tool JSON → bounded repair loop (max N)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Metrics &amp; alerting</strong></td>
+                    <td><strong>Prometheus</strong> + <strong>Grafana</strong>, <strong>Sentry</strong>, provider dashboards (OpenAI usage, etc.)</td>
+                    <td>Alert on error rate, p99 latency, $/hour burn — not only 500 count</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Serve-side concurrency</strong></td>
+                    <td><strong>vLLM</strong>, <strong>SGLang</strong>, <strong>Ray Serve</strong></td>
+                    <td>GPU queue depth; pair with app-level semaphores so agents do not overload one replica</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Python agent stacks often combine: FastAPI + tenacity + Redis limits + Langfuse (or OTel) + LangGraph or Temporal for long runs.
+              Node: similar with BullMQ and Langfuse SDK.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Minimal prod stack (example)</span>
+            <ol>
+              <li><strong>Edge</strong> — nginx/Kong rate limit + request timeout.</li>
+              <li><strong>App</strong> — step cap in agent loop; <code>httpx</code> timeout per tool; tenacity on read-only tools.</li>
+              <li><strong>Observe</strong> — OpenTelemetry or Langfuse; export step count and model id.</li>
+              <li><strong>Control</strong> — Unleash flag to fall back to single-shot RAG; LiteLLM or router for model fallback.</li>
+            </ol>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What to avoid</span>
+            <ul>
+              <li>Retrying mutating tool calls without idempotency keys.</li>
+              <li>Logging full prompts to a third party when contract forbids it — self-host Phoenix/Langfuse or OTel only.</li>
+              <li>Circuit breaker on the whole app because one optional tool fails — scope breakers per dependency.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Failure → typical control</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Failure</th>
+                    <th scope="col">Control</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Tool timeout</td>
+                    <td>Retry once; skip step with warning</td>
+                  </tr>
+                  <tr>
+                    <td>Malformed tool JSON</td>
+                    <td>Schema error to model; max N repairs</td>
+                  </tr>
+                  <tr>
+                    <td>Context overflow</td>
+                    <td><a href="agents-memory.html#context-management">Compaction</a> or new thread</td>
+                  </tr>
+                  <tr>
+                    <td>Provider 503</td>
+                    <td>Fallback model / queue</td>
+                  </tr>
+                  <tr>
+                    <td>Runaway spend</td>
+                    <td>Daily cap; alert + throttle</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>MVP chat</strong> → timeout + token cap + 429.</li>
+              <li><strong>Production agent</strong> → step cap, per-tool timeouts, circuit breakers, tracing.</li>
+              <li><strong>Batch jobs</strong> → graph checkpoints; resume last good node.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

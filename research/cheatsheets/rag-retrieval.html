@@ -86,12 +86,76 @@
             </p>
           </section>
 
-          <section class="cell">
-            <span class="cell-title">Reranking</span>
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Retrieval stages — bi-encoder, ColBERT, cross-encoder</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What “vector DB primary index” assumes</span>
             <p>
-              First stage returns top‑50 cheaply; a <strong>cross-encoder reranker</strong> scores (query, passage) pairs and re-orders to top‑5 for the LLM.
-              Improves precision; adds latency and cost.
+              Most vector databases (and typical RAG tutorials) assume <strong>one dense vector per chunk</strong> from a
+              <strong>bi-encoder</strong> (two-tower) model, then <strong>approximate nearest neighbor (ANN)</strong> search — see
+              <a href="rag-representations.html">representations</a> and <a href="rag-ann.html">ANN engines</a>.
+              They do <em>not</em> ship ColBERT as a default index type; ColBERT needs <strong>many vectors per document</strong> (per token) and
+              <strong>MaxSim</strong> scoring, which is a different storage and query pattern.
             </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Three scoring roles (often stacked)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Stage</th>
+                    <th scope="col">Mechanism</th>
+                    <th scope="col">Typical k</th>
+                    <th scope="col">Cost / latency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1 — First retrieval</td>
+                    <td>Bi-encoder + ANN (or BM25 hybrid)</td>
+                    <td>50–200</td>
+                    <td>Low; scales to huge corpora</td>
+                  </tr>
+                  <tr>
+                    <td>1b — Stronger retrieval (optional)</td>
+                    <td><strong>ColBERT</strong> index or rescore top‑N with MaxSim</td>
+                    <td>100–1000 → 50</td>
+                    <td>Medium; large token-level index</td>
+                  </tr>
+                  <tr>
+                    <td>2 — Rerank (optional)</td>
+                    <td><strong>Cross-encoder</strong> — one forward pass per (query, passage) pair</td>
+                    <td>20–50 → 5–10</td>
+                    <td>High per pair; only on small k</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>ColBERT</strong> is <em>late interaction</em> retrieval (token vectors + MaxSim), not the same as cross-encoder reranking.
+              Production default: stage 1 only. Quality push: 1 → 2, or 1 → 1b → 2 when recall and precision both matter.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cross-encoder reranking</span>
+            <p>
+              Concatenate query and each candidate passage; a single transformer scores relevance. Too slow on the full corpus, so it runs
+              <strong>after</strong> cheap first-stage retrieval. Improves order of the chunks the LLM actually sees.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ColBERT in production</span>
+            <ul>
+              <li><strong>Rescore</strong> — bi-encoder ANN returns top‑N; ColBERT MaxSim re-orders (no full ColBERT index on every doc)</li>
+              <li><strong>ColBERT-as-retriever</strong> — dedicated index (RAGatouille, PyTerrier, Vespa-style tensors); rare as “primary” in managed vector SaaS</li>
+              <li><strong>Multi-vector collections</strong> — some OSS DBs can store multiple vectors per point; you still own encoding and MaxSim logic</li>
+            </ul>
           </section>
 
           <section class="cell">

@@ -1,7 +1,10 @@
 /**
  * Renders grouped side nav on all cheatsheet pages and marks the active link.
+ * Nav groups are collapsible; state persists in localStorage.
  */
 (function () {
+  const NAV_COLLAPSE_STORAGE_KEY = "qlab-cheatsheet-nav-collapsed";
+
   /** @type {{ label: string, items: { href: string, label: string }[] }[]} */
   const NAV_GROUPS = [
     {
@@ -17,7 +20,10 @@
       label: "Transformers",
       items: [
         { href: "transformers-core.html", label: "Core & attention" },
+        { href: "transformers-models.html", label: "Model lineage" },
         { href: "transformers-efficiency.html", label: "Efficiency" },
+        { href: "transformers-serving.html", label: "Serving & hosting" },
+        { href: "transformers-compression.html", label: "Compression" },
         { href: "transformers-peft.html", label: "PEFT & adapters" },
         { href: "transformers-vision.html", label: "Vision" },
         { href: "transformers-image-gen.html", label: "Image generation" },
@@ -49,10 +55,89 @@
       ],
     },
     {
+      label: "Agents",
+      items: [
+        { href: "agents-patterns.html", label: "Control patterns" },
+        { href: "agents-memory.html", label: "Memory & state" },
+        { href: "agents-learning.html", label: "Learning & improvement" },
+        { href: "agents-trust-policy.html", label: "Trust & use policy" },
+        { href: "agents-grounding.html", label: "Grounding & hallucination" },
+        { href: "agents-system-security.html", label: "System & security" },
+        { href: "agents-reliability.html", label: "Reliability & ops" },
+      ],
+    },
+    {
       label: "Interview prep",
       items: [{ href: "ai-engineer-interview.html", label: "AI Engineer" }],
     },
   ];
+
+  /** @returns {Set<string>} */
+  function loadCollapsedLabels() {
+    try {
+      const raw = localStorage.getItem(NAV_COLLAPSE_STORAGE_KEY);
+      if (!raw) {
+        return new Set();
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.labels)) {
+        return new Set();
+      }
+      return new Set(parsed.labels.filter((label) => typeof label === "string"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  /** @param {Set<string>} collapsed */
+  function saveCollapsedLabels(collapsed) {
+    localStorage.setItem(
+      NAV_COLLAPSE_STORAGE_KEY,
+      JSON.stringify({ labels: [...collapsed] }),
+    );
+  }
+
+  /** @param {HTMLElement} group */
+  function setGroupCollapsed(group, collapsed) {
+    const toggle = group.querySelector(".nav-group-toggle");
+    const list = group.querySelector(".nav-list");
+    group.classList.toggle("is-collapsed", collapsed);
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    }
+    if (list) {
+      list.hidden = collapsed;
+    }
+  }
+
+  /** @param {Set<string>} collapsed */
+  function applyCollapsedState(collapsed) {
+    document.querySelectorAll(".nav-group[data-nav-label]").forEach((group) => {
+      if (!(group instanceof HTMLElement)) {
+        return;
+      }
+      const label = group.dataset.navLabel;
+      if (!label) {
+        return;
+      }
+      setGroupCollapsed(group, collapsed.has(label));
+    });
+  }
+
+  /** @returns {Set<string>} */
+  function readCollapsedFromDom() {
+    const collapsed = new Set();
+    document.querySelectorAll(".nav-group[data-nav-label]").forEach((group) => {
+      if (!(group instanceof HTMLElement)) {
+        return;
+      }
+      const label = group.dataset.navLabel;
+      if (label && group.classList.contains("is-collapsed")) {
+        collapsed.add(label);
+      }
+    });
+    return collapsed;
+  }
 
   function renderNav() {
     const mount = document.querySelector("[data-cheatsheet-nav]");
@@ -62,19 +147,63 @@
 
     const frag = document.createDocumentFragment();
 
+    const tools = document.createElement("div");
+    tools.className = "nav-tools";
+    tools.setAttribute("role", "toolbar");
+    tools.setAttribute("aria-label", "Navigation sections");
+
+    const expandAllBtn = document.createElement("button");
+    expandAllBtn.type = "button";
+    expandAllBtn.className = "nav-tools-btn";
+    expandAllBtn.dataset.navAction = "expand-all";
+    expandAllBtn.textContent = "Expand all";
+
+    const collapseAllBtn = document.createElement("button");
+    collapseAllBtn.type = "button";
+    collapseAllBtn.className = "nav-tools-btn";
+    collapseAllBtn.dataset.navAction = "collapse-all";
+    collapseAllBtn.textContent = "Collapse all";
+
+    const sep = document.createElement("span");
+    sep.className = "nav-tools-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "·";
+
+    tools.appendChild(expandAllBtn);
+    tools.appendChild(sep);
+    tools.appendChild(collapseAllBtn);
+    frag.appendChild(tools);
+
     NAV_GROUPS.forEach((groupDef, index) => {
       const group = document.createElement("section");
       group.className = "nav-group";
+      group.dataset.navLabel = groupDef.label;
       if (index === 0) {
         group.classList.add("nav-group-first");
       }
 
-      const heading = document.createElement("h2");
-      heading.className = "nav-group-label";
-      heading.textContent = groupDef.label;
-      group.appendChild(heading);
+      const listId = `nav-group-list-${index}`;
+
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "nav-group-toggle";
+      toggle.setAttribute("aria-expanded", "true");
+      toggle.setAttribute("aria-controls", listId);
+
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "nav-group-label";
+      labelSpan.textContent = groupDef.label;
+
+      const chevron = document.createElement("span");
+      chevron.className = "nav-group-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+
+      toggle.appendChild(labelSpan);
+      toggle.appendChild(chevron);
+      group.appendChild(toggle);
 
       const ul = document.createElement("ul");
+      ul.id = listId;
       ul.className = "nav-list nav-list-nested";
       groupDef.items.forEach((item) => {
         const li = document.createElement("li");
@@ -99,16 +228,68 @@
         link.classList.add("is-active");
         link.setAttribute("aria-current", "page");
         const group = link.closest(".nav-group");
-        if (group) {
+        if (group instanceof HTMLElement) {
           group.classList.add("nav-group-active");
+          setGroupCollapsed(group, false);
+          const label = group.dataset.navLabel;
+          if (label) {
+            const collapsed = loadCollapsedLabels();
+            collapsed.delete(label);
+            saveCollapsedLabels(collapsed);
+          }
         }
+      }
+    });
+  }
+
+  function bindNavInteractions() {
+    const mount = document.querySelector("[data-cheatsheet-nav]");
+    if (!mount) {
+      return;
+    }
+
+    mount.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const actionBtn = target.closest("[data-nav-action]");
+      if (actionBtn instanceof HTMLElement) {
+        const action = actionBtn.dataset.navAction;
+        if (action === "expand-all") {
+          document.querySelectorAll(".nav-group[data-nav-label]").forEach((group) => {
+            if (group instanceof HTMLElement) {
+              setGroupCollapsed(group, false);
+            }
+          });
+          saveCollapsedLabels(new Set());
+        } else if (action === "collapse-all") {
+          const allLabels = new Set(NAV_GROUPS.map((g) => g.label));
+          applyCollapsedState(allLabels);
+          saveCollapsedLabels(allLabels);
+        }
+        return;
+      }
+
+      const toggle = target.closest(".nav-group-toggle");
+      if (toggle instanceof HTMLElement) {
+        const group = toggle.closest(".nav-group");
+        if (!(group instanceof HTMLElement)) {
+          return;
+        }
+        const willCollapse = !group.classList.contains("is-collapsed");
+        setGroupCollapsed(group, willCollapse);
+        saveCollapsedLabels(readCollapsedFromDom());
       }
     });
   }
 
   function init() {
     renderNav();
+    applyCollapsedState(loadCollapsedLabels());
     markActiveLink();
+    bindNavInteractions();
   }
 
   if (document.readyState === "loading") {

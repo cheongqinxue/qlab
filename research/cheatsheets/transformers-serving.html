@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — serving &amp; hosting · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Where the model runs in prod — engines, APIs, scale. Prefill/decode math →
+          <a href="transformers-efficiency.html">efficiency</a>. Quant layouts →
+          <a href="transformers-compression.html">compression</a>. Agent uptime →
+          <a href="agents-reliability.html">reliability</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — serving &amp; hosting</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What this sheet is (and is not)</span>
+            <p>
+              <strong>Serving / hosting</strong> is everything that turns a checkpoint into a <strong>stable inference service</strong>:
+              load weights, batch requests, stream tokens, expose an API, scale replicas, and match hardware to latency and cost.
+              This page covers <strong>runtimes, deployment shapes, and ops levers</strong> — not model architecture (<a href="transformers-core.html">core</a>)
+              and not kernel-level KV math alone (<a href="transformers-efficiency.html">efficiency</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Deployment shapes</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Self-host on your GPUs</span>
+            <p>
+              You operate machines (or K8s), pick a <strong>serving engine</strong>, pin CUDA/driver, and own uptime.
+              Best when data must stay in VPC, you need custom quant (GPTQ/AWQ/FP8), or unit economics beat API pricing at steady load.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Managed model APIs</span>
+            <p>
+              Vendor hosts weights and GPUs; you call HTTPS (OpenAI-style or cloud-native).
+              Best for fast start, bursty traffic, and when ops headcount is limited — watch data residency, logging, and $/1M tokens.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Edge &amp; local</span>
+            <p>
+              <strong>llama.cpp</strong>, <strong>Ollama</strong>, <strong>MLX</strong> on laptop or on-prem CPU/GPU — low latency, offline, dev demos.
+              Different scale ceiling than datacenter vLLM; often GGUF/INT quants.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Hybrid</span>
+            <p>
+              App in your cloud; inference via private link to Bedrock/Vertex/Azure OpenAI, or burst overflow from self-host to API.
+              <strong>LiteLLM</strong> / gateways unify routes (<a href="agents-reliability.html">reliability</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Serving engines (self-host reference)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Engine</th>
+                    <th scope="col">Typical use</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>vLLM</strong></td>
+                    <td>Default OSS datacenter LLM serve</td>
+                    <td>Continuous batching, PagedAttention, TP/PP, OpenAI-compatible server; GPTQ/AWQ/FP8 paths</td>
+                  </tr>
+                  <tr>
+                    <td><strong>SGLang</strong></td>
+                    <td>High-throughput, structured/gen-heavy</td>
+                    <td>RadixAttention, strong for agents and constrained decoding; coexists with vLLM in many stacks</td>
+                  </tr>
+                  <tr>
+                    <td><strong>TensorRT-LLM</strong></td>
+                    <td>NVIDIA-max perf, compiled graphs</td>
+                    <td>Build step per model/GPU; excellent when you can pin configs; less “drop any HF repo” than vLLM</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Text Generation Inference (TGI)</strong></td>
+                    <td>HF ecosystem serve</td>
+                    <td>Rust/Python server; good HF model support; common before vLLM dominance</td>
+                  </tr>
+                  <tr>
+                    <td><strong>llama.cpp</strong></td>
+                    <td>CPU/GPU edge, GGUF</td>
+                    <td>Server mode + bindings; see <a href="transformers-compression.html">compression</a> for GGUF</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Ollama</strong></td>
+                    <td>Local/dev packaging</td>
+                    <td>Pull models as blobs; wraps llama.cpp–class backends; not a full multi-tenant prod platform alone</td>
+                  </tr>
+                  <tr>
+                    <td><strong>LMDeploy</strong></td>
+                    <td>Turbomind backend, Asian cloud stacks</td>
+                    <td>Strong throughput; check model support list</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Ray Serve + engine</strong></td>
+                    <td>Multi-model routing, autoscale</td>
+                    <td>Orchestration layer; vLLM/TRT workers behind Ray deployments</td>
+                  </tr>
+                  <tr>
+                    <td><strong>MLX</strong></td>
+                    <td>Apple Silicon</td>
+                    <td>Local and single-node Apple GPU inference</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Pin engine + CUDA + checkpoint quant format together — mismatches fail load or silently dequant to slow paths.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Managed &amp; specialty hosts</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Provider class</th>
+                    <th scope="col">Examples</th>
+                    <th scope="col">When it fits</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Hyperscaler AI APIs</strong></td>
+                    <td>AWS Bedrock, Google Vertex AI, Azure OpenAI / Model Catalog, Oracle GenAI</td>
+                    <td>Enterprise contracts, IAM integration, private endpoints</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Model API specialists</strong></td>
+                    <td>Together, Fireworks, Groq, Cerebras, Mistral API, OpenAI, Anthropic</td>
+                    <td>Low ops, latest models, pay-per-token; compare latency $/quality</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GPU cloud + you install engine</strong></td>
+                    <td>Lambda, CoreWeave, RunPod, Vast, Paperspace, SF Compute</td>
+                    <td>Cheaper GPUs, you still run vLLM/K8s; good mid stage before owned hardware</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Serverless GPU (container)</strong></td>
+                    <td>Modal, Baseten, Replicate, Hugging Face Inference Endpoints</td>
+                    <td>Scale-to-zero experiments; watch cold start and concurrency limits</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Architecture levers (beyond “pick vLLM”)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Throughput vs latency</span>
+            <ul>
+              <li><strong>Continuous batching</strong> — merge decode steps across users; boosts GPU util, adds tail latency jitter.</li>
+              <li><strong>Static batching</strong> — simpler; fine for offline batch inference.</li>
+              <li><strong>Max batch tokens / max seqs</strong> — tune to avoid OOM; document in runbooks.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Scale-out</span>
+            <ul>
+              <li><strong>Tensor parallel (TP)</strong> — one model sharded across GPUs in a replica.</li>
+              <li><strong>Pipeline parallel (PP)</strong> — layers on different devices; less common at small scale.</li>
+              <li><strong>Data parallel replicas</strong> — multiple full copies behind a load balancer.</li>
+              <li><strong>Expert parallel (EP)</strong> — MoE-only; must match training shard semantics (<a href="transformers-efficiency.html">efficiency</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Disaggregated prefill / decode</span>
+            <p>
+              Split prompt-heavy <strong>prefill</strong> and token-by-token <strong>decode</strong> onto different pools (research + early prod on large models).
+              Helps when prefill compute-bound and decode memory-bound; adds network hop and scheduler complexity.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multi-LoRA &amp; adapters</span>
+            <p>
+              One base weights copy, many <strong>LoRA</strong> adapters swapped or batched (<a href="transformers-peft.html">PEFT</a>).
+              vLLM/SGLang multi-LoRA reduces RAM vs full fine-tunes; define max adapters and eviction policy.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">API surface &amp; clients</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>OpenAI-compatible</strong> — <code>/v1/chat/completions</code>, streaming SSE; de facto for apps and LangChain-class SDKs.</li>
+              <li><strong>Embeddings &amp; rerankers</strong> — often separate smaller services (TEI, Infinity, custom FastAPI + sentence-transformers).</li>
+              <li><strong>Speech / vision</strong> — separate pipelines (Whisper serve, vLLM multimodal) — not every LLM engine hosts all modalities.</li>
+              <li><strong>gRPC / Triton</strong> — lower latency internal east-west; common with TRT-LLM in NVIDIA stacks.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Hosting ops checklist</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Lifecycle</span>
+            <ul>
+              <li>Model registry (HF revision, quant recipe hash, license).</li>
+              <li>Health: warm model loaded, generate 1 token, latency SLO.</li>
+              <li>Rollout: canary replica, compare error rate and tokens/sec.</li>
+              <li>Cold start: serverless and large models — preload or keep min replicas &gt; 0.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Capacity planning</span>
+            <ul>
+              <li>VRAM = weights + KV × concurrent seqs (<a href="transformers-compression.html#kv-quant">KV quant</a>).</li>
+              <li>Decode QPS often limited by memory bandwidth, not FLOPs.</li>
+              <li>Reserve headroom for long-context spikes and agent multi-turn.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Prototype / laptop</strong> → Ollama or llama.cpp; same prompts later against vLLM in staging.</li>
+              <li><strong>Prod GPU you operate</strong> → vLLM or SGLang; TP for 70B+; gateway for fallbacks.</li>
+              <li><strong>Max NVIDIA perf, fixed model</strong> → TensorRT-LLM build pipeline.</li>
+              <li><strong>No GPU ops team</strong> → managed API or Inference Endpoints; log residency requirements first.</li>
+              <li><strong>RAG product</strong> → LLM serve + dedicated embedding/rerank service; do not overload one process if CPU embed blocks GPU decode.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
