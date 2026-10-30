@@ -33,7 +33,10 @@
     },
     {
       label: "Security",
-      items: [{ href: "security-access-control.html", label: "Access control" }],
+      items: [
+        { href: "security-access-control.html", label: "Concepts" },
+        { href: "security-implementation.html", label: "Implement & deploy" },
+      ],
     },
     {
       label: "Interview prep",

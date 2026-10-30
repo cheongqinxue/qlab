@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security — implement &amp; deploy · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">What to build, how to deploy, and what usually breaks. Pair with <a href="security-access-control.html">concepts</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Security — implement &amp; deploy</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">What you need to understand (no jargon wall)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Four ideas that drive every decision</span>
+            <ol>
+              <li><strong>The browser is not yours.</strong> Anything in JavaScript can be edited. Hiding buttons is not security. The API must enforce rules.</li>
+              <li><strong>Login ≠ permission.</strong> Knowing who someone is (AuthN) does not tell you if they may open <em>this</em> record (AuthZ). You need both, on every sensitive route.</li>
+              <li><strong>Credentials are bearer secrets.</strong> Whoever holds the session cookie or access token is treated as that user until it expires or is revoked.</li>
+              <li><strong>IDs in URLs are not proof.</strong> <code>GET /invoices/42</code> must load invoice 42 and check “does this logged-in user own or admin invoice 42?” — not “are they logged in?”</li>
+            </ol>
+            <p class="cell-caption">Trust boundary: Internet → your edge (TLS) → your app (AuthN+AuthZ) → database (optional row locks).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Vocabulary you’ll hear</span>
+            <ul>
+              <li><strong>IdP</strong> — identity provider (login system): Clerk, Auth0, Cognito, Keycloak, Google</li>
+              <li><strong>OIDC</strong> — standard “sign in with …” + ID token about the user</li>
+              <li><strong>JWT</strong> — signed JSON blob the app verifies; often short-lived access token</li>
+              <li><strong>RBAC</strong> — roles like <code>admin</code> / <code>member</code> mapped to allowed actions</li>
+              <li><strong>Tenant</strong> — one customer org in B2B SaaS; data must not leak across tenants</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What you should not build yourself (first ship)</span>
+            <ul>
+              <li>Password hashing schemes, MFA crypto, OAuth server from scratch</li>
+              <li>Custom session crypto — use framework + IdP patterns</li>
+              <li>“Security by obscurity” API keys in frontend bundles</li>
+              <li>Buy/host: managed auth unless compliance forces self-host (Keycloak on VPC)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pick your path — then implement that path</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Path A — Consumer web/mobile app</span>
+            <p>Users sign up, log in, use your product.</p>
+            <ul>
+              <li><strong>Use</strong> managed auth (Clerk, Auth0, Supabase Auth, Cognito, Firebase Auth)</li>
+              <li><strong>App</strong> receives session or JWT; backend validates on every API call</li>
+              <li><strong>AuthZ</strong> start simple: owner_id on rows; “only edit if <code>row.user_id == me</code>”</li>
+              <li><strong>Ship</strong> HTTPS, HttpOnly session cookie or BFF that holds tokens server-side</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Path B — B2B SaaS (teams / companies)</span>
+            <ul>
+              <li>Every row has <code>organization_id</code> (tenant); JWT carries <code>org_id</code> from IdP or your DB</li>
+              <li>RBAC: <code>org_admin</code> vs <code>member</code>; invite flows</li>
+              <li>Enterprise: SAML/OIDC SSO to customer IdP (Okta, Entra ID)</li>
+              <li>Add Postgres <strong>RLS</strong> when one bug could cross tenants</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Path C — API / scripts / backend only</span>
+            <ul>
+              <li><strong>API keys</strong> for servers you control — rotate, scope, rate-limit, never in browser</li>
+              <li><strong>OAuth client credentials</strong> service-to-service where IdP supports it</li>
+              <li>Cloud: workload identity (IAM role → short-lived token), not static keys on disk</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Reference deploy shape (typical SaaS)</span>
+            <figure class="cell-diagram" aria-labelledby="fig-deploy">
+              <svg class="diagram-tall" viewBox="0 0 420 150" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-deploy">Production request path</title>
+                <rect x="8" y="58" width="56" height="32" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="36" y="78" text-anchor="middle" font-size="8">Browser</text>
+                <line x1="64" y1="74" x2="88" y2="74" stroke="var(--accent)" />
+                <rect x="92" y="50" width="64" height="48" rx="4" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" /><text x="124" y="68" text-anchor="middle" font-size="7">CDN / LB</text><text x="124" y="82" text-anchor="middle" font-size="7">TLS terminate</text>
+                <line x1="156" y1="74" x2="180" y2="74" stroke="var(--accent)" />
+                <rect x="184" y="44" width="72" height="60" rx="4" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" /><text x="220" y="62" text-anchor="middle" font-size="8">Your API</text><text x="220" y="76" text-anchor="middle" font-size="7">AuthN middleware</text><text x="220" y="90" text-anchor="middle" font-size="7">AuthZ per route</text>
+                <line x1="256" y1="74" x2="280" y2="74" stroke="var(--accent)" />
+                <rect x="284" y="58" width="56" height="32" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="312" y="78" text-anchor="middle" font-size="8">Database</text>
+                <rect x="184" y="8" width="72" height="28" rx="4" fill="var(--code-bg)" stroke="var(--accent)" stroke-dasharray="3 2" /><text x="220" y="26" text-anchor="middle" font-size="7">Managed IdP</text>
+                <line x1="220" y1="36" x2="220" y2="44" stroke="var(--accent)" stroke-dasharray="3 2" />
+                <text x="8" y="120" font-size="7" fill="var(--text-muted)">Login redirect goes browser → IdP → callback to your app (registered redirect URI only)</text>
+                <text x="8" y="132" font-size="7" fill="var(--text-muted)">Secrets: IdP client secret + DB URL in env / vault — not in git</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Phased implementation — do in order</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Phase 0 — before users (1–2 days)</span>
+            <ul>
+              <li>HTTPS on prod (Let’s Encrypt or cloud LB certificate)</li>
+              <li><code>.env</code> + <code>.env-template</code>; secrets in gitignored env or cloud secret manager</li>
+              <li>All mutating routes behind AuthN — no “we’ll add later” on DELETE/PUT</li>
+              <li>Default deny: new endpoints return 401 until wired</li>
+              <li>Separate prod vs staging IdP apps and secrets</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Phase 1 — first real users</span>
+            <ul>
+              <li>Managed IdP wired; email verification or SSO as needed</li>
+              <li>Object-level checks: load resource → compare owner/tenant → then return data</li>
+              <li>RBAC table or claims: <code>role</code> checked on admin routes (BFLA)</li>
+              <li>Rate limit login and password reset at edge</li>
+              <li>Structured audit log: user id, action, resource id, timestamp (no tokens)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Phase 2 — scale &amp; enterprise</span>
+            <ul>
+              <li>MFA enforced for admins; SSO for enterprise tenants</li>
+              <li>Refresh token rotation; session revoke on password change</li>
+              <li>Postgres RLS or policy engine (OPA/Cedar/SpiceDB) if sharing rules get messy</li>
+              <li>Pen test or automated DAST on staging; fix BOLA findings first</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What your application code must do (every stack)</span>
+            <pre>1. Middleware: parse cookie OR Authorization Bearer
+2. Validate with IdP (JWKS) or session store → set request.user { id, roles, tenant_id }
+3. Handler: resource = db.get(id); if resource.tenant != user.tenant: return 403
+4. Handler: if action needs role and role not in user.roles: return 403
+5. Proceed with business logic</pre>
+            <p class="cell-caption">Write automated tests that user A cannot read user B’s id — expect 403/404, not 200.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Managed auth — what you configure</span>
+            <ul>
+              <li><strong>Redirect URIs</strong> — exact allowlist (prod + staging URLs); typo = auth bypass confusion</li>
+              <li><strong>Client secret</strong> — server-side only; SPAs use PKCE without secret</li>
+              <li><strong>JWT audience</strong> — API only accepts tokens meant for your API (<code>aud</code>)</li>
+              <li><strong>Custom claims</strong> — <code>tenant_id</code>, <code>role</code> via rules or post-login hook</li>
+              <li><strong>Webhooks</strong> — verify signature when IdP sends user.updated / delete</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Deploy checklist (prod cutover)</span>
+            <ul>
+              <li>TLS valid; HSTS optional; no HTTP login</li>
+              <li>CORS: explicit origin list if browser sends cookies — never <code>*</code> + credentials</li>
+              <li>Cookie flags: <code>Secure</code>, <code>HttpOnly</code>, <code>SameSite=Lax</code> (or Strict)</li>
+              <li>Admin UI on separate path or subdomain; stricter MFA policy</li>
+              <li>Backups encrypted; DB not public IP</li>
+              <li>Incident: document how to revoke all sessions (IdP dashboard or key rotation)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Gotchas — read before launch</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tokens &amp; sessions</span>
+            <ul>
+              <li><strong>JWT in localStorage</strong> — any XSS steals account; prefer HttpOnly cookie or BFF</li>
+              <li><strong>Long-lived access JWT</strong> — stolen token works for days; use short access + refresh</li>
+              <li><strong>No revocation story</strong> — know how to force logout (session version, blocklist, IdP revoke)</li>
+              <li><strong>Accept alg=none</strong> or skip signature verify — always verify with IdP JWKS</li>
+              <li><strong>Trust client “userId” field</strong> in JSON body — use identity from verified token only</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Authorization bugs (most common breaches)</span>
+            <ul>
+              <li><strong>BOLA/IDOR</strong> — increment id in API; fix with server-side ownership check every time</li>
+              <li><strong>AuthZ only in UI</strong> — attacker calls API directly</li>
+              <li><strong>Admin routes unguarded</strong> — <code>/admin/*</code> missing role middleware</li>
+              <li><strong>Mass assignment</strong> — user submits <code>{"role":"admin"}</code> on profile update</li>
+              <li><strong>404 vs 403</strong> — leaking existence can matter; pick consistent policy</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multi-tenant</span>
+            <ul>
+              <li><strong>Tenant id from query string</strong> — must match token claim, not user input alone</li>
+              <li><strong>Forgot tenant in worker/cron</strong> — job processes all tenants’ data</li>
+              <li><strong>Cache keys without tenant</strong> — user A sees user B’s cached fragment</li>
+              <li><strong>Support “impersonation”</strong> without audit trail — log every impersonation session</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">OAuth &amp; login flows</span>
+            <ul>
+              <li><strong>Open redirect</strong> — validate <code>returnUrl</code> against allowlist</li>
+              <li><strong>Redirect URI mismatch</strong> — attacker registers lookalike if IdP misconfigured</li>
+              <li><strong>Implicit flow in SPA</strong> — deprecated; use authorization code + PKCE</li>
+              <li><strong>CSRF on OAuth state</strong> — use <code>state</code> param and verify on callback</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">API keys &amp; ops</span>
+            <ul>
+              <li><strong>Key in frontend / mobile app</strong> — extractable; use user login instead</li>
+              <li><strong>Same key prod and dev</strong> — leak in ticket exposes prod</li>
+              <li><strong>Logs</strong> — Authorization header, query tokens, password reset links logged by default in some proxies</li>
+              <li><strong>Webhooks</strong> — verify HMAC signature; no auth “because it’s internal IP”</li>
+              <li><strong>GraphQL</strong> — one endpoint still needs per-field or per-resolver AuthZ</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">When things go wrong</span>
+            <ul>
+              <li>Rotate IdP client secret / API keys if leaked; invalidate sessions</li>
+              <li>Force global password reset only if password store compromised</li>
+              <li>Post-mortem: was failure AuthN, AuthZ, or missing tenant filter?</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Minimum test cases before you trust it</span>
+            <ul>
+              <li>Anonymous cannot call protected route (401)</li>
+              <li>User A cannot read/update User B’s resource by id (403/404)</li>
+              <li>Member cannot call admin endpoint (403)</li>
+              <li>User in Org 1 cannot access Org 2 data when swapping org header</li>
+              <li>Expired/tampered token rejected (401)</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
