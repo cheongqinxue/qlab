@@ -39,6 +39,13 @@
       ],
     },
     {
+      label: "RAG",
+      items: [
+        { href: "rag-retrieval.html", label: "Retrieval" },
+        { href: "rag-systems.html", label: "RAG systems" },
+      ],
+    },
+    {
       label: "Interview prep",
       items: [{ href: "ai-engineer-interview.html", label: "AI Engineer" }],
     },

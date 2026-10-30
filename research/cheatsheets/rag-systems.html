@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — systems · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Ingest → retrieve → generate. IR basics → <a href="rag-retrieval.html">retrieval sheet</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">RAG systems</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">End-to-end pipeline</span>
+            <figure class="cell-diagram" aria-labelledby="fig-rag">
+              <svg class="diagram-tall" viewBox="0 0 480 100" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-rag">RAG pipeline</title>
+                <rect x="4" y="36" width="56" height="28" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="32" y="54" text-anchor="middle" font-size="7">Sources</text>
+                <line x1="60" y1="50" x2="76" y2="50" stroke="var(--accent)" />
+                <rect x="80" y="32" width="52" height="36" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" /><text x="106" y="48" text-anchor="middle" font-size="7">Chunk</text><text x="106" y="60" text-anchor="middle" font-size="6">+ meta</text>
+                <line x1="132" y1="50" x2="148" y2="50" stroke="var(--accent)" />
+                <rect x="152" y="32" width="52" height="36" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" /><text x="178" y="54" text-anchor="middle" font-size="7">Embed</text>
+                <line x1="204" y1="50" x2="220" y2="50" stroke="var(--accent)" />
+                <rect x="224" y="28" width="56" height="44" rx="3" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" /><text x="252" y="48" text-anchor="middle" font-size="7">Vector</text><text x="252" y="60" text-anchor="middle" font-size="7">index</text>
+                <text x="300" y="42" font-size="8" fill="var(--text-muted)">query time →</text>
+                <rect x="300" y="48" width="48" height="28" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="324" y="66" text-anchor="middle" font-size="7">Retrieve</text>
+                <line x1="348" y1="62" x2="364" y2="62" stroke="var(--accent)" />
+                <rect x="368" y="48" width="44" height="28" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="390" y="66" text-anchor="middle" font-size="7">LLM</text>
+                <line x1="412" y1="62" x2="428" y2="62" stroke="var(--accent)" />
+                <rect x="432" y="48" width="44" height="28" rx="3" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" /><text x="454" y="66" text-anchor="middle" font-size="7">Answer</text>
+              </svg>
+            </figure>
+            <p class="cell-caption">Offline: ingest once (or on schedule). Online: each user question retrieves fresh context, then one LLM call (or agent loop).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Ingestion</span>
+            <ul>
+              <li>Sources: PDF, HTML, wiki, tickets, DB exports — normalize to text</li>
+              <li>Parse tables/headers; keep source URI and version for citations</li>
+              <li>Respect <strong>access control</strong> — index tenant/user ACL in metadata (<a href="security-access-control.html">security</a>)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Chunking</span>
+            <p>
+              Split documents into pieces that fit the context window and embed model limits.
+              Too small loses context; too large dilutes the vector. Overlap (e.g. 10–20%) reduces boundary cuts mid-sentence.
+            </p>
+            <ul>
+              <li>Fixed token windows — simple default</li>
+              <li>Structure-aware — by heading, paragraph, page</li>
+              <li>Parent–child — retrieve small, inject larger parent for LLM</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Prompting the LLM</span>
+            <ul>
+              <li>System: answer only from provided context; say “I don’t know” if missing</li>
+              <li>Inject retrieved chunks with labels/source ids for citations</li>
+              <li>Keep total tokens under model limit — trim k or summarize chunks</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Query-side tricks</span>
+            <ul>
+              <li><strong>HyDE</strong> — LLM drafts a hypothetical answer; embed that for search (can help vague queries)</li>
+              <li><strong>Query rewrite</strong> — LLM expands acronyms or sub-queries</li>
+              <li><strong>Multi-query</strong> — several retrievals merged (RRF fusion)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Evaluation (what to measure)</span>
+            <ul>
+              <li><strong>Retrieval</strong> — recall@k on a labeled set (see <a href="rag-retrieval.html">retrieval sheet</a>)</li>
+              <li><strong>Faithfulness / groundedness</strong> — are claims supported by retrieved text?</li>
+              <li><strong>Answer correctness</strong> — human or LLM-as-judge vs gold answer</li>
+              <li><strong>Citation accuracy</strong> — does the cited chunk actually contain the claim?</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Production ops</span>
+            <ul>
+              <li>Re-embed on model change — vectors are not portable across unrelated embedders</li>
+              <li>Incremental index updates vs full rebuild</li>
+              <li>Log query + chunk ids; redact PII in logs</li>
+              <li>Rate limits and cache frequent queries cautiously (stale answers)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RAG vs fine-tune vs long context</span>
+            <ul>
+              <li><strong>RAG</strong> — fresh facts from your docs; cite sources; index updates without retraining</li>
+              <li><strong>Fine-tune</strong> — style, format, domain language; not a substitute for live KB</li>
+              <li><strong>Long context</strong> — dump whole doc if it fits; still pay tokens; retrieval scales cheaper for huge corpora</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Common failures</span>
+            <ul>
+              <li>Empty retrieval → LLM fills gaps confidently</li>
+              <li>Duplicate/near-duplicate chunks waste context</li>
+              <li>Conflicting chunks — no policy to reconcile</li>
+              <li>Prompt injection in indexed user content</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Minimal stack (starting point)</span>
+            <ul>
+              <li>Embed: open or hosted embedding API</li>
+              <li>Store: Postgres pgvector or managed vector DB</li>
+              <li>App: retrieve top‑k → optional rerank → LLM API with context block</li>
+              <li>AuthZ on metadata filters per request</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

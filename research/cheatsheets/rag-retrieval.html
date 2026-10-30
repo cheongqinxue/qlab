@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — retrieval · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Find relevant text before the LLM answers. Pipeline → <a href="rag-systems.html">RAG systems</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Information retrieval</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What retrieval is</span>
+            <p>
+              <strong>Information retrieval (IR)</strong> means: given a question, return the most relevant passages from a corpus.
+              <strong>Retrieval-augmented generation (RAG)</strong> adds a step after that — a large language model (LLM) reads those passages and writes an answer grounded in them.
+            </p>
+            <p>If retrieval picks wrong or empty chunks, the LLM will guess or hallucinate. RAG quality is mostly retrieval quality.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Lexical vs semantic search</span>
+            <ul>
+              <li><strong>Lexical</strong> — match words (BM25, TF-IDF). Strong on exact terms, SKUs, names; weak on paraphrase.</li>
+              <li><strong>Semantic (dense)</strong> — embed query and documents into vectors; rank by cosine similarity. Strong on meaning; can miss rare tokens.</li>
+              <li><strong>Hybrid</strong> — combine both scores (common in production).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Embeddings</span>
+            <p>
+              An <strong>embedding model</strong> maps text to a fixed-length vector so that similar meaning → nearby vectors.
+              Same model must embed queries and documents at index and query time (or use a compatible pair).
+            </p>
+            <ul>
+              <li>Chunk text → vector → store in a <strong>vector index</strong></li>
+              <li>Query → vector → nearest neighbors = candidate passages</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Vector index (approximate nearest neighbor)</span>
+            <p>
+              Exact brute-force compare against every vector is slow at scale. Indexes like <strong>HNSW</strong> (hierarchical navigable small world)
+              trade a little recall for much faster search. Hosted options: Pinecone, Weaviate, Qdrant, pgvector, OpenSearch k-NN, etc.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-ann">
+              <svg viewBox="0 0 300 80" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-ann">Query vector finds nearby document vectors</title>
+                <circle cx="240" cy="40" r="8" fill="var(--accent)" />
+                <text x="240" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)">query</text>
+                <circle cx="80" cy="25" r="6" fill="var(--code-bg)" stroke="var(--accent)" />
+                <circle cx="120" cy="55" r="6" fill="var(--accent)" opacity="0.5" stroke="var(--accent)" />
+                <circle cx="160" cy="30" r="6" fill="var(--accent)" opacity="0.5" stroke="var(--accent)" />
+                <circle cx="200" cy="50" r="6" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <line x1="232" y1="38" x2="168" y2="32" stroke="var(--accent)" stroke-dasharray="3 2" />
+                <line x1="232" y1="42" x2="128" y2="52" stroke="var(--accent)" stroke-dasharray="3 2" />
+                <text x="8" y="20" font-size="8" fill="var(--text-muted)">top-k nearest chunks returned</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Metadata filters</span>
+            <p>
+              Vectors alone ignore structure. Store metadata (tenant, date, product, ACL) and <strong>filter before or during</strong> search
+              so users only retrieve documents they may read.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reranking</span>
+            <p>
+              First stage returns top‑50 cheaply; a <strong>cross-encoder reranker</strong> scores (query, passage) pairs and re-orders to top‑5 for the LLM.
+              Improves precision; adds latency and cost.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Metrics (offline)</span>
+            <ul>
+              <li><strong>Recall@k</strong> — was the gold passage in the top k results?</li>
+              <li><strong>MRR / nDCG</strong> — ranking quality when multiple relevant docs exist</li>
+              <li><strong>Hit rate</strong> — % queries with any score above a threshold</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Lexical: BM25 (intuition)</span>
+            <p>
+              <strong>BM25</strong> ranks documents by term frequency in the doc, penalized by document length, with diminishing returns for repeated words.
+              Inverted index = word → list of docs. No neural net; fast baseline and hybrid component.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">When retrieval fails</span>
+            <ul>
+              <li>Chunk too small/large — answer split across chunks</li>
+              <li>Stale index — product/docs changed after embed</li>
+              <li>Wrong language or domain in embedding model</li>
+              <li>No ACL on metadata — wrong tenant’s doc ranks high</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
