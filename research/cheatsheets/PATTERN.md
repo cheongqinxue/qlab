@@ -23,9 +23,10 @@ xdg-open research/cheatsheets/index.html
 3. `.sheet-header` — `.sheet-title` (sticky while scrolling) + toolbar
 4. `.sheet-grid` — two columns, zero gap
 5. `.cell` — padded content; `.cell-title` first line bold
-6. Optional `.cell-diagram` with inline SVG (uses CSS variables)
-7. Function shape plots: `<div class="func-chart" data-func-chart="gelu"></div>` — see `js/func-chart.js`
-8. **Math:** KaTeX via CDN + `js/katex-render.js`; use `$$…$$` in `.formula` divs and `$…$` in legend / `.sym` (see `loss-functions.html`)
+6. **Prose:** expand acronyms on first use in that page; prefer full concise sentences over label-only bullets where the reader may be new to the topic
+7. Optional `.cell-diagram` with inline SVG (uses CSS variables)
+8. Function shape plots: `<div class="func-chart" data-func-chart="gelu"></div>` — see `js/func-chart.js`
+9. **Math:** KaTeX via CDN + `js/katex-render.js`; use `$$…$$` in `.formula` divs and `$…$` in legend / `.sym` (see `loss-functions.html`)
 
 ## New page checklist
 

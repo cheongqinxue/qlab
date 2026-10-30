@@ -40,15 +40,22 @@
             <p class="cell-caption">Trust boundary: Internet → your edge (TLS) → your app (AuthN+AuthZ) → database (optional row locks).</p>
           </section>
 
-          <section class="cell">
-            <span class="cell-title">Vocabulary you’ll hear</span>
+          <section class="cell cell-span">
+            <span class="cell-title">Vocabulary (spelled out once)</span>
             <ul>
-              <li><strong>IdP</strong> — identity provider (login system): Clerk, Auth0, Cognito, Keycloak, Google</li>
-              <li><strong>OIDC</strong> — standard “sign in with …” + ID token about the user</li>
-              <li><strong>JWT</strong> — signed JSON blob the app verifies; often short-lived access token</li>
-              <li><strong>RBAC</strong> — roles like <code>admin</code> / <code>member</code> mapped to allowed actions</li>
-              <li><strong>Tenant</strong> — one customer org in B2B SaaS; data must not leak across tenants</li>
+              <li><strong>IdP (identity provider)</strong> — runs login: Clerk, Auth0, Cognito, Firebase Auth, Google</li>
+              <li><strong>OIDC (OpenID Connect)</strong> — “Sign in with X” standard; yields an ID token about the user</li>
+              <li><strong>JWT (JSON Web Token)</strong> — signed JSON; backend verifies signature before trusting <code>sub</code> (user id)</li>
+              <li><strong>AuthN / AuthZ</strong> — authentication (who) vs authorization (what they may do on which row)</li>
+              <li><strong>RBAC (role-based access control)</strong> — <code>admin</code> / <code>member</code> mapped to allowed actions</li>
+              <li><strong>RLS (row-level security)</strong> — Postgres filters rows by policy (e.g. only where <code>user_id = me</code>)</li>
+              <li><strong>Tenant</strong> — one customer org in B2B software; rows tagged <code>organization_id</code></li>
             </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Permission models vs products</span>
+            <p>RBAC/ABAC/ReBAC are <strong>ways to think</strong> about rules. Software that implements them includes Casbin, Oso, OPA, SpiceDB, Auth0 FGA, and Postgres RLS. The IdP gives coarse roles in the token; per-row access is usually your app or RLS.</p>
           </section>
 
           <section class="cell">
@@ -65,14 +72,18 @@
             <span class="cell-title">Pick your path — then implement that path</span>
           </section>
 
-          <section class="cell">
+          <section class="cell cell-span">
             <span class="cell-title">Path A — Consumer web/mobile app</span>
             <p>Users sign up, log in, use your product.</p>
+            <p>
+              After login at Google/Firebase/etc., the client keeps a token (often a JWT). The client sends that token on
+              <strong>each</strong> API request; the backend verifies it with the same provider (Firebase Admin, Google JWKS, Auth0, …).
+              That verification is AuthN. AuthZ is your code: roles plus matching <code>user_id</code> on the row.
+            </p>
             <ul>
-              <li><strong>Use</strong> managed auth (Clerk, Auth0, Supabase Auth, Cognito, Firebase Auth)</li>
-              <li><strong>App</strong> receives session or JWT; backend validates on every API call</li>
-              <li><strong>AuthZ</strong> start simple: owner_id on rows; “only edit if <code>row.user_id == me</code>”</li>
-              <li><strong>Ship</strong> HTTPS, HttpOnly session cookie or BFF that holds tokens server-side</li>
+              <li><strong>Use</strong> managed auth — do not build OAuth/password crypto yourself</li>
+              <li><strong>Prefer</strong> HttpOnly session cookie or backend-for-frontend (BFF) over JWT in <code>localStorage</code></li>
+              <li><strong>AuthZ start</strong> — <code>user_id</code> column + check in handler; add Postgres RLS when you want a DB safety net</li>
             </ul>
           </section>
 

@@ -29,13 +29,19 @@
             <span class="cell-title">Foundation</span>
           </section>
 
-          <section class="cell">
+          <section class="cell cell-span">
             <span class="cell-title">Authentication vs authorization</span>
+            <p>
+              <strong>Authentication (AuthN)</strong> answers: who is this caller? The backend verifies a password, session, or signed token with the
+              <strong>identity provider (IdP)</strong> — the service that ran login (Google, Firebase Auth, Auth0, etc.).
+            </p>
+            <p>
+              <strong>Authorization (AuthZ)</strong> answers: given that identity, may they perform this action on <em>this</em> record? Login proves identity;
+              it does not prove they may open invoice #42.
+            </p>
             <ul>
-              <li><strong>Authentication (AuthN)</strong> — who is this caller? (identity proof)</li>
-              <li><strong>Authorization (AuthZ)</strong> — what may they do on which resource?</li>
-              <li>AuthN without AuthZ → logged-in users can hit anything (broken access control)</li>
-              <li>AuthZ without strong AuthN → policies apply to the wrong principal</li>
+              <li>AuthN only → any logged-in user can hit any id (common breach)</li>
+              <li>AuthZ only → you might apply rules to the wrong person if identity was spoofed</li>
             </ul>
             <figure class="cell-diagram" aria-labelledby="fig-authn-authz">
               <svg viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg" role="img">
@@ -76,20 +82,38 @@
             <span class="cell-title">Proof of identity</span>
             <ul>
               <li><strong>Password</strong> — store slow hash (argon2/bcrypt), never plaintext</li>
-              <li><strong>MFA</strong> — TOTP, WebAuthn/passkeys, push; require for admin/sensitive ops</li>
-              <li><strong>SSO</strong> — OIDC/SAML to corporate IdP; app trusts signed assertions</li>
-              <li><strong>Service accounts</strong> — machine identity (client credentials, workload IAM), not user passwords</li>
+              <li><strong>MFA (multi-factor authentication)</strong> — second factor: TOTP app, WebAuthn/passkeys, or push</li>
+              <li><strong>SSO (single sign-on)</strong> — one corporate login via <strong>OpenID Connect (OIDC)</strong> or SAML to the company IdP</li>
+              <li><strong>Service accounts</strong> — machine identity (OAuth client credentials, cloud IAM roles), not human passwords</li>
             </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">How the token reaches your API (typical consumer app)</span>
+            <ol>
+              <li>User signs in via IdP (redirect or SDK — e.g. Google, Firebase).</li>
+              <li>Client holds a <strong>JSON Web Token (JWT)</strong> or session reference after login.</li>
+              <li>Each API call: client sends <code>Authorization: Bearer &lt;token&gt;</code> or an <strong>HttpOnly</strong> session cookie.</li>
+              <li>Your backend <strong>verifies</strong> with the IdP (public keys / Admin SDK) — every request, not once at login.</li>
+              <li>Handler runs AuthZ: roles/scopes plus “does this row belong to this user?”</li>
+            </ol>
           </section>
 
           <section class="cell">
             <span class="cell-title">Sessions vs bearer tokens</span>
             <ul>
-              <li><strong>Server session</strong> — opaque cookie → session store; easy revoke; sticky or shared store</li>
-              <li><strong>JWT access token</strong> — signed claims; verify signature + <code>exp</code> + <code>aud</code> + <code>iss</code></li>
-              <li><strong>Refresh token</strong> — long-lived, rotation on use, bind to client (PKCE / device)</li>
-              <li>Prefer <strong>short access</strong> + refresh over long-lived JWTs in localStorage</li>
+              <li><strong>Server session</strong> — opaque cookie points at server-side session store; easy to revoke; browser sends cookie automatically</li>
+              <li><strong>JWT (JSON Web Token)</strong> — signed JSON; backend checks signature, issuer (<code>iss</code>), audience (<code>aud</code>), expiry (<code>exp</code>)</li>
+              <li><strong>Expiry</strong> — short-lived access/ID token proves identity now; refresh token or long session reduces how often the user sees the login screen</li>
+              <li>Expiry is not permission — it only limits how long stolen credentials work</li>
             </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">AuthZ — not just a permission list</span>
+            <p><strong>Role-based access control (RBAC)</strong> maps roles to permissions (e.g. <code>admin</code> → <code>users:delete</code>). That is one layer.</p>
+            <p><strong>Object-level</strong> checks are separate: load the row, compare <code>user_id</code> or <code>tenant_id</code> to the verified identity. Changing <code>/items/5</code> to <code>/items/6</code> must not work unless allowed.</p>
+            <p>Patterns (RBAC, ABAC, ReBAC) are concepts; you implement them in code, in policy engines (OPA, Cedar, SpiceDB), or in Postgres <strong>row-level security (RLS)</strong>.</p>
           </section>
 
           <section class="cell cell-span">
@@ -172,19 +196,31 @@
           <section class="cell">
             <span class="cell-title">OWASP API top risks (access)</span>
             <ul>
-              <li><strong>BOLA</strong> — broken object level: change <code>/users/123</code> to <code>/users/124</code></li>
-              <li><strong>BFLA</strong> — broken function level: call admin route without role</li>
+              <li><strong>BOLA</strong> (broken object level authorization) — change <code>/users/123</code> to <code>/users/124</code> and read another user’s data</li>
+              <li><strong>BFLA</strong> (broken function level authorization) — call an admin-only route without the admin role</li>
               <li>Fix: resolve resource ID → load row → compare <code>tenant_id</code> / owner to principal from token</li>
               <li>Never trust client-sent tenant ID without matching signed claim</li>
             </ul>
           </section>
 
+          <section class="cell cell-span">
+            <span class="cell-title">Postgres row-level security (RLS) — own rows only</span>
+            <p>
+              <strong>RLS</strong> lets Postgres hide rows that fail a policy. For “users see only their rows,” add <code>user_id</code> on the table (or
+              <code>organization_id</code> plus a membership table for teams). The app sets the current user id on the DB session after AuthN; policies compare it to the row.
+            </p>
+            <pre>ALTER TABLE items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY items_own ON items FOR ALL
+  USING (user_id = current_setting('app.current_user_id')::uuid);</pre>
+            <p class="cell-caption">Shared documents need a grant/membership table in the policy, not only <code>user_id</code> on every row. RLS backs up the app; AuthN still happens in the API.</p>
+          </section>
+
           <section class="cell">
             <span class="cell-title">Multi-tenant isolation</span>
             <ul>
-              <li>Tenant in token claim (<code>tid</code>, custom) → filter every query</li>
-              <li><strong>Row-level security</strong> (Postgres RLS) as backstop to app bugs</li>
-              <li>Separate DB/schema only when compliance requires hard isolation</li>
+              <li><strong>Tenant</strong> — one customer organization; tenant id in token claim → filter every query</li>
+              <li>RLS on <code>organization_id</code> when cross-tenant leakage would be catastrophic</li>
+              <li>Separate database only when compliance requires hard isolation</li>
               <li>Background jobs and caches must carry tenant context</li>
             </ul>
           </section>
