@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — PEFT · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Adapters, LoRA, prompts — fine-tune without full weight updates.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — PEFT &amp; adapters</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">When to use PEFT</span>
+            <ul>
+              <li>Many tasks on one base; limited GPU; cannot store full fine-tunes</li>
+              <li>Risk: underfitting (rank too low) or forgetting (rank too high, too many steps)</li>
+              <li>Stack adapters per tenant/task; swap at serve time</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Adapter modules (Houlsby)</span>
+            <ul>
+              <li>Bottleneck MLP after attention and/or FFN sublayer</li>
+              <li>Train adapter weights only; base frozen</li>
+              <li>Down-proj → nonlinearity → up-proj; small hidden width</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">LoRA</span>
+            <div class="formula">$$W' = W + BA,\quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\; r \ll d$$</div>
+            <ul>
+              <li>Inject on $W_Q,W_K,W_V,W_O$ and/or FFN matrices</li>
+              <li>Merge $BA$ into $W$ at inference for zero extra latency</li>
+              <li>Default LLM fine-tune pattern (HF PEFT, many serving stacks)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Other PEFT methods</span>
+            <ul>
+              <li><strong>(IA)³</strong> — learned scalars on activations</li>
+              <li><strong>Prefix / prompt tuning</strong> — virtual tokens prepended; train embeddings only</li>
+              <li><strong>BitFit</strong> — bias terms only (tiny, weak alone on hard tasks)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Generation conditioning (related)</span>
+            <ul>
+              <li><strong>ControlNet</strong> — trainable side network; frozen U-Net/DiT trunk</li>
+              <li><strong>LoRA on diffusion</strong> — style/subject without full model copy</li>
+              <li>Not classic “adapter block” but same economic idea</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Serving notes</span>
+            <ul>
+              <li>Multiple LoRAs: compose or hot-swap per request (engine-dependent)</li>
+              <li>Version base + adapter artifacts together in registry</li>
+              <li>Eval on target task after merge — numerical drift is rare but possible</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="js/katex-render.js"></script>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

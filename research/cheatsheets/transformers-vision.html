@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — vision · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Image understanding encoders — patches, hierarchy, pretraining.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — vision</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">ViT (Vision Transformer)</span>
+            <ul>
+              <li>Split image into patches → linear embed; add pos (often 1D order of patches)</li>
+              <li>Transformer <strong>encoder</strong>; [CLS] token or global average pool → head</li>
+              <li>Needs data + augment at scale; conv stem hybrids common</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Hierarchical (multi-scale)</span>
+            <ul>
+              <li><strong>Swin</strong> — windowed self-attn + shifted windows; patch merge between stages</li>
+              <li><strong>PVT / Twins</strong> — spatial reduction attention</li>
+              <li><strong>DeiT</strong> — distillation token; training recipe for smaller ViTs</li>
+              <li>Fits detection / segmentation backbones better than flat ViT</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CLIP / SigLIP</span>
+            <ul>
+              <li>Image transformer + text transformer; contrastive image–text pairs</li>
+              <li>Zero-shot classify via text prompts; backbone for multimodal LLMs</li>
+              <li>SigLIP: sigmoid loss variant; common in newer stacks</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Self-supervised encoders</span>
+            <ul>
+              <li><strong>DINO / DINOv2</strong> — self-distillation; strong frozen features</li>
+              <li><strong>MAE</strong> — mask high % of patches; reconstruct pixels or latents</li>
+              <li><strong>BEiT / iBOT</strong> — discrete visual tokens as targets</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Video understanding (short)</span>
+            <ul>
+              <li>Spacetime patches or frame encoder + temporal transformer</li>
+              <li>Cost ∝ frames — tubelet embedding, sparse sampling</li>
+              <li>Generation patterns: <a href="transformers-image-gen.html">image gen sheet</a></li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pick encoder</span>
+            <ul>
+              <li>General embed / search: DINOv2 or CLIP</li>
+              <li>Need pyramid features: Swin</li>
+              <li>Simple classify fine-tune: ViT + head</li>
+              <li>Core attn: <a href="transformers-core.html">core sheet</a></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

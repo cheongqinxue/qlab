@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — efficiency · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">KV cache, head layouts, exact fast kernels, sparse and alternative attention.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — efficiency</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cost model — prefill vs decode</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Where time and memory go</span>
+            <p>
+              Attention is $\mathcal{O}(n^2)$ in sequence length $n$ for <strong>prefill</strong> (process the prompt in one or few passes).
+              Each query token compares to every key; GPUs often become <strong>compute-bound</strong> on large matmuls here.
+            </p>
+            <p>
+              <strong>Decode</strong> (one new token per step) reuses past keys and values via a <strong>KV cache</strong>.
+              Work per step is $\mathcal{O}(n)$, but you must <em>read</em> the whole cache from memory each time — often
+              <strong>memory-bandwidth-bound</strong>. That is why KV compression (GQA, MLA) matters more at inference than in training.
+            </p>
+            <p>SDPA math: <a href="transformers-core.html">core sheet</a> (MHA + per-head SDPA).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Decode: cache grows each step</span>
+            <figure class="cell-diagram" aria-labelledby="fig-kv-decode">
+              <svg class="diagram-tall" viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-kv-decode">KV cache grows as tokens are generated</title>
+                <text x="8" y="14" font-size="9" fill="var(--text-muted)">layer ℓ (one head shown)</text>
+                <rect x="8" y="22" width="304" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="16" y="35" font-size="8" fill="var(--text-primary)">step 1: store K,V for token t₁</text>
+                <rect x="8" y="44" width="304" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <rect x="8" y="44" width="48" height="18" rx="2" fill="var(--accent)" opacity="0.35" />
+                <text x="16" y="57" font-size="8" fill="var(--text-primary)">step 2: append t₂; attend over t₁,t₂</text>
+                <rect x="8" y="66" width="304" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <rect x="8" y="66" width="96" height="18" rx="2" fill="var(--accent)" opacity="0.35" />
+                <text x="16" y="79" font-size="8" fill="var(--text-primary)">step 3: append t₃ …</text>
+                <rect x="8" y="88" width="304" height="22" rx="2" fill="var(--bg-cell-alt)" stroke="var(--accent)" stroke-dasharray="4 2" />
+                <text x="160" y="103" text-anchor="middle" font-size="9" fill="var(--accent-strong)">new Q only; K,V history loaded from cache</text>
+              </svg>
+            </figure>
+            <p class="cell-caption">Rough KV size per layer: $2 \times n_{\mathrm{kv\_heads}} \times d_k \times \text{seq\_len}$ (K and V), times number of layers and batch.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Head layouts — MHA, GQA, MQA</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Same SDPA inside each head; different K,V sharing</span>
+            <p>
+              <strong>MHA</strong> (multi-head attention): every query head has its own key and value projections. Maximum flexibility; largest cache.
+              <strong>MQA</strong> (multi-query): all query heads share one K and one V. Smallest cache; can hurt quality.
+              <strong>GQA</strong> (grouped-query): $g$ KV groups; each group feeds $h/g$ query heads — usual LLM compromise.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-head-layout">
+              <svg class="diagram-tall" viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-head-layout">MHA vs GQA vs MQA wiring</title>
+                <!-- MHA -->
+                <text x="70" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--accent-strong)">MHA</text>
+                <text x="70" y="28" text-anchor="middle" font-size="7" fill="var(--text-muted)">h KV pairs</text>
+                <g font-size="8" fill="var(--text-primary)">
+                  <rect x="12" y="36" width="28" height="14" rx="2" fill="var(--accent)" opacity="0.5" /><text x="26" y="46" text-anchor="middle">Q₁</text>
+                  <rect x="44" y="36" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="58" y="46" text-anchor="middle">K₁</text>
+                  <rect x="76" y="36" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="90" y="46" text-anchor="middle">V₁</text>
+                  <rect x="12" y="56" width="28" height="14" rx="2" fill="var(--accent)" opacity="0.5" /><text x="26" y="66" text-anchor="middle">Q₂</text>
+                  <rect x="44" y="56" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="58" y="66" text-anchor="middle">K₂</text>
+                  <rect x="76" y="56" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="90" y="66" text-anchor="middle">V₂</text>
+                  <rect x="12" y="76" width="28" height="14" rx="2" fill="var(--accent)" opacity="0.5" /><text x="26" y="86" text-anchor="middle">Q₃</text>
+                  <rect x="44" y="76" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="58" y="86" text-anchor="middle">K₃</text>
+                  <rect x="76" y="76" width="28" height="14" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="90" y="86" text-anchor="middle">V₃</text>
+                </g>
+                <text x="70" y="108" text-anchor="middle" font-size="7" fill="var(--text-muted)">cache ∝ h</text>
+                <!-- GQA -->
+                <text x="260" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--accent-strong)">GQA</text>
+                <text x="260" y="28" text-anchor="middle" font-size="7" fill="var(--text-muted)">g=2 groups, h=4</text>
+                <rect x="168" y="40" width="24" height="12" rx="2" fill="var(--accent)" opacity="0.5" /><text x="180" y="49" text-anchor="middle" font-size="7">Q₁</text>
+                <rect x="168" y="56" width="24" height="12" rx="2" fill="var(--accent)" opacity="0.5" /><text x="180" y="65" text-anchor="middle" font-size="7">Q₂</text>
+                <rect x="220" y="48" width="32" height="20" rx="2" fill="var(--code-bg)" stroke="var(--accent)" /><text x="236" y="61" text-anchor="middle" font-size="7">K₁V₁</text>
+                <line x1="192" y1="46" x2="220" y2="54" stroke="var(--accent)" />
+                <line x1="192" y1="62" x2="220" y2="58" stroke="var(--accent)" />
+                <rect x="168" y="76" width="24" height="12" rx="2" fill="var(--accent)" opacity="0.5" /><text x="180" y="85" text-anchor="middle" font-size="7">Q₃</text>
+                <rect x="168" y="92" width="24" height="12" rx="2" fill="var(--accent)" opacity="0.5" /><text x="180" y="101" text-anchor="middle" font-size="7">Q₄</text>
+                <rect x="220" y="84" width="32" height="20" rx="2" fill="var(--code-bg)" stroke="var(--accent)" /><text x="236" y="97" text-anchor="middle" font-size="7">K₂V₂</text>
+                <line x1="192" y1="82" x2="220" y2="90" stroke="var(--accent)" />
+                <line x1="192" y1="98" x2="220" y2="94" stroke="var(--accent)" />
+                <text x="260" y="124" text-anchor="middle" font-size="7" fill="var(--text-muted)">cache ∝ g</text>
+                <!-- MQA -->
+                <text x="430" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--accent-strong)">MQA</text>
+                <text x="430" y="28" text-anchor="middle" font-size="7" fill="var(--text-muted)">one K,V for all Q</text>
+                <rect x="360" y="40" width="22" height="11" rx="2" fill="var(--accent)" opacity="0.5" /><text x="371" y="48" text-anchor="middle" font-size="6">Q₁</text>
+                <rect x="360" y="54" width="22" height="11" rx="2" fill="var(--accent)" opacity="0.5" /><text x="371" y="62" text-anchor="middle" font-size="6">Q₂</text>
+                <rect x="360" y="68" width="22" height="11" rx="2" fill="var(--accent)" opacity="0.5" /><text x="371" y="76" text-anchor="middle" font-size="6">Q₃</text>
+                <rect x="360" y="82" width="22" height="11" rx="2" fill="var(--accent)" opacity="0.5" /><text x="371" y="90" text-anchor="middle" font-size="6">Q₄</text>
+                <rect x="400" y="58" width="36" height="28" rx="2" fill="var(--code-bg)" stroke="var(--accent)" stroke-width="1.5" /><text x="418" y="75" text-anchor="middle" font-size="7">K,V</text>
+                <line x1="382" y1="46" x2="400" y2="66" stroke="var(--accent)" />
+                <line x1="382" y1="60" x2="400" y2="68" stroke="var(--accent)" />
+                <line x1="382" y1="74" x2="400" y2="72" stroke="var(--accent)" />
+                <line x1="382" y1="88" x2="400" y2="78" stroke="var(--accent)" />
+                <text x="430" y="108" text-anchor="middle" font-size="7" fill="var(--text-muted)">cache ∝ 1</text>
+                <!-- cache bar comparison -->
+                <text x="8" y="140" font-size="8" fill="var(--text-muted)">relative KV footprint (same h, qual. varies):</text>
+                <rect x="8" y="148" width="120" height="10" rx="2" fill="var(--accent)" opacity="0.7" /><text x="132" y="156" font-size="7" fill="var(--text-muted)">MHA</text>
+                <rect x="8" y="164" width="60" height="10" rx="2" fill="var(--accent)" opacity="0.55" /><text x="72" y="172" font-size="7" fill="var(--text-muted)">GQA</text>
+                <rect x="8" y="180" width="30" height="10" rx="2" fill="var(--accent)" opacity="0.4" /><text x="42" y="188" font-size="7" fill="var(--text-muted)">MQA</text>
+              </svg>
+            </figure>
+            <p class="cell-caption">Queries stay multi-head; only the number of distinct K/V streams stored in the cache changes.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MHA — reference point</span>
+            <ul>
+              <li>$h$ heads each: $\mathrm{head}_i=\mathrm{SDPA}(XW_i^Q,XW_i^K,XW_i^V)$ then $\mathrm{Concat}(W^O)$</li>
+              <li>Used in GPT-2, BERT, ViT; still common in encoders and smaller models</li>
+              <li>When batch decode at long context, KV RAM can exceed weights</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Picking GQA group size</span>
+            <ul>
+              <li>Start from target $n_{\mathrm{kv\_heads}}$ allowed by hardware (e.g. 8 on 32 Q heads → GQA-4)</li>
+              <li>Validate perplexity / downstream tasks vs full MHA before shipping</li>
+              <li>Some checkpoints publish “GQA-8” in config — map to <code>num_key_value_heads</code></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">MLA — compress what you cache</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Multi-head latent attention (DeepSeek-class)</span>
+            <p>
+              Instead of storing full per-head K and V tensors, MLA projects the hidden state into a <strong>low-rank latent</strong>
+              $c^{KV}$ per token and caches that. Before SDPA, latents are up-projected to head-specific K and V (or equivalent via
+              <strong>weight absorption</strong> at decode so full K never materializes).
+            </p>
+            <p>
+              A <strong>decoupled RoPE</strong> path keeps positional information on a small slice of q/k so compression does not erase order.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-mla">
+              <svg class="diagram-tall" viewBox="0 0 480 130" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-mla">MLA latent cache path</title>
+                <rect x="8" y="44" width="56" height="36" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="36" y="66" text-anchor="middle" font-size="9" fill="var(--text-primary)">h_t</text>
+                <line x1="64" y1="62" x2="88" y2="62" stroke="var(--accent)" marker-end="url(#arr)" />
+                <rect x="92" y="48" width="64" height="28" rx="3" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" />
+                <text x="124" y="65" text-anchor="middle" font-size="8" fill="var(--text-primary)">W_DKV down</text>
+                <line x1="156" y1="62" x2="180" y2="62" stroke="var(--accent)" />
+                <rect x="184" y="40" width="72" height="44" rx="4" fill="var(--accent)" opacity="0.45" stroke="var(--accent-strong)" stroke-width="1.5" />
+                <text x="220" y="58" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--text-primary)">cache</text>
+                <text x="220" y="72" text-anchor="middle" font-size="8" fill="var(--text-primary)">c_KV</text>
+                <text x="220" y="96" text-anchor="middle" font-size="7" fill="var(--text-muted)">small d_c vs h·d_k</text>
+                <line x1="256" y1="62" x2="280" y2="62" stroke="var(--accent)" />
+                <rect x="284" y="48" width="64" height="28" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" />
+                <text x="316" y="65" text-anchor="middle" font-size="8" fill="var(--text-primary)">W_U up → K,V</text>
+                <line x1="348" y1="62" x2="372" y2="62" stroke="var(--accent)" />
+                <rect x="376" y="44" width="88" height="36" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="420" y="58" text-anchor="middle" font-size="8" fill="var(--text-primary)">SDPA</text>
+                <text x="420" y="72" text-anchor="middle" font-size="7" fill="var(--text-muted)">+ RoPE slice</text>
+                <defs>
+                  <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)" />
+                  </marker>
+                </defs>
+              </svg>
+            </figure>
+            <p class="cell-caption">Goal: fewer bytes moved per decode step while keeping softmax attention semantics (often with higher arithmetic intensity than MQA).</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">FlashAttention — exact, IO-aware SDPA</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Problem with naive attention</span>
+            <p>
+              Materializing the full $n \times n$ attention matrix in GPU HBM (high bandwidth memory) forces many read/write round trips.
+              SRAM on-chip is tiny but fast — classic attention underuses compute because it is waiting on memory.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tiling idea</span>
+            <figure class="cell-diagram" aria-labelledby="fig-flash">
+              <svg viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-flash">FlashAttention tiles Q,K,V in SRAM</title>
+                <rect x="4" y="8" width="90" height="84" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" stroke-dasharray="5 3" />
+                <text x="49" y="22" text-anchor="middle" font-size="8" fill="var(--text-muted)">HBM</text>
+                <rect x="12" y="30" width="74" height="24" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="49" y="45" text-anchor="middle" font-size="8">Q,K,V blocks</text>
+                <rect x="110" y="20" width="80" height="60" rx="4" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" />
+                <text x="150" y="42" text-anchor="middle" font-size="9" fill="var(--text-primary)">SRAM tile</text>
+                <text x="150" y="56" text-anchor="middle" font-size="7" fill="var(--text-muted)">fused softmax·V</text>
+                <line x1="86" y1="42" x2="110" y2="42" stroke="var(--accent)" />
+                <line x1="190" y1="50" x2="214" y2="50" stroke="var(--accent)" />
+                <rect x="218" y="32" width="72" height="36" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="254" y="52" text-anchor="middle" font-size="8" fill="var(--text-primary)">output O</text>
+                <text x="150" y="92" text-anchor="middle" font-size="7" fill="var(--text-muted)">no full S matrix stored; recompute in backward</text>
+              </svg>
+            </figure>
+            <ul>
+              <li><strong>Exact</strong> — same numerics as naive SDPA (unlike many sparse approximations)</li>
+              <li>FlashAttention-2/3: better warp scheduling; FP8 paths on supported GPUs</li>
+              <li>MLA/sparse stacks often ship custom kernels (e.g. FlashMLA) with the same IO mindset</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">PyTorch SDPA dispatch</span>
+            <p>
+              <code>torch.nn.functional.scaled_dot_product_attention</code> picks a backend when allowed: FlashAttention, memory-efficient, or math fallback.
+              Enable with sdpa kernel flags / PyTorch 2.x defaults; dtype and head dim must match kernel constraints.
+            </p>
+            <p>Flash speeds <strong>prefill and training</strong>; it does not replace GQA/MLA for <strong>decode KV size</strong>.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Sparse patterns — fewer pairs</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Sliding window</span>
+            <p>Each query attends only to the last $w$ tokens (plus optional globals). Complexity $\approx \mathcal{O}(n \cdot w)$. Mistral-class models stack layers with shifted windows to widen receptive field.</p>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <text x="60" y="12" text-anchor="middle" font-size="8" fill="var(--text-muted)">allowed q→k (causal window)</text>
+                <g fill="var(--accent)" opacity="0.35">
+                  <rect x="20" y="20" width="10" height="10" /><rect x="32" y="20" width="10" height="10" opacity="0" fill="none" />
+                  <rect x="20" y="32" width="10" height="10" /><rect x="32" y="32" width="10" height="10" />
+                  <rect x="20" y="44" width="10" height="10" /><rect x="32" y="44" width="10" height="10" /><rect x="44" y="44" width="10" height="10" />
+                  <rect x="32" y="56" width="10" height="10" /><rect x="44" y="56" width="10" height="10" /><rect x="56" y="56" width="10" height="10" />
+                </g>
+                <text x="90" y="70" font-size="7" fill="var(--text-muted)">band</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">NSA / DSA (hierarchical sparse)</span>
+            <p>
+              <strong>NSA</strong> (Native Sparse Attention): trainable mix of (1) compressed token blocks, (2) selected important tokens, (3) local window — hardware-aligned block sparsity.
+              <strong>DSA</strong> (DeepSeek Sparse Attention): token-level sparse patterns with fused decode kernels. Still softmax on chosen keys; less work than dense $n^2$.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-nsa">
+              <svg viewBox="0 0 280 90" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-nsa">Three-path sparse attention sketch</title>
+                <text x="8" y="14" font-size="8" fill="var(--text-muted)">one query attends via:</text>
+                <rect x="8" y="22" width="80" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="48" y="38" text-anchor="middle" font-size="7">compressed block</text>
+                <text x="98" y="38" font-size="10" fill="var(--text-muted)">+</text>
+                <rect x="110" y="22" width="80" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="150" y="38" text-anchor="middle" font-size="7">selected tokens</text>
+                <text x="200" y="38" font-size="10" fill="var(--text-muted)">+</text>
+                <rect x="212" y="22" width="60" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="242" y="38" text-anchor="middle" font-size="7">window</text>
+                <text x="140" y="68" text-anchor="middle" font-size="7" fill="var(--accent-strong)">gated sum → SDPA on subsets</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell cell-band cell-span" id="moe">
+            <span class="cell-title">Mixture of experts (MoE)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Params vs FLOPs per token</span>
+            <p>
+              A MoE model can have <strong>many more parameters</strong> than a dense model of the same width, but each token only runs
+              <strong>k of N</strong> expert FFNs. Active FLOPs scale like a smaller dense FFN × k (plus router + attention unchanged).
+            </p>
+            <p>
+              Catch: <strong>all experts still occupy GPU memory</strong> at inference unless offloaded or sharded. MoE saves compute per token, not automatically VRAM for weights.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dense FFN vs MoE FFN</span>
+            <figure class="cell-diagram" aria-labelledby="fig-moe-dense">
+              <svg class="diagram-tall" viewBox="0 0 300 140" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-moe-dense">Every token uses one FFN vs top-k experts</title>
+                <text x="75" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--accent-strong)">Dense</text>
+                <rect x="20" y="24" width="110" height="36" rx="4" fill="var(--accent)" opacity="0.35" stroke="var(--accent)" />
+                <text x="75" y="46" text-anchor="middle" font-size="8" fill="var(--text-primary)">one SwiGLU FFN</text>
+                <text x="75" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)">all params active</text>
+                <text x="75" y="78" text-anchor="middle" font-size="7" fill="var(--text-muted)">every token → same block</text>
+                <text x="225" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--accent-strong)">MoE</text>
+                <rect x="140" y="22" width="36" height="22" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="158" y="37" text-anchor="middle" font-size="7">router</text>
+                <rect x="182" y="20" width="44" height="18" rx="2" fill="var(--bg-cell-alt)" stroke="var(--accent)" /><text x="204" y="32" text-anchor="middle" font-size="6">E1</text>
+                <rect x="182" y="42" width="44" height="18" rx="2" fill="var(--bg-cell-alt)" stroke="var(--accent)" /><text x="204" y="54" text-anchor="middle" font-size="6">E2</text>
+                <rect x="182" y="64" width="44" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="204" y="76" text-anchor="middle" font-size="6" fill="var(--text-muted)">E3…</text>
+                <rect x="232" y="20" width="44" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" opacity="0.4" />
+                <rect x="232" y="42" width="44" height="18" rx="2" fill="var(--code-bg)" stroke="var(--border-cell)" opacity="0.4" />
+                <text x="225" y="98" text-anchor="middle" font-size="7" fill="var(--text-muted)">token picks k≪N</text>
+                <text x="150" y="124" font-size="8" fill="var(--text-muted)">total params ↑↑ · active FLOPs ≈ k/N × dense</text>
+              </svg>
+            </figure>
+            <p class="cell-caption">Block diagram: <a href="transformers-core.html">core sheet</a> (router formula).</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Expert parallelism (training &amp; serving)</span>
+            <p>
+              Experts are often <strong>sharded across GPUs</strong> (expert parallel, EP). A token’s router picks experts; activations are
+              sent to the devices holding those experts (all-to-all communication). Attention/tensor parallel stacks on top of this.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-ep">
+              <svg class="diagram-tall" viewBox="0 0 400 110" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-ep">Experts partitioned across devices</title>
+                <rect x="8" y="40" width="56" height="40" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="36" y="58" text-anchor="middle" font-size="8" fill="var(--text-primary)">GPU 0</text>
+                <text x="36" y="72" text-anchor="middle" font-size="7" fill="var(--text-muted)">E0–E3</text>
+                <rect x="72" y="40" width="56" height="40" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="100" y="58" text-anchor="middle" font-size="8" fill="var(--text-primary)">GPU 1</text>
+                <text x="100" y="72" text-anchor="middle" font-size="7" fill="var(--text-muted)">E4–E7</text>
+                <rect x="136" y="40" width="56" height="40" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="164" y="58" text-anchor="middle" font-size="8" fill="var(--text-primary)">GPU 2</text>
+                <text x="164" y="72" text-anchor="middle" font-size="7" fill="var(--text-muted)">E8–E11</text>
+                <text x="220" y="52" font-size="8" fill="var(--text-muted)">← all-to-all →</text>
+                <rect x="260" y="28" width="128" height="64" rx="4" fill="var(--bg-cell-alt)" stroke="var(--accent)" stroke-dasharray="4 2" />
+                <text x="324" y="48" text-anchor="middle" font-size="8" fill="var(--text-primary)">batch tokens</text>
+                <text x="324" y="62" text-anchor="middle" font-size="7" fill="var(--text-muted)">router sends token</text>
+                <text x="324" y="76" text-anchor="middle" font-size="7" fill="var(--text-muted)">activations to expert GPU</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Load balancing</span>
+            <ul>
+              <li>Routers collapse to few experts → wasted capacity; add <strong>auxiliary load-balancing loss</strong> (Switch Transformer)</li>
+              <li><strong>Capacity factor</strong> — drop overflow tokens when an expert’s buffer fills (train instability if too aggressive)</li>
+              <li><strong>Shared expert</strong> — always-on FFN + routed experts (Mixtral-style) stabilizes quality</li>
+              <li>Monitor per-expert utilization dashboards in training</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Inference notes</span>
+            <ul>
+              <li>Latency includes router + dispatch; small k helps (e.g. 2 experts/token)</li>
+              <li>Batching: tokens in a batch may hit different experts → harder to keep GPUs full</li>
+              <li>Quantization (GPTQ/FP8) applies per expert; EP serving matches training shard layout when possible</li>
+              <li>Not a KV-cache trick — pair MoE with <strong>GQA/MLA</strong> for long-context decode</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Scoring &amp; alternatives</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">DiffAttention</span>
+            <p>
+              Split Q/K into two groups; compute two softmax attention maps; <strong>subtract</strong> them so shared “background” mass cancels (noise-canceling analogy).
+              Changes the score matrix, not KV sharing. ICLR 2025 Diff Transformer; each branch can use flash SDPA.
+            </p>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 260 88" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="8" width="50" height="26" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="33" y="25" text-anchor="middle" font-size="8">SDPA₁</text>
+                <rect x="8" y="40" width="50" height="26" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="33" y="57" text-anchor="middle" font-size="8">SDPA₂</text>
+                <text x="70" y="48" font-size="14" fill="var(--accent-strong)">−</text>
+                <rect x="88" y="24" width="56" height="32" rx="3" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" /><text x="116" y="44" text-anchor="middle" font-size="8">scores</text>
+                <line x1="144" y1="40" x2="168" y2="40" stroke="var(--accent)" />
+                <text x="200" y="44" text-anchor="middle" font-size="8" fill="var(--text-muted)">× V → out</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Linear &amp; state-space layers</span>
+            <ul>
+              <li><strong>Linear attention</strong> — feature map $\phi$ so $(\phi(Q)\phi(K)^\top)V$ avoids explicit $n \times n$</li>
+              <li><strong>Mamba / SSM</strong> — fixed-size state updated per token; $\mathcal{O}(n)$ recurrence</li>
+              <li><strong>Hybrids</strong> — alternate full-attn layers with SSM/linear layers in one model</li>
+              <li>Different inductive bias — not drop-in for every MHA layer</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Training throughput</span>
+            <ul>
+              <li>bf16/fp16, gradient checkpointing (recompute vs RAM), sequence packing (reduce padding waste)</li>
+              <li>Tensor parallel (shard weights), pipeline parallel (shard layers), context parallel (shard long seq)</li>
+              <li>Parameter updates without full fine-tune: <a href="transformers-peft.html">PEFT sheet</a></li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Quick chooser</span>
+            <ul>
+              <li><strong>Long prompt, one shot</strong> — FlashAttention / FlexAttention; dense or NSA prefill</li>
+              <li><strong>Long chat decode</strong> — GQA or MLA; quantize KV (FP8/FP4) where supported</li>
+              <li><strong>Ultra-long context</strong> — window + sparse (NSA) or hybrid SSM</li>
+              <li><strong>Quality ceiling</strong> — MHA or large GQA groups; ablate before cut</li>
+              <li><strong>More capacity, same FFN budget</strong> — MoE layer (watch balance + EP)</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="js/katex-render.js"></script>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loss functions · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Every formula lists its own symbols; shared notation is in the legend cell.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Loss functions</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Legend — symbols</span>
+            <dl class="legend">
+              <dt>$x$</dt><dd>one input example</dd>
+              <dt>$y$</dt><dd>target: class index, 0/1, or a real number</dd>
+              <dt>$\hat{y}$</dt><dd>model’s predicted number (regression)</dd>
+              <dt>$z$</dt><dd>logits — raw head outputs before softmax/sigmoid</dd>
+              <dt>$z_k$</dt><dd>logit for class $k$</dd>
+              <dt>$p$</dt><dd>probabilities after softmax; $\sum_k p_k = 1$</dd>
+              <dt>$p_y$</dt><dd>probability on the <em>correct</em> class</dd>
+              <dt>$\sigma(z)$</dt><dd>sigmoid — one logit → probability in $(0,1)$</dd>
+              <dt>$q$</dt><dd>target distribution (smoothed labels, teacher, prior)</dd>
+              <dt>$K$</dt><dd>number of classes</dd>
+              <dt>$n$, $T$</dt><dd>batch size / sequence length</dd>
+              <dt>$L$</dt><dd>loss (often averaged over batch)</dd>
+            </dl>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Legend — operators</span>
+            <dl class="legend">
+              <dt>$\sum_k$</dt><dd>sum over classes $k = 1\ldots K$</dd>
+              <dt>$\log$</dt><dd>natural logarithm</dd>
+              <dt>$-\log p$</dt><dd>“surprise”; $0$ when $p=1$</dd>
+              <dt>$\mathbf{1}[k{=}y]$</dt><dd>1 if $k$ is true class, else 0</dd>
+              <dt>$\mathbb{E}[\cdot]$</dt><dd>expectation / average over data</dd>
+              <dt>$a^{\gamma}$</dt><dd>exponent (not an index)</dd>
+              <dt>$\|v\|$</dt><dd>vector norm</dd>
+              <dt>$a^\top b$</dt><dd>dot product</dd>
+              <dt>$\max(0,\cdot)$</dt><dd>zero out negatives — hinge-style</dd>
+            </dl>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pick by task</span>
+            <ul>
+              <li>One label per example / next token → <strong>cross-entropy</strong></li>
+              <li>Many independent tags → <strong>BCE</strong> per tag</li>
+              <li>Skewed classes → class weights, <strong>focal</strong>, resampling</li>
+              <li>Real-valued target → <strong>MSE / MAE / Huber</strong></li>
+              <li>Embeddings / retrieval → <strong>InfoNCE</strong> or <strong>triplet</strong></li>
+              <li>Match a distribution → <strong>KL</strong></li>
+              <li>Preference tuning → <strong>DPO</strong>; RL with reward → <strong>GRPO</strong> or PPO + KL (RLHF)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cross-entropy (one correct class)</span>
+            <div class="formula">$$p_k = \frac{\exp(z_k)}{\sum_j \exp(z_j)} \qquad \text{(softmax)}$$</div>
+            <div class="formula">$$L = -\log p_y$$</div>
+            <ul class="where">
+              <li><span class="sym">$z_k$</span>logit for class $k$</li>
+              <li><span class="sym">$p_y$</span>probability on the true class</li>
+            </ul>
+            <p><strong>Reads as:</strong> only the true class appears in the loss — push its probability toward 1. PyTorch <code>CrossEntropyLoss</code> takes <em>logits</em>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Binary cross-entropy</span>
+            <div class="formula">$$L = -\big[ y\log\sigma(z) + (1-y)\log(1-\sigma(z)) \big]$$</div>
+            <ul class="where">
+              <li><span class="sym">$y$</span>label 0 or 1</li>
+              <li><span class="sym">$\sigma(z)$</span>predicted prob. of class 1</li>
+            </ul>
+            <p><strong>Reads as:</strong> if y=1 only the first term survives; if y=0 only the second. Multi-label = one BCE per tag. Use <code>BCEWithLogitsLoss</code>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Label smoothing</span>
+            <div class="formula">$$q_k = (1-\varepsilon)\,\mathbf{1}[k{=}y] + \frac{\varepsilon}{K}$$</div>
+            <div class="formula">$$L = -\sum_k q_k \log p_k$$</div>
+            <ul class="where">
+              <li><span class="sym">$\varepsilon$</span>smoothing, e.g. $0.1$</li>
+              <li><span class="sym">$\mathbf{1}[k{=}y]$</span>one-hot indicator</li>
+              <li><span class="sym">$q_k$</span>soft target for class $k$</li>
+            </ul>
+            <p class="formula-comment">Example: $K{=}5$, $y{=}2$, $\varepsilon{=}0.1$ → $q = [0.02, 0.02, 0.92, 0.02, 0.02]$</p>
+            <p>Same CE, softer target: stops logits running to infinity (Szegedy et al.).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Focal loss</span>
+            <div class="formula">$$L = -\alpha (1-p_y)^{\gamma} \log p_y$$</div>
+            <ul class="where">
+              <li><span class="sym">$\gamma$</span>focus on hard examples (often $2$)</li>
+              <li><span class="sym">$\alpha$</span>optional class weight</li>
+            </ul>
+            <p><strong>Reads as:</strong> cross-entropy times a fade-out factor. Confident correct example (p_y≈1) → factor ≈ 0, barely trains. Lin et al., dense detection.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Hinge / margin</span>
+            <div class="formula">$$\text{binary:}\quad L = \max(0, 1 - y f(x)), \quad y \in \{-1,+1\}$$</div>
+            <div class="formula">$$\text{multi:}\quad L = \sum_{k \neq y} \max(0, 1 + z_k - z_y)$$</div>
+            <ul class="where">
+              <li><span class="sym">$f(x)$</span>score (binary)</li>
+              <li><span class="sym">$z_y$</span>logit of true class</li>
+            </ul>
+            <p><strong>Reads as:</strong> correct score must beat others by a margin of 1; once it does, zero loss. SVM heritage.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MSE (L2)</span>
+            <div class="formula">$$L = \frac{1}{n}\sum_i (y_i - \hat{y}_i)^2$$</div>
+            <ul class="where">
+              <li><span class="sym">$y_i$</span>true value</li>
+              <li><span class="sym">$\hat{y}_i$</span>prediction</li>
+            </ul>
+            <p>Squaring makes big errors dominate (Gaussian-noise assumption). Diffusion trains MSE on predicted noise.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MAE (L1)</span>
+            <div class="formula">$$L = \frac{1}{n}\sum_i |y_i - \hat{y}_i|$$</div>
+            <p>Absolute distance — outliers count linearly, not quadratically. Predictions behave median-like; kink at 0.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Huber / smooth L1</span>
+            <div class="formula">$$e = y - \hat{y}$$</div>
+            <div class="formula">$$L = \begin{cases} \frac{1}{2}e^2 & |e| \le \delta \\ \delta(|e| - \frac{1}{2}\delta) & \text{else} \end{cases}$$</div>
+            <ul class="where">
+              <li><span class="sym">$\delta$</span>knee between quadratic and linear</li>
+            </ul>
+            <p>MSE-like near zero, MAE-like far out. Standard for bounding-box regression.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">InfoNCE / NT-Xent (contrastive)</span>
+            <div class="formula">$$s(a,b) = \frac{a^\top b}{\|a\|\,\|b\|}$$</div>
+            <div class="formula">$$L = -\log \frac{\exp(s(q,k^+)/\tau)}{\sum_j \exp(s(q,k_j)/\tau)}$$</div>
+            <ul class="where">
+              <li><span class="sym">$q$</span>query embedding</li>
+              <li><span class="sym">$k^+$</span>positive match</li>
+              <li><span class="sym">$k_j$</span>all keys in batch</li>
+              <li><span class="sym">$\tau$</span>temperature</li>
+            </ul>
+            <p><strong>Reads as:</strong> softmax over similarities where the correct pair must win. No negatives → embeddings collapse (<a href="failure-modes.html">failure modes</a>).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Triplet loss</span>
+            <div class="formula">$$L = \max(0,\; d(a,p) - d(a,n) + m)$$</div>
+            <ul class="where">
+              <li><span class="sym">$a,p,n$</span>anchor, positive, negative</li>
+              <li><span class="sym">$d$</span>distance; <span class="sym">$m$</span>margin</li>
+            </ul>
+            <p><strong>Reads as:</strong> penalty only while the negative is nearer than positive + margin. Hard-negative mining drives quality.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">KL divergence</span>
+            <div class="formula">$$\mathrm{KL}(q \,\|\, p) = \sum_k q_k \log\frac{q_k}{p_k}$$</div>
+            <ul class="where">
+              <li><span class="sym">$q$</span>reference / target</li>
+              <li><span class="sym">$p$</span>model</li>
+            </ul>
+            <p><strong>Reads as:</strong> extra surprise if you use $p$ when truth is $q$. Not symmetric. Distillation, VAE, RLHF.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dice / IoU (segmentation)</span>
+            <div class="formula">$$\mathrm{Dice} = \frac{2\sum_i p_i y_i}{\sum_i p_i + \sum_i y_i}, \quad L = 1 - \mathrm{Dice}$$</div>
+            <div class="formula">$$\mathrm{IoU} = \frac{|A \cap B|}{|A \cup B|}$$</div>
+            <ul class="where">
+              <li><span class="sym">$p_i$</span>pred. mask prob.</li>
+              <li><span class="sym">$y_i$</span>gt. mask 0/1</li>
+            </ul>
+            <p>Optimizes overlap, so tiny foreground isn’t drowned by background. Often used as CE + Dice. Tversky adds FP/FN weighting.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Masked LM (BERT)</span>
+            <div class="formula">$$L = -\frac{1}{|M|}\sum_{i \in M} \log p(y_i \mid x_{\mathrm{masked}})$$</div>
+            <ul class="where">
+              <li><span class="sym">$M$</span>masked token indices</li>
+              <li><span class="sym">$y_i$</span>original token at $i$</li>
+            </ul>
+            <p>Cross-entropy over the vocabulary, but only at masked slots. Wrong mask ratio → <code>bad_mlm_mask</code>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Causal LM (GPT)</span>
+            <div class="formula">$$L = -\frac{1}{T}\sum_{t=1}^{T} \log p(y_t \mid y_{1:t-1})$$</div>
+            <ul class="where">
+              <li><span class="sym">$T$</span>tokens predicted</li>
+              <li><span class="sym">$y_{1:t-1}$</span>tokens before $t$</li>
+            </ul>
+            <p>Per-token cross-entropy with a causal mask; labels shifted one step vs logits. Padding excluded via <code>ignore_index</code>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">DPO (preference tuning)</span>
+            <div class="formula">$$\Delta(y) = \log \pi_\theta(y|x) - \log \pi_{\mathrm{ref}}(y|x)$$</div>
+            <div class="formula">$$L = -\log \sigma\big(\beta [\Delta(y_w) - \Delta(y_l)]\big)$$</div>
+            <ul class="where">
+              <li><span class="sym">$\pi_\theta$</span>trainable policy</li>
+              <li><span class="sym">$\pi_{\mathrm{ref}}$</span>frozen reference</li>
+              <li><span class="sym">$y_w$, $y_l$</span>chosen / rejected</li>
+              <li><span class="sym">$\beta$</span>preference strength</li>
+            </ul>
+            <p><strong>Reads as:</strong> raise the chosen answer’s log-prob relative to the rejected one, measured against the reference so the model can’t drift freely (Rafailov et al.).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RLHF objective (sketch)</span>
+            <div class="formula">$$\max \;\mathbb{E}[r(x,y)] - \beta\,\mathrm{KL}(\pi_\theta \,\|\, \pi_{\mathrm{ref}})$$</div>
+            <ul class="where">
+              <li><span class="sym">$r(x,y)$</span>reward model score</li>
+              <li><span class="sym">$\beta$</span>KL penalty weight</li>
+            </ul>
+            <p>Optimized with policy gradient (PPO clipped surrogate), not plain CE. Entropy bonus counters repetitive output.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">GRPO (group relative policy optimization)</span>
+            <div class="formula">$$r_i = r(x, y_i), \quad \bar{r} = \frac{1}{G}\sum_i r_i, \quad \sigma_r = \mathrm{std}(r_1,\ldots,r_G)$$</div>
+            <div class="formula">$$A_i = \frac{r_i - \bar{r}}{\sigma_r + \varepsilon}$$</div>
+            <div class="formula">$$L \approx -\frac{1}{G}\sum_i A_i \log \pi_\theta(y_i|x) + \beta\,\mathrm{KL}(\pi_\theta \,\|\, \pi_{\mathrm{ref}})$$</div>
+            <ul class="where">
+              <li><span class="sym">$G$</span>completions per prompt</li>
+              <li><span class="sym">$A_i$</span>group-relative advantage</li>
+            </ul>
+            <p><strong>Reads as:</strong> no separate critic network — compare rewards within the group, up-weight log-prob of better-than-average answers, down-weight worse ones, with a KL leash to the reference. Common in DeepSeek-R1–style reasoning RL; implementations often add PPO-style clipping on the policy ratio.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">GAN adversarial loss</span>
+            <div class="formula">$$\min_G \max_D \; \mathbb{E}_{x}[\log D(x)] + \mathbb{E}_{z}[\log(1 - D(G(z)))]$$</div>
+            <ul class="where">
+              <li><span class="sym">$D$</span>discriminator</li>
+              <li><span class="sym">$G$</span>generator</li>
+              <li><span class="sym">$z$</span>noise (not logits)</li>
+            </ul>
+            <p>Two-player game. Known failure: <strong>mode collapse</strong> — G repeats a few outputs. WGAN / hinge / LSGAN change the scoring.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Add-ons (modify a loss)</span>
+            <ul>
+              <li><strong>Class weights</strong> — multiply each class’s CE term</li>
+              <li><strong>Weight decay</strong> — shrink parameters in the optimizer (AdamW), not in the label loss</li>
+              <li><strong>Mixup / CutMix</strong> — CE against blended soft targets</li>
+              <li><strong>z-loss</strong> — small penalty on logit magnitude for LM pretrain stability</li>
+              <li><strong>Entropy bonus</strong> — reward spread-out predictions in RL</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Loss ≠ metric</span>
+            <p>
+              Train CE, report <strong>macro-F1</strong> under imbalance. Train MSE, report <strong>MAE</strong> for readable
+              error. Low training loss can still mean bad calibration — check <strong>ECE</strong> on validation.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">References</span>
+            <ul>
+              <li>Szegedy et al. — label smoothing (2016)</li>
+              <li>Lin et al. — focal loss (2017)</li>
+              <li>Chen et al. — SimCLR / NT-Xent (2020)</li>
+              <li>Rafailov et al. — DPO (2023)</li>
+              <li>Shao et al. / DeepSeek — GRPO (DeepSeekMath, R1 line)</li>
+              <li>qlab: <code>tutorials/pathologies/doc/failure-modes/</code></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script defer src="js/katex-render.js"></script>
+  </body>
+</html>

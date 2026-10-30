@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Optimizers · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Update rules, schedules, and clipping paired with the optimizer.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Optimizers</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Menu — how to pick</span>
+            <p>
+              LLM pretrain: <strong>AdamW</strong> + warmup + cosine. Large-batch vision: <strong>SGD +
+              momentum</strong>. Memory-bound: <strong>Adafactor</strong> or 8-bit Adam. Unstable Adam steps →
+              see <a href="failure-modes.html">Failure modes</a> (<code>adam_collapse</code>).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SGD</span>
+            <pre>θ ← θ − η ∇L(θ)</pre>
+            <p>Low memory; sensitive to η and batch size. No per-parameter scaling.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SGD + momentum / Nesterov</span>
+            <pre>v ← μv + ∇L ;  θ ← θ − η v</pre>
+            <p>Default for many ResNet recipes. Nesterov: gradient at look-ahead point.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Adam</span>
+            <pre>m ← β₁m + (1−β₁)g ;  v ← β₂v + (1−β₂)g²
+θ ← θ − η · m̂ / (√v̂ + ε)</pre>
+            <p>Adaptive steps; transformers default before decoupled decay. Reddi et al.: some convex failures.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">AdamW</span>
+            <pre>θ ← θ − η ( m̂/(√v̂+ε) + λθ )</pre>
+            <p>Decoupled weight decay (Loshchilov &amp; Hutter). BERT/GPT-class pretrain and fine-tune.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RMSprop / Adadelta</span>
+            <p>RMSprop: EMA of g² scales steps. Adadelta: no global η. RL and older CV stacks.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">AMSGrad</span>
+            <p>max over past v̂ before denominator (Reddi et al. 2018). Drop-in when Adam diverges on paper examples.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Adafactor</span>
+            <p>Factored second moments → lower optimizer memory (T5-scale training).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Lion / LAMB</span>
+            <p><strong>Lion:</strong> sign(momentum of grad). <strong>LAMB:</strong> layer-wise trust ratio for huge batch BERT (You et al.).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Schedules &amp; clipping</span>
+            <ul>
+              <li><strong>Linear warmup</strong> — Post-LN transformers (Xiong et al. 2020).</li>
+              <li><strong>Cosine / WSD</strong> — LLM decay schedules.</li>
+              <li><strong>Grad clip</strong> — global norm τ (Pascanu et al. 2013).</li>
+              <li><strong>Weight decay</strong> — tune λ with AdamW; too strong hurts rank (see failure modes).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">References</span>
+            <ul>
+              <li>Kingma &amp; Ba — Adam (2015).</li>
+              <li>Loshchilov &amp; Hutter — AdamW (2019).</li>
+              <li>Reddi et al. — AMSGrad (2018).</li>
+              <li>You et al. — LAMB (2020).</li>
+              <li>Chen et al. — Lion (2023).</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

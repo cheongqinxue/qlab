@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — audio · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">ASR, audio understanding, music/speech generation.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — audio &amp; speech</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Whisper-style ASR</span>
+            <ul>
+              <li>Log-mel → conv stem (time downsample) → transformer encoder</li>
+              <li>Decoder: causal self-attn + cross-attn to audio → text tokens</li>
+              <li>Multitask: transcribe, translate, language id (optional heads)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Audio classification / tags</span>
+            <ul>
+              <li><strong>AST</strong> — mel as patch grid; ViT encoder</li>
+              <li><strong>BEATs / AudioMAE</strong> — masked acoustic modeling</li>
+              <li>Pooling + classifier head; fine-tune or linear probe</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Audio + LLM</span>
+            <ul>
+              <li>Audio tower (Whisper enc, BEATs, etc.) → projector → LLM tokens</li>
+              <li>Q-Former or MLP connector; chat over sound/events</li>
+              <li>Align on paired speech–text or weak labels</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Neural codecs (token front-end)</span>
+            <ul>
+              <li>EnCodec / SoundStream: CNN enc → RVQ codes → dec waveform</li>
+              <li>Transformers model <strong>discrete codes</strong>, not raw samples</li>
+              <li>Enables long-context music modeling at manageable seq length</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Music &amp; audio generation</span>
+            <ul>
+              <li><strong>AR</strong> — AudioLM, MusicLM, MusicGen on codec tokens; decoder-only</li>
+              <li><strong>Diffusion</strong> — AudioLDM, Stable Audio on spectrogram/latent</li>
+              <li>Conditioning: text embeds, chroma, melody tokens</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">TTS</span>
+            <ul>
+              <li>Two-stage: text → mel (transformer enc–dec) → neural vocoder</li>
+              <li>Single-stage AR: discrete speech tokens (VALL-E / Voicebox class)</li>
+              <li>Speaker/prosody: global embeds, <a href="transformers-peft.html">LoRA/adapters</a></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

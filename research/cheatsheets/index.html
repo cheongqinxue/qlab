@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Activation functions · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Univariate ops + gated FFN blocks used in modern transformers (2024–2026 stack).</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Activation functions</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button
+            type="button"
+            data-action="toggle-theme"
+            aria-pressed="false"
+            title="Toggle light and dark"
+          >
+            Dark
+          </button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">What “latest” means here</span>
+            <p>
+              Decoder LLMs mostly dropped plain ReLU FFNs for <strong>gated linear units (GLU)</strong>
+              with smooth gates (SwiGLU or GEGLU). Vision and diffusion stacks still mix
+              <strong>GELU</strong>, <strong>SiLU</strong>, and <strong>ReLU²</strong>. Research
+              targets stable low-precision pre-training (e.g. PowLU, clipped SwiGLU).
+            </p>
+            <div
+              class="func-chart"
+              data-func-chart="relu,gelu,silu"
+              data-chart-labels="ReLU,GELU,SiLU"
+              data-x-min="-3"
+              data-x-max="3"
+              aria-label="ReLU, GELU, and SiLU compared on the same axes"
+            ></div>
+            <p class="func-chart-caption">Common univariate shapes (FFN or gate nonlinearity).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Gated FFN pattern</span>
+            <p>Up-project, gate, then <strong>down-project</strong> back to model width:</p>
+            <pre>h = act(x W_gate) ⊙ (x W_value)   # width d_ff
+y = h W_down                        # W_down: d_ff → d_model</pre>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 300 88" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="28" width="56" height="32" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="32" y="48" text-anchor="middle" font-size="10" fill="var(--text-primary)">Linear</text>
+                <text x="32" y="62" text-anchor="middle" font-size="8" fill="var(--text-muted)">→ 2d</text>
+                <line x1="60" y1="44" x2="78" y2="44" stroke="var(--accent)" />
+                <line x1="78" y1="44" x2="78" y2="20" stroke="var(--accent)" />
+                <line x1="78" y1="44" x2="78" y2="68" stroke="var(--accent)" />
+                <rect x="82" y="8" width="52" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" />
+                <text x="108" y="24" text-anchor="middle" font-size="9" fill="var(--text-primary)">gate</text>
+                <rect x="82" y="56" width="52" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" />
+                <text x="108" y="72" text-anchor="middle" font-size="9" fill="var(--text-primary)">value</text>
+                <text x="148" y="24" font-size="9" fill="var(--accent-strong)">act(·)</text>
+                <text x="148" y="72" font-size="12" fill="var(--text-muted)">⊙</text>
+                <line x1="134" y1="20" x2="168" y2="20" stroke="var(--accent)" stroke-dasharray="3 2" />
+                <line x1="168" y1="44" x2="200" y2="44" stroke="var(--accent)" />
+                <rect x="204" y="28" width="48" height="32" rx="4" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" />
+                <text x="228" y="48" text-anchor="middle" font-size="10" fill="var(--text-primary)">d out</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SwiGLU FFN block (PyTorch)</span>
+            <pre>import torch.nn as nn
+import torch.nn.functional as F
+
+# d_model = hidden_size, d_ff = intermediate_size (often ⌊2/3 · 4·d_model⌋)
+
+gate_up = nn.Linear(d_model, 2 * d_ff, bias=False)  # fused up-proj
+down    = nn.Linear(d_ff, d_model, bias=False)
+
+def swiglu_ffn(x):          # x: (..., d_model)
+    gate, up = gate_up(x).chunk(2, dim=-1)   # each (..., d_ff)
+    h = F.silu(gate) * up                    # element-wise; same as SiLU ⊙
+    return down(h)          # (..., d_model); block output is often x + dropout(down(h))</pre>
+            <div class="func-chart" data-func-chart="silu" aria-label="SiLU activation shape"></div>
+            <p class="func-chart-caption"><code>F.silu</code> = SiLU (β = 1); see SiLU cell.</p>
+            <p>
+              LLaMA-style code sometimes uses three layers (<code>w1</code> gate, <code>w3</code> up,
+              <code>w2</code> down) instead of fused <code>gate_up</code> — same math.
+              <code>nn.Linear</code> stores weight shape <code>(out_features, in_features)</code>, so
+              <code>gate_up(x)</code> is <code>x @ weight.T</code>. Default in LLaMA, Mistral, Qwen, OLMo,
+              DeepSeek-style decoders.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">GEGLU</span>
+            <pre>GEGLU(x) = GELU(xW) ⊙ (xV)</pre>
+            <div class="func-chart" data-func-chart="gelu" aria-label="GELU activation shape"></div>
+            <p class="func-chart-caption">GELU — gate nonlinearity in GEGLU blocks.</p>
+            <p>
+              Used in <strong>Gemma</strong>, T5 v1.1, many diffusion U-Nets. Small-scale LM studies
+              sometimes show slightly lower val loss vs SwiGLU; at large scale the gap is often
+              architecture-specific.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ReGLU</span>
+            <pre>ReGLU(x) = max(0, xW) ⊙ (xV)</pre>
+            <div class="func-chart" data-func-chart="relu" aria-label="ReLU activation shape"></div>
+            <p class="func-chart-caption">ReLU — gate nonlinearity in ReGLU.</p>
+            <p>Gated ReLU variant from the same GLU family; less common in open LLMs than SwiGLU/GEGLU.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">GELU</span>
+            <pre>GELU(x) = x · Φ(x)   # Φ = standard normal CDF
+≈ 0.5x(1 + tanh(√(2/π)(x + 0.044715x³)))</pre>
+            <div class="func-chart" data-func-chart="gelu" aria-label="GELU activation shape"></div>
+            <p>BERT, GPT-2/GPT-3 FFNs; still the univariate nonlinearity inside GEGLU.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SiLU / Swish</span>
+            <pre>σ(x) = 1 / (1 + e^(−x))          # logistic sigmoid
+
+Swish_β(x) = x · σ(βx)           # β (or α): input scale
+SiLU(x)    = Swish_1(x) = x · σ(x)   # β fixed at 1</pre>
+            <div class="func-chart" data-func-chart="silu" aria-label="SiLU or Swish activation shape"></div>
+            <p>
+              The Swish scale <strong>β</strong> (sometimes written <strong>α</strong>) stretches the input
+              before the sigmoid: larger β → sharper gate; smaller β → softer. Original Swish allowed
+              learnable β; <strong>SiLU</strong> fixes <strong>β = 1</strong>. <strong>SwiGLU</strong> uses
+              that fixed SiLU gate. Smooth bump for <code>x &lt; 0</code>, then ~linear for large positive
+              <code>x</code>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Mish</span>
+            <pre>Mish(x) = x · tanh(softplus(x))</pre>
+            <div class="func-chart" data-func-chart="mish" aria-label="Mish activation shape"></div>
+            <p>Smooth, self-gated; occasional vision/backbone choice without GLU width doubling.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ReLU²</span>
+            <pre>ReLU²(x) = (max(0, x))²</pre>
+            <div
+              class="func-chart"
+              data-func-chart="relu2"
+              data-x-min="-1"
+              data-x-max="3"
+              data-y-min="-0.5"
+              data-y-max="9"
+              aria-label="Squared ReLU activation shape"
+            ></div>
+            <p>Steeper than ReLU for <code>x &gt; 0</code>; flat at zero for <code>x ≤ 0</code>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ReLU (baseline)</span>
+            <pre>ReLU(x) = max(0, x)</pre>
+            <div class="func-chart" data-func-chart="relu" aria-label="ReLU activation shape"></div>
+            <p>Original Transformer FFN; zero gradient for <code>x &lt; 0</code>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Quick / Fast GELU</span>
+            <pre>QuickGELU(x) ≈ x · σ(1.702x)</pre>
+            <div
+              class="func-chart"
+              data-func-chart="gelu,quickgelu"
+              data-chart-labels="GELU,QuickGELU"
+              aria-label="GELU and QuickGELU compared"
+            ></div>
+            <p class="func-chart-caption">Full GELU vs sigmoid approximation (inference kernels).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SwiGLU + clamp</span>
+            <p>
+              Stacks clamp gate inputs before SiLU to limit outliers in FP16/BF16. Same wiring as
+              SwiGLU; gate sees <code>clip(x, −c, c)</code> before SiLU.
+            </p>
+            <div
+              class="func-chart"
+              data-func-chart="silu,silu_clamp"
+              data-chart-labels="SiLU,clamped SiLU"
+              aria-label="SiLU with and without input clamp"
+            ></div>
+            <p class="func-chart-caption">Example clamp at ±3 on the gate input.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PowLU (research)</span>
+            <pre>f(x)=x^(m/(√x+1))·σ(x)  for x&gt;0  (m≈3)
+x≤0: same tail as SiLU / SwiGLU gate</pre>
+            <div
+              class="func-chart"
+              data-func-chart="silu,powlu"
+              data-chart-labels="SiLU,PowLU"
+              data-x-min="-3"
+              data-x-max="4"
+              aria-label="SiLU versus PowLU gate function"
+            ></div>
+            <p class="func-chart-caption">PowLU sublinear growth for large positive <code>x</code> vs SiLU.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Softmax (attention)</span>
+            <pre>softmax(z)_i = exp(z_i) / Σ_j exp(z_j)</pre>
+            <div class="func-chart" data-func-chart="sigmoid" aria-label="Sigmoid function shape"></div>
+            <p class="func-chart-caption">σ(x) — binary softmax; full softmax is vector-normalized exp.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Where models land</span>
+            <ul>
+              <li><strong>SwiGLU orbit:</strong> LLaMA 2/3, Mistral/Mixtral, Qwen, OLMo, Command R, many MoE decoders.</li>
+              <li><strong>GEGLU:</strong> Gemma family, T5 v1.1, much diffusion.</li>
+              <li><strong>GELU-only FFN:</strong> older GPT-2/3, BERT-style encoders.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Implementation notes</span>
+            <ul>
+              <li>Fused kernels expect last dim <code>2d</code> then split (vLLM <code>SiluAndMul</code> / <code>GeluAndMul</code>).</li>
+              <li>Convention varies: <code>silu(gate)*value</code> vs <code>value*silu(gate)</code> — match checkpoint.</li>
+              <li>When swapping GEGLU ↔ SwiGLU, retune width for parameter parity.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">References</span>
+            <p>
+              Shazeer, GLU Variants Improve Transformer; Hendrycks &amp; Gimpel, GELU; Ramachandran et al.,
+              Swish; PowLU (arXiv:2605.25704); Hugging Face diffusers; vLLM activation ops.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script src="js/func-chart.js"></script>
+  </body>
+</html>

@@ -1,0 +1,494 @@
+/* qlab cheatsheet — reusable layout (green theme, light/dark, font scale) */
+
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap");
+
+:root {
+  --font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-scale: 1;
+  /* Slightly compact body; A+/A− scales from here */
+  --text-base: calc(0.8125rem * var(--font-scale));
+  --text-title: calc(0.9375rem * var(--font-scale));
+  --text-page: calc(1.625rem * var(--font-scale));
+  --nav-width: 13.5rem;
+  --header-height: 4rem;
+  --pad-cell: calc(0.75rem * var(--font-scale));
+  /* Two columns, fixed total */
+  --sheet-read-width: 75rem;
+
+  /* Green light */
+  --bg-page: #f4f7f4;
+  --bg-nav: #1a3d2e;
+  --bg-header: #e8f0eb;
+  --bg-cell: #ffffff;
+  --bg-cell-alt: #f0f6f2;
+  --text-primary: #14281f;
+  --text-muted: #3d5c4a;
+  --text-nav: #e8f5ec;
+  --text-nav-muted: #9bc4a8;
+  --accent: #2d8a5e;
+  --accent-strong: #1e6b47;
+  --border-cell: #c5dcc8;
+  --code-bg: #e8f2eb;
+  --shadow-header: 0 1px 0 var(--border-cell);
+  --chart-bg: #eef5f0;
+  --chart-axis: #b8d4c0;
+  --chart-line-1: #1e6b47;
+  --chart-line-2: #3a9b6c;
+  --chart-line-3: #6bb892;
+}
+
+:root[data-theme="dark"] {
+  --bg-page: #0d1210;
+  --bg-nav: #0a1612;
+  --bg-header: #111a16;
+  --bg-cell: #151f1a;
+  --bg-cell-alt: #1a2821;
+  --text-primary: #e4f0e8;
+  --text-muted: #9bb8a6;
+  --text-nav: #d4ebe0;
+  --text-nav-muted: #6a9580;
+  --accent: #4cb87a;
+  --accent-strong: #6dd49a;
+  --border-cell: #2a4035;
+  --code-bg: #1e2e26;
+  --shadow-header: 0 1px 0 var(--border-cell);
+  --chart-bg: #121c17;
+  --chart-axis: #2f4a3a;
+  --chart-line-1: #6dd49a;
+  --chart-line-2: #4cb87a;
+  --chart-line-3: #9edfb8;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+
+/* —— Shell —— */
+.sheet {
+  display: grid;
+  grid-template-columns: var(--nav-width) 1fr;
+  grid-template-rows: var(--header-height) 1fr;
+  grid-template-areas:
+    "nav header"
+    "nav main";
+  min-height: 100vh;
+}
+
+.sheet-nav {
+  grid-area: nav;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg-nav);
+  color: var(--text-nav);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.sheet-header {
+  grid-area: header;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 max(1.25rem, calc((100% - var(--sheet-read-width)) / 2));
+  background: var(--bg-header);
+  box-shadow: var(--shadow-header);
+}
+
+.sheet-main {
+  grid-area: main;
+  padding: 0 max(1.25rem, calc((100% - var(--sheet-read-width)) / 2)) 2rem;
+}
+
+/* —— Sticky page title —— */
+.sheet-title {
+  margin: 0;
+  font-size: var(--text-page);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* —— Toolbar —— */
+.sheet-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sheet-toolbar button {
+  font-family: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 700;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-cell);
+  border-radius: 4px;
+  background: var(--bg-cell);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.sheet-toolbar button:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.sheet-toolbar button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+:root[data-theme="dark"] .sheet-toolbar button[aria-pressed="true"] {
+  color: #0d1210;
+}
+
+/* —— Nav —— */
+.nav-brand {
+  padding: 0 1rem 0.75rem;
+  font-size: calc(0.75rem * var(--font-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-nav-muted);
+}
+
+.nav-groups {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 0.5rem;
+}
+
+.nav-group {
+  margin: 0;
+  padding: 0.75rem 0 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-group-first {
+  border-top: none;
+  padding-top: 0.15rem;
+}
+
+.nav-group-label {
+  margin: 0;
+  padding: 0 1rem 0.4rem;
+  font-size: calc(0.6875rem * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-nav-muted);
+}
+
+.nav-group-active .nav-group-label {
+  color: var(--accent);
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-list-nested a {
+  padding-left: 1.25rem;
+  font-size: calc(0.8125rem * var(--font-scale));
+}
+
+.nav-list a {
+  display: block;
+  padding: 0.45rem 1rem;
+  font-size: calc(0.875rem * var(--font-scale));
+  color: var(--text-nav-muted);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.nav-list a:hover {
+  color: var(--text-nav);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-list a.is-active {
+  color: var(--text-nav);
+  border-left-color: var(--accent);
+  background: rgba(77, 184, 122, 0.12);
+}
+
+.nav-footer {
+  padding: 0.75rem 1rem 0;
+  font-size: calc(0.7rem * var(--font-scale));
+  color: var(--text-nav-muted);
+  line-height: 1.35;
+}
+
+/* —— Two-column cell grid (no gutters) —— */
+.sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  align-items: stretch;
+  width: var(--sheet-read-width);
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.cell {
+  padding: var(--pad-cell);
+  background: var(--bg-cell);
+  border: 1px solid var(--border-cell);
+  margin: 0;
+  /* shared edges: collapse doubles — use negative margin trick or single borders */
+  margin-left: -1px;
+  margin-top: -1px;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.cell:nth-child(4n + 2),
+.cell:nth-child(4n + 3) {
+  background: var(--bg-cell-alt);
+}
+
+.cell-title {
+  display: block;
+  margin: 0 0 0.5em;
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--accent-strong);
+}
+
+.cell-band {
+  grid-column: 1 / -1;
+  padding-top: 0.6rem;
+  padding-bottom: 0.35rem;
+  background: var(--bg-nav) !important;
+  border-color: var(--border-cell);
+}
+
+.cell-band .cell-title {
+  margin: 0;
+  font-size: calc(0.75rem * var(--font-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-nav-muted);
+}
+
+:root[data-theme="dark"] .cell-band .cell-title {
+  color: var(--text-nav-muted);
+}
+
+.cell p {
+  margin: 0 0 0.65em;
+}
+
+.cell p:last-child {
+  margin-bottom: 0;
+}
+
+.cell ul,
+.cell ol {
+  margin: 0 0 0.65em;
+  padding-left: 1.2em;
+}
+
+.cell li {
+  margin-bottom: 0.25em;
+}
+
+.cell code,
+.cell pre {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: calc(0.88em * var(--font-scale));
+}
+
+.cell code {
+  padding: 0.1em 0.35em;
+  background: var(--code-bg);
+  border-radius: 3px;
+}
+
+.cell pre {
+  margin: 0.5em 0 0;
+  padding: 0.55em 0.65em;
+  background: var(--code-bg);
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* —— Formula + symbol legend —— */
+.formula {
+  margin: 0.45em 0 0.3em;
+  padding: 0.5em 0.65em;
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 3px 3px 0;
+  font-size: calc(0.95em * var(--font-scale));
+  line-height: 1.55;
+  overflow-x: auto;
+}
+
+.formula .katex {
+  font-size: 1.05em;
+}
+
+.formula-comment {
+  margin: 0.35em 0 0;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: calc(0.82em * var(--font-scale));
+  color: var(--text-muted);
+}
+
+.legend dt .katex {
+  font-size: 1em;
+}
+
+/* Inline "where ..." symbol definitions under a formula */
+.where {
+  list-style: none;
+  margin: 0.3em 0 0.6em;
+  padding: 0;
+}
+
+.where li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2em 0.45em;
+  margin-bottom: 0.15em;
+  line-height: 1.35;
+}
+
+.where .sym {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-weight: 700;
+  color: var(--accent-strong);
+  justify-self: start;
+}
+
+/* Two-column glossary inside the legend cell */
+.legend {
+  display: grid;
+  grid-template-columns: minmax(2.25em, max-content) minmax(0, 1fr);
+  column-gap: 0.65em;
+  row-gap: 0.12em;
+  margin: 0.4em 0 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.legend dt {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-weight: 700;
+  color: var(--accent-strong);
+  justify-self: start;
+  margin: 0;
+}
+
+.legend dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.cell-diagram {
+  margin-top: 0.5em;
+  max-width: 100%;
+}
+
+.cell-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 10rem;
+}
+
+.cell-diagram svg.diagram-tall {
+  max-height: 14rem;
+}
+
+.cell-span {
+  grid-column: 1 / -1;
+}
+
+.cell-caption {
+  margin: 0.35em 0 0;
+  font-size: calc(0.78em * var(--font-scale));
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.func-chart {
+  margin-top: 0.55em;
+  width: 100%;
+  height: 6.25rem;
+}
+
+.func-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.func-chart-caption {
+  margin: 0.25em 0 0;
+  font-size: calc(0.75em * var(--font-scale));
+  color: var(--text-muted);
+}
+
+/* —— Responsive: stack columns on narrow viewports —— */
+@media (max-width: 720px) {
+  .sheet {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "header"
+      "nav"
+      "main";
+  }
+
+  .sheet-nav {
+    position: relative;
+    height: auto;
+    max-height: 40vh;
+  }
+
+  .sheet-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cell:nth-child(even) {
+    background: var(--bg-cell-alt);
+  }
+}

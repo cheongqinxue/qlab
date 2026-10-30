@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ThoughtWorks AI interview · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <style>
+      .cell-q .cell-title {
+        font-weight: 600;
+        color: var(--text);
+      }
+      .cell-q .cell-title::before {
+        content: "Q. ";
+        color: var(--accent-strong);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Hypothetical prompts → bullet answers. Themes from Interview Query TW AI Engineer guide.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">ThoughtWorks AI interview</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-band">
+            <span class="cell-title">Deep learning &amp; transformers</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Explain how a neural network learns — to a non-technical client.</span>
+            <ul>
+              <li>Weights = knobs; training nudges them to reduce error on examples</li>
+              <li>Layers = stages of abstraction (simple patterns → decisions)</li>
+              <li>Not memorization alone: generalization needs diverse data + validation</li>
+              <li>Analogy: flashcards + coach correcting each round</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">When would you pick a CNN/Inception-style model vs a Transformer?</span>
+            <ul>
+              <li>CNN: grid data (images/video frames), local patterns, efficient inductive bias</li>
+              <li>Inception: multi-scale features in one forward pass</li>
+              <li>Transformer: long context, global dependencies, parallel training — default for language/multimodal</li>
+              <li>Tabular: often GBM/logistic first; NN when scale + messy interactions justify cost</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Why is Adam so common in deep learning?</span>
+            <ul>
+              <li>Per-parameter learning rate from gradient + squared-gradient EMAs</li>
+              <li>Handles sparse/noisy grads better than fixed-lr SGD in many DL tasks</li>
+              <li>Production: prefer AdamW (weight decay decoupled from adaptive step)</li>
+              <li>Watch: grad clip, ε, stale second moments — see <a href="failure-modes.html">failure modes</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">What is self-attention, in one interview answer?</span>
+            <ul>
+              <li>Each token compares itself (query) to all keys → softmax weights → weighted sum of values</li>
+              <li>Learns which context tokens matter for this position</li>
+              <li>Multi-head = several relation types in parallel</li>
+              <li>Cost scales with sequence length (quadratic in full attention)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Why mask the decoder during training?</span>
+            <ul>
+              <li>Causal mask: position t cannot attend to tokens &gt; t</li>
+              <li>Without it, model “sees the answer” — not true next-token prediction</li>
+              <li>Encoder-only (BERT): bidirectional, no causal mask — different pretraining objective</li>
+              <li>Seq2seq: decoder self-attn masked; cross-attn to encoder unmasked</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">What breaks when you keep making the network deeper?</span>
+            <ul>
+              <li>Vanishing/exploding gradients — residuals, norm, init, clipping</li>
+              <li>Overfit — data, regularization, early stop</li>
+              <li>Train/serve cost — latency, memory; distill / quantize / KV cache at inference</li>
+              <li>Diminishing returns — measure on val, not depth for its own sake</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">ML system design</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Design a multimodal GenAI feature for an e-commerce site. How do you handle bias?</span>
+            <ul>
+              <li>Human approval before customer-facing copy; style/brand guardrails</li>
+              <li>Slice eval: locale, gender presentation, product category, language</li>
+              <li>Red-team prompts; refusal policy; escalation for sensitive categories</li>
+              <li>Metrics: override rate, harm reports, business KPI vs control — not demo quality alone</li>
+              <li>Ask: who is harmed first if the model is wrong?</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Design a RAG chatbot over internal financial documents.</span>
+            <ul>
+              <li>Ingest → chunk → embed → vector index + metadata (tenant, date, doc ACL)</li>
+              <li>Retrieve top-k → optional rerank → prompt with citations only</li>
+              <li>Refuse or escalate when retrieval confidence low</li>
+              <li>Eval: recall@k, groundedness/faithfulness, human review on high-risk queries</li>
+              <li>Ops: index refresh, PII-safe logging, access control on retrieval</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How would you use a feature store for a recommendation system?</span>
+            <ul>
+              <li>Offline: point-in-time correct joins for training — no future leakage</li>
+              <li>Online: low-latency key lookup (user/item) at serve time</li>
+              <li>Registry: single definition of each feature; backfill when logic changes</li>
+              <li>Monitor: null rate, freshness lag, train/serve skew</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Design a model to predict whether a rider accepts a trip offer.</span>
+            <ul>
+              <li>Label: accept/decline; watch selection bias (only offered trips logged)</li>
+              <li>Features: distance, surge, time, rider history, supply/demand context</li>
+              <li>Latency budget for real-time scoring; fallback heuristic</li>
+              <li>Optimize business metric (completed trips / revenue), not raw accuracy</li>
+              <li>Experiment: shadow → A/B on accept rate and driver wait time</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How do you tell bots from humans using browsing history?</span>
+            <ul>
+              <li>Signals: timing regularity, scroll/mouse entropy, navigation patterns, velocity</li>
+              <li>Network/device: headless flags, datacenter IP, cookie/session reuse</li>
+              <li>Labels from challenges/CAPTCHA + analyst review — class imbalance likely</li>
+              <li>Blend rules (cheap) + model; human queue for borderline</li>
+              <li>Privacy: minimize retention; document purpose</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">Evaluation, metrics &amp; experiments</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Two teams train on the “same” dataset but get different results. Why?</span>
+            <ul>
+              <li>Different splits, preprocessing, or leakage in one pipeline</li>
+              <li>Seeds, hyperparams, class-weight handling</li>
+              <li>Different metrics or bug in eval code</li>
+              <li>Fix: shared pipeline artifact, fixed holdout, same primary metric</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">AUC improved after a model change but revenue did not. What do you check?</span>
+            <ul>
+              <li>Decision uses threshold/ranking — AUC may not move the action</li>
+              <li>Train/serve skew or wrong population in offline eval</li>
+              <li>Proxy metric misaligned with revenue; calibration off at operating point</li>
+              <li>Leakage inflated offline AUC</li>
+              <li>Re-run with business KPI primary on same users/time window</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Stakeholders ask why you used a neural net instead of logistic regression.</span>
+            <ul>
+              <li>Nonlinear interactions / representation learning justified by val + business metric</li>
+              <li>Cost: data volume, latency, explainability requirements</li>
+              <li>If regulated: interpretability, audit trail, or hybrid (linear + NN features)</li>
+              <li>Show baseline comparison — NN must earn its complexity</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How would you A/B test a new promotion or product feature?</span>
+            <ul>
+              <li>Hypothesis + pre-registered primary metric (revenue, retention — not clicks alone)</li>
+              <li>Randomization unit = user (avoid session-level noise)</li>
+              <li>Power, duration, guardrails (latency, support tickets, fraud)</li>
+              <li>Novelty/primacy effects; optional long holdout</li>
+              <li>Peeking policy or fixed analysis date</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How do you present model insights to executives who do not code?</span>
+            <ul>
+              <li>Lead with decision and confidence, not algorithm name</li>
+              <li>One chart: impact $ or %, baseline vs new, uncertainty</li>
+              <li>Plain language: what changed in customer behavior</li>
+              <li>Risks, monitoring, and what you need from them (policy, budget)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">MLOps &amp; GenAI engineering</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">What is model drift and how do you respond in production?</span>
+            <ul>
+              <li>Data drift: input distribution shift — PSI, slice dashboards</li>
+              <li>Concept drift: P(y|x) changes — performance drop on recent window</li>
+              <li>Alerts → diagnose slice → shadow new model or retrain trigger</li>
+              <li>Keep rollback artifact; document incident</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">What belongs in an ML CI/CD pipeline?</span>
+            <ul>
+              <li>Schema/tests on data and feature code; model contract + smoke inference</li>
+              <li>Versioned datasets, configs, registered artifacts</li>
+              <li>Promote: offline gates → canary/shadow → full</li>
+              <li>Live monitors: latency, errors, KPI, fairness slices</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Your team ships code heavily written by AI assistants. How do you validate before production?</span>
+            <ul>
+              <li>Every change = PR + human review + unit/integration tests</li>
+              <li>SAST on merge; block critical findings</li>
+              <li>Security cases: injection, authz, malformed input</li>
+              <li>SCA on deps — verify packages exist (hallucinated names)</li>
+              <li>Sandbox deploy; stricter gate on auth, payments, PII paths</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">Behavioral &amp; consulting (TW-style)</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Requirements were vague and the deadline was fixed. What did you do?</span>
+            <ul>
+              <li>STAR: narrow to measurable outcome with sponsor</li>
+              <li>Time-box discovery; deliver thin vertical slice first</li>
+              <li>Written assumptions; explicit out-of-scope</li>
+              <li>Communicate trade-offs early — date vs scope vs quality</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">You disagreed with a senior engineer on the technical approach.</span>
+            <ul>
+              <li>Data or experiment to resolve — not opinion alone</li>
+              <li>Align on criteria: risk, cost, maintainability, client impact</li>
+              <li>Disagree and commit once decided; document decision</li>
+              <li>Escalate only if risk to client or ethics</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">You had no direct authority but needed another team to prioritize your work.</span>
+            <ul>
+              <li>Shared goal in their language (risk, revenue, SLA)</li>
+              <li>Small ask first; prove value</li>
+              <li>Executive sponsor or client voice if blocked</li>
+              <li>Make work easy: clear spec, estimates, rollback plan</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Critical training data was missing or badly labeled.</span>
+            <ul>
+              <li>Quantify impact on metric slices</li>
+              <li>Options: relabel budget, weak labels, transfer learning, rule baseline</li>
+              <li>Ship with confidence bounds + human review where error is costly</li>
+              <li>Transparent to client — no silent failure</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Describe an end-to-end ML or AI project you are proud of.</span>
+            <ul>
+              <li>Problem → baseline → iteration → deployment (even pilot)</li>
+              <li>Your specific ownership (data, model, infra, stakeholder)</li>
+              <li>Metric moved; what you’d improve second time</li>
+              <li>Responsible angle if user-facing (fairness, privacy, fallback)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">You are pair programming in the interview. What do they want to see?</span>
+            <ul>
+              <li>Think aloud: intent before typing</li>
+              <li>Clarify constraints and edge cases</li>
+              <li>Small steps; run/test often</li>
+              <li>Invite feedback — collaboration over solo heroics</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Source &amp; prep</span>
+            <ul>
+              <li>Prompts aligned with <a href="https://www.interviewquery.com/guides/thoughtworks-ai-engineer?tab=questions">Interview Query — TW AI Engineer</a></li>
+              <li>Drill math elsewhere: <a href="optimizers.html">optimizers</a>, <a href="loss-functions.html">losses</a>, <a href="index.html">activations</a></li>
+              <li>Re-check live question list before your loop</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

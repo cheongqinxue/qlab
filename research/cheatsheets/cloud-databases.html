@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloud databases · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Managed OLTP/NoSQL/cache offerings on AWS, GCP, Azure, and selected multi-cloud Postgres/MySQL
+          platforms (2024–2026). Dollar figures change — verify on vendor pricing pages.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Cloud databases</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button
+            type="button"
+            data-action="toggle-theme"
+            aria-pressed="false"
+            title="Toggle light and dark"
+          >
+            Dark
+          </button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Scope</span>
+            <p>
+              This sheet compares <strong>vendor-operated</strong> database services (not self-managed VMs).
+              Focus: transactional workloads, managed Postgres/MySQL/SQL Server, cloud-native NoSQL, and
+              developer-centric Postgres platforms. Numbers are structural (pricing <em>models</em> and
+              representative list prices where cited); always confirm region, edition, and discounts on
+              official pages before budgeting.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Decision framework</span>
+            <ol>
+              <li>
+                <strong>Engine fidelity:</strong> Need vanilla Postgres/MySQL/SQL Server → RDS, Cloud SQL,
+                Azure Flexible Server. Need AWS-optimized MySQL/PG → Aurora. Need global SQL scale → Spanner
+                or Cosmos (RU/vCore model tradeoffs).
+              </li>
+              <li>
+                <strong>Traffic shape:</strong> Steady 24/7 → provisioned instances + reserved/CUD. Spiky or
+                dev/test → serverless (Aurora serverless, Azure SQL serverless, Neon CU-hours, DynamoDB
+                on-demand).
+              </li>
+              <li>
+                <strong>Ops boundary:</strong> Full platform (auth, realtime) → Supabase. Branching +
+                scale-to-zero Postgres → Neon. Sharded MySQL/Vitess or metal → PlanetScale. Stay in one cloud
+                VPC → hyperscaler native beats egress-heavy multi-cloud.
+              </li>
+              <li>
+                <strong>Consistency &amp; scale-out:</strong> Single-writer OLTP → managed relational.
+                Horizontal writes beyond one node → Aurora Limitless, Citus/Elastic Clusters, Vitess,
+                DynamoDB, or Spanner — each with different SQL semantics and migration cost.
+              </li>
+              <li>
+                <strong>Total cost:</strong> Model compute, storage, I/O/IOPS, backup retention, cross-AZ,
+                cross-region replication, and <strong>egress</strong> together; cheapest compute SKU often
+                loses on I/O or NAT.
+              </li>
+            </ol>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cost gotchas (all clouds)</span>
+            <ul>
+              <li>
+                <strong>Egress:</strong> Client or app tier outside the DB VPC/region pays per-GB outbound
+                (Supabase Pro includes 250 GB then overage; Azure/GCP/AWS DB pricing pages bill WAN egress
+                separately from compute).
+              </li>
+              <li>
+                <strong>NAT gateways:</strong> Private-subnet apps reaching the public internet (or cross-zone
+                hairpin) accrue NAT processing + egress — common surprise next to “cheap” db.t4g.micro RDS.
+              </li>
+              <li>
+                <strong>Multi-AZ / HA:</strong> Aurora replicas, Cloud SQL HA, Azure zone-redundant Flexible
+                Server, and PlanetScale’s 3-node Vitess cluster multiply compute; storage may duplicate too.
+              </li>
+              <li>
+                <strong>I/O vs IOPS:</strong> Aurora Standard charges per million I/O; Aurora I/O-Optimized
+                trades higher storage rate for zero per-I/O fees. RDS gp3 vs io2 Block Express: provisioned
+                IOPS billed whether used.
+              </li>
+              <li>
+                <strong>Backup &amp; PITR:</strong> Backup storage beyond free allowance (often tied to DB
+                size) and long PITR windows (Neon history storage, Supabase PITR add-on) add steady cost.
+              </li>
+              <li>
+                <strong>Idle minimums:</strong> Provisioned DynamoDB RCU/WCU, always-on RDS, and Azure SQL
+                serverless <em>minimum vCores</em> while online still bill; Neon/Supabase scale-down helps
+                only when compute actually suspends.
+              </li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cross-cloud comparison (OLTP Postgres)</span>
+            <p>Same engine, different packaging — pick by cloud residency and traffic shape:</p>
+            <ul>
+              <li>
+                <strong>AWS RDS PostgreSQL:</strong> Per-hour instance + gp3/io storage; closest to “Postgres
+                on a VM” with AWS integrations. vs <strong>Aurora PG</strong> if you want storage auto-grow,
+                fast failover, Global Database, or Limitless sharding.
+              </li>
+              <li>
+                <strong>GCP Cloud SQL PG:</strong> vCPU + memory + disk; Enterprise Plus tier for higher
+                availability/performance. vs <strong>AlloyDB</strong> for Google’s disaggregated storage +
+                higher throughput OLTP analytics blend.
+              </li>
+              <li>
+                <strong>Azure Flexible Server PG:</strong> vCore-hour + GiB-month storage; stop/start and
+                burstable SKUs. vs <strong>Elastic Clusters (Citus)</strong> for sharded Postgres (Cosmos DB
+                for PostgreSQL is retiring — migrate to Elastic).
+              </li>
+              <li>
+                <strong>Neon / Supabase:</strong> Multi-cloud Postgres; Neon bills CU-hours + GB-month;
+                Supabase bills org plan + per-project compute (Micro from ~$10/mo) + disk/egress quotas.
+              </li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Amazon RDS (MySQL, PostgreSQL, MariaDB, SQL Server, Oracle)</span>
+            <p>
+              <strong>What:</strong> Managed single-primary relational instances; you choose engine version,
+              instance class, and EBS-backed storage (gp3, io2).
+            </p>
+            <p>
+              <strong>Pricing:</strong> DB instance-hours (per-second, 10-minute minimum after changes) +
+              provisioned storage (GiB-month) + optional provisioned IOPS + backup beyond free tier + data
+              transfer. Reserved Instances / Savings Plans reduce steady compute. Example list rates (US East,
+              verify): db.t4g.micro often cited ~$0.016/hr; larger classes scale linearly — see engine-specific
+              pages.
+            </p>
+            <p>
+              <strong>When:</strong> Standard lift-and-shift OLTP, need specific extensions or minor version
+              control, or want lowest conceptual overhead vs Aurora features.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Broad RDS list-price reductions (May 2025 AWS price list updates).
+              gp3/io2 Block Express remains default guidance for I/O-heavy workloads.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> G2/AWS peer reviews praise operational maturity; cost reviews often
+              flag Multi-AZ + storage growth — align instance right-sizing with AWS Compute Optimizer /
+              Performance Insights.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Amazon Aurora (MySQL &amp; PostgreSQL)</span>
+            <p>
+              <strong>What:</strong> AWS storage/compute-separated cluster; compatible with MySQL or PostgreSQL
+              wire protocols; optional Global Database, ML integration, and Limitless horizontal scale (PG).
+            </p>
+            <p>
+              <strong>Pricing:</strong> (1) <strong>Provisioned</strong> — per DB instance-hour; (2)
+              <strong>Serverless</strong> — per ACU-hour (≈2 GiB RAM + CPU per ACU, billed per second); storage
+              GiB-month; Aurora Standard adds per-million I/O, I/O-Optimized flattens I/O into storage rate;
+              backups + cross-region replication extra. Steady 24/7 workloads: AWS blog guidance favors
+              provisioned + RI; spiky workloads favor serverless ACUs.
+            </p>
+            <p>
+              <strong>When:</strong> High availability in AWS, read replicas, serverless scaling, or PG
+              Limitless for single-database sharding vs DIY Citus.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Aurora PostgreSQL Limitless GA (Oct 2024); region expansion and PG
+              16.x support through 2025; “Serverless v2” branding consolidated to Aurora serverless (2026
+              docs).
+            </p>
+            <p>
+              <strong>Sentiment:</strong> re:Invent / AWS Database Blog positioning emphasizes serverless +
+              Limitless for variable and mega-scale PG; third-party FinOps posts still warn to model I/O-heavy
+              Standard vs I/O-Optimized explicitly.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Amazon DynamoDB</span>
+            <p>
+              <strong>What:</strong> Fully managed key-value and document store; single-digit ms at scale;
+              optional DynamoDB Streams, DAX cache, Global Tables.
+            </p>
+            <p>
+              <strong>Pricing:</strong> <strong>On-demand</strong> — pay per read/write request unit (4 KiB read
+              chunks, 1 KiB write chunks); <strong>Provisioned</strong> — hourly RCU/WCU whether consumed.
+              Storage (Standard vs Infrequent Access), backups, PITR, and global replication billed separately.
+              Nov 2024: AWS cut on-demand throughput ~50% and reduced global tables replication write pricing.
+            </p>
+            <p>
+              <strong>When:</strong> Unpredictable traffic, serverless microservices, gaming/session stores —
+              vs RDS when you need ad hoc SQL joins. vs DocumentDB if you must keep MongoDB API on AWS.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> AWS recommends on-demand as default for most new workloads post-2024
+              price cuts; provisioned + auto scaling for flat high utilization.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Practitioner blogs (AWS Database Blog, re:Post) highlight simpler
+              ops; design reviews note hot-partition and GSIs design still require NoSQL discipline — not a
+              drop-in RDBMS replacement.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">AWS (other managed data stores)</span>
+            <ul>
+              <li>
+                <strong>DocumentDB:</strong> MongoDB-compatible API on AWS; cluster instance-hours + storage +
+                I/O; use when Mongo API must stay in-VPC on AWS (verify compatibility matrix for your driver
+                features).
+              </li>
+              <li>
+                <strong>ElastiCache / MemoryDB:</strong> Redis/Memcached/Valkey vs durable Redis — node-hours;
+                MemoryDB adds Multi-AZ durability premium vs ephemeral cache.
+              </li>
+              <li>
+                <strong>Redshift Serverless / provisioned:</strong> Analytics warehouse — RPU-hour or
+                instance-hour + storage; not OLTP substitute.
+              </li>
+              <li>
+                <strong>Neptune:</strong> Graph (Gremlin/openCypher/SPARQL) — instance-hours; vs Aurora for
+                relational.
+              </li>
+            </ul>
+            <p>Pricing hub: <code>aws.amazon.com/rds/pricing/</code>, DynamoDB and ElastiCache pricing pages.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Google Cloud SQL</span>
+            <p>
+              <strong>What:</strong> Managed MySQL, PostgreSQL, SQL Server — familiar single-instance or HA
+              regional instances.
+            </p>
+            <p>
+              <strong>Pricing:</strong> vCPU + memory (per-second billing while running) + storage + networking;
+              <strong>Enterprise</strong> vs <strong>Enterprise Plus</strong> editions differ in SLA/features
+              and CPU/RAM rates. HA doubles effective compute. Extended support surcharge for EOL major versions
+              (waived temporarily in early 2025 — check current policy).
+            </p>
+            <p>
+              <strong>When:</strong> Default relational choice on GCP when AlloyDB features aren’t needed;
+              SQL Server workloads requiring licensed images.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Edition split aligns with higher-tier HA/performance SKUs; extended
+              support billing is an operational planning item for older PG/MySQL majors.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> GCP docs emphasize predictable vCPU billing; community comparisons
+              often pit Cloud SQL vs AlloyDB on throughput per dollar for write-heavy PG.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Google AlloyDB for PostgreSQL</span>
+            <p>
+              <strong>What:</strong> PostgreSQL-compatible service with disaggregated, auto-scaling storage and
+              read pools; marketed for demanding OLTP + near-real-time analytics.
+            </p>
+            <p>
+              <strong>Pricing:</strong> vCPU-hour + GiB-hour memory + <strong>shared storage</strong> (pay used,
+              not per read replica) + backup + egress. HA primary uses two nodes (active + standby) — doubles
+              CPU/RAM charge vs zonal. Example US list (verify region): on-demand vCPU often ~$0.066/hr tier
+              before CUDs.
+            </p>
+            <p>
+              <strong>When:</strong> Postgres on GCP needing higher performance than Cloud SQL or columnar/HTAP
+              integration; not a Spanner replacement for global strong consistency at planet scale.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Continued alignment with PG versions and AI/ML analytics narratives in
+              Google Cloud Next summaries; check release notes for columnar/vector features per quarter.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Benchmark-oriented blogs report strong PG compatibility with migration
+              tooling; FinOps reviews appreciate lack of opaque I/O surcharges vs some Aurora modes.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Google Cloud Spanner</span>
+            <p>
+              <strong>What:</strong> Globally distributed, horizontally scaled relational DB (GoogleSQL or
+              PostgreSQL interfaces); external consistency.
+            </p>
+            <p>
+              <strong>Pricing:</strong> <strong>Editions</strong> (Standard, Enterprise, Enterprise Plus) —
+              compute per node/replica-hour, storage GiB-month, backup, cross-region replication, egress.
+              Multi-region configs multiply replicas (e.g., 5+ replicas). 1- and 3-year CUDs (~20% / ~40%).
+              Enterprise adds graph, search, vector; Enterprise Plus adds highest SLA multi-region + geo-partitioning.
+            </p>
+            <p>
+              <strong>When:</strong> Global OLTP with strict consistency and tolerance for Spanner SQL/dialect
+              constraints; vs Cloud SQL/AlloyDB for single-region Postgres familiarity.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Spanner editions GA narrative (post-Sep 2024) — tier picking is the
+              main cost lever; PostgreSQL dialect and vector/search features expanded in Enterprise tiers.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Gartner/peer comparisons often cite Spanner for mission-critical
+              global scale; developers note schema/query differences vs vanilla Postgres worth POC time.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Google Firestore &amp; Bigtable (document / wide-column)</span>
+            <p>
+              <strong>Firestore (Native):</strong> Serverless document DB — per 100k reads/writes/deletes + storage
+              + egress; daily free quota (e.g., 50k reads/day on native mode — verify). <strong>Firestore
+              Enterprise + MongoDB compatibility</strong> (GA 2025): read/write <em>units</em> (4 KiB / 1 KiB
+              chunks) — different from classic document counts.
+            </p>
+            <p>
+              <strong>When:</strong> Mobile/web sync, Firebase apps, or Mongo API on Google without Atlas egress
+              to another cloud.
+            </p>
+            <p>
+              <strong>Bigtable:</strong> Provisioned nodes + storage — high-throughput time series/wide-column;
+              not transactional RDBMS.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Azure Database for PostgreSQL — Flexible Server</span>
+            <p>
+              <strong>What:</strong> Managed Postgres with configurable maintenance, HA options, stop/start,
+              burstable SKUs.
+            </p>
+            <p>
+              <strong>Pricing:</strong> vCore-hours + provisioned storage (GiB-month) + backup storage consumed;
+              zone-redundant HA increases compute. Savings plans / reserved capacity for steady loads. Microsoft
+              lists separate line items on invoice (compute vs storage vs backup).
+            </p>
+            <p>
+              <strong>When:</strong> Default Postgres on Azure; prefer over single-server (retired) for new
+              deployments.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Elastic Clusters (Citus) promoted as strategic sharded Postgres;
+              newer PG versions (17+) on Elastic vs legacy Cosmos PG.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Microsoft Learn migration guides emphasize Elastic Clusters cost simplicity
+              (no separate coordinator surcharge vs Cosmos DB for PostgreSQL); G2-style reviews praise Flexible
+              Server ops, with cost notes on HA + storage autogrow planning.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Azure SQL Database</span>
+            <p>
+              <strong>What:</strong> Managed SQL Server engine — DTU (legacy sizing) or vCore models; tiers
+              General Purpose, Business Critical, Hyperscale (up to ~100 TB storage scale-out architecture).
+            </p>
+            <p>
+              <strong>Pricing:</strong> <strong>Provisioned</strong> vCore per second or hour; <strong>Serverless</strong>
+              — bill greater of CPU vs memory (memory normalized at 3 GiB per vCore), per-second, auto-pause =
+              compute $0 (storage only). Hyperscale serverless supported; auto-pause on Hyperscale was preview —
+              check current GA status. Storage on Hyperscale: pay allocated GB between 10 GB and max tier limit.
+            </p>
+            <p>
+              <strong>When:</strong> Microsoft stack, .NET apps, T-SQL features; Hyperscale for very large single
+              DBs; vs Flexible Server when Postgres is required.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Ignition-era Hyperscale pricing simplification still referenced in docs;
+              serverless + Hyperscale combo marketed for variable analytics/OLTP hybrids.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Azure Cosmos DB</span>
+            <p>
+              <strong>What:</strong> Multi-model global database — API choice locks pricing model: NoSQL/Mongo(RU)/Cassandra/Gremlin/Table
+              on <strong>request units (RU/s)</strong>; PostgreSQL/Mongo(vCore)/Garnet on <strong>vCore + disk
+              per node</strong>.
+            </p>
+            <p>
+              <strong>Pricing:</strong> RU APIs — provisioned RU/s (manual or autoscale max), serverless option,
+              consumed storage per region, multi-region multiplier, egress. vCore APIs — cluster nodes + disk;
+              <strong>Cosmos DB for PostgreSQL is retiring</strong> — new deployments blocked; migrate to Elastic
+              Clusters on Flexible Server.
+            </p>
+            <p>
+              <strong>When:</strong> Global low-latency NoSQL with SLA’d multi-region writes; vs Azure SQL for
+              relational T-SQL; vs Flexible Server for Postgres compatibility.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Enterprise reviews cite strong global distribution; developer forums
+              frequently discuss RU provisioning discipline and partition key design to avoid throttling bills.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Neon (serverless Postgres)</span>
+            <p>
+              <strong>What:</strong> Postgres with separated storage/compute, branching, scale-to-zero; runs on
+              AWS/Azure regions (multi-cloud control plane).
+            </p>
+            <p>
+              <strong>Pricing (usage-based, verify):</strong> <strong>CU-hour</strong> (1 CU ≈ 1 vCPU + 4 GiB
+              RAM) — Launch ~$0.106/CU-hr, Scale ~$0.222/CU-hr (2025 reductions); storage ~$0.35/GB-month;
+              instant-restore/history storage ~$0.20/GB-month; branch-hours beyond quota ~$0.002/hr. Free tier:
+              projects + CU-hours/month + per-project storage caps. Post-Databricks acquisition: enterprise
+              features folded into Scale tier (per Neon blog, 2025).
+            </p>
+            <p>
+              <strong>When:</strong> Dev/preview environments, intermittent SaaS, many DB branches — vs Supabase if
+              you need bundled Auth/Storage; vs Cloud SQL if you must keep all data in GCP-only billing.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Hacker News / developer blogs praise branching UX and scale-to-zero;
+              production users note monitoring cold-start latency after idle suspend.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Supabase (Postgres platform)</span>
+            <p>
+              <strong>What:</strong> Managed Postgres per project plus optional Auth, Storage, Realtime, Edge
+              Functions — still usable as DB-only via connection string.
+            </p>
+            <p>
+              <strong>Pricing:</strong> Org plans — Free ($0, 500 MB DB, pauses after 1 week idle, 2 active free
+              projects); Pro from <strong>$25/mo</strong> includes $10 compute credit (covers one Micro ~$10/mo),
+              8 GB disk/project, 250 GB egress; extra projects add compute instances; disk overage ~$0.125/GB;
+              PITR add-on priced separately (~$100/mo per retention block on Pro — verify). Not pure
+              serverless — each project is a dedicated compute size table (Micro → 16XL).
+            </p>
+            <p>
+              <strong>When:</strong> Greenfield apps wanting Postgres + auth/storage in one bill; vs Neon for
+              deeper branching/storage architecture and CU billing.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Org-based billing and compute credit model documented in platform
+              guides; branching billed per branch-hour on paid tiers.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> G2 categories show strong SMB/developer satisfaction for velocity;
+              cost threads warn that <em>each</em> production project needs its own compute line item.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PlanetScale (Vitess MySQL, Postgres, Neki)</span>
+            <p>
+              <strong>What:</strong> Managed Vitess (MySQL-compatible) historically; 2025 GA push for sharded
+              Postgres and Neki engine; database branching on Vitess; metal SKUs with local NVMe.
+            </p>
+            <p>
+              <strong>Pricing:</strong> No free tier (Hobby retired 2024). <strong>Base</strong> plan: Vitess
+              non-metal clusters from <strong>~$39/mo</strong> (PS-10, 3-node: primary + 2 replicas) — verify
+              SKU table; storage often 10 GB included then per-GB; ~1440 dev branch hours/mo included; single-node
+              Postgres from ~$5/mo entry (docs). Metal clusters priced higher with bundled NVMe tiers.
+            </p>
+            <p>
+              <strong>When:</strong> Large MySQL needing online schema change + horizontal sharding; vs Aurora
+              for AWS-native; vs RDS when Vitess workflow (deploy requests) fits team culture.
+            </p>
+            <p>
+              <strong>2024–2026:</strong> Postgres GA (InfoQ/industry coverage Oct 2025); Cloudflare Workers
+              integration for edge-adjacent full-stack; hobby-plan removal remains a polarizing tradeoff (paid
+              minimum for production seriousness).
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Developers praise branching and ops automation; price-sensitive
+              hobbyists migrated to alternatives when free tier ended.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MongoDB Atlas (multi-cloud)</span>
+            <p>
+              <strong>What:</strong> Managed MongoDB on AWS, GCP, Azure — replica sets and sharded clusters;
+              Atlas Search/Vector as add-ons.
+            </p>
+            <p>
+              <strong>Pricing:</strong> <strong>Free</strong> M0; <strong>Flex</strong> ~$0.011/hr with ~$8–$30/mo
+              cap for bursty dev/test; <strong>Dedicated</strong> from ~$0.08/hr (M10 ≈ $56.94/mo list — verify)
+              + storage + backup + egress (Free/Flex egress often free). <strong>Atlas Infinite</strong> (2025):
+              decoupled compute/storage for AI/agentic burst scaling on M10+.
+            </p>
+            <p>
+              <strong>When:</strong> Document model across clouds with unified ops; vs Firestore Mongo-compat on
+              GCP; vs DocumentDB on AWS if Atlas egress/cost acceptable.
+            </p>
+            <p>
+              <strong>Sentiment:</strong> Gartner Peer Insights / G2 highlight ease of multi-cloud; FinOps blogs
+              recommend Flex for non-prod and reserved capacity for steady prod tiers.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Cross-cloud matrix (quick pick)</span>
+            <pre>Need                    AWS              GCP                 Azure
+─────────────────────────────────────────────────────────────────────────
+Vanilla Postgres OLTP   RDS / Aurora PG    Cloud SQL / AlloyDB Flexible Server
+Serverless SQL scale    Aurora serverless  (limited)           Azure SQL serverless
+Global SQL              Aurora Global      Spanner             Cosmos DB (RU)
+Key-value / doc         DynamoDB           Firestore           Cosmos DB NoSQL
+MySQL scale-out         Aurora + app       Cloud SQL           Flexible Server
+                        sharding           (+ Vitess self)     / PlanetScale Vitess
+Cache                   ElastiCache        Memorystore         Azure Cache
+Branching Postgres      (limited)          —                   —
+                        Neon/Supabase/PlanetScale (multi-cloud control planes)
+</pre>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Free tiers &amp; entry points (verify limits)</span>
+            <ul>
+              <li><strong>AWS:</strong> RDS/Aurora — typically 12-month Free Tier credits for new accounts (engine/time caps); DynamoDB always-free tier for on-demand capacity units in home region.</li>
+              <li><strong>GCP:</strong> Firestore daily free operations + 1 GiB; Cloud SQL sometimes promotional credits — check current SKU promos.</li>
+              <li><strong>Azure:</strong> Cosmos DB free tier (RU account); Flexible Server often trial credits via subscription offers.</li>
+              <li><strong>Neon:</strong> Free projects with monthly CU-hours and storage per project.</li>
+              <li><strong>Supabase:</strong> Two free projects, 500 MB, auto-pause.</li>
+              <li><strong>MongoDB Atlas:</strong> Permanent M0 free cluster.</li>
+              <li><strong>PlanetScale:</strong> No free production tier; ~$5 single-node Postgres entry (docs).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pricing sources (official)</span>
+            <ul>
+              <li>AWS RDS — https://aws.amazon.com/rds/pricing/</li>
+              <li>AWS Aurora — https://aws.amazon.com/rds/aurora/pricing/</li>
+              <li>AWS DynamoDB — https://aws.amazon.com/dynamodb/pricing/</li>
+              <li>Google Cloud SQL — https://cloud.google.com/sql/pricing</li>
+              <li>Google AlloyDB — https://cloud.google.com/alloydb/pricing</li>
+              <li>Google Spanner — https://cloud.google.com/spanner/pricing</li>
+              <li>Google Firestore — https://cloud.google.com/firestore/pricing</li>
+              <li>Azure PostgreSQL Flexible — https://azure.microsoft.com/pricing/details/postgresql/flexible-server/</li>
+              <li>Azure SQL Database — https://azure.microsoft.com/pricing/details/azure-sql-database/single/</li>
+              <li>Azure Cosmos DB — https://azure.microsoft.com/pricing/details/cosmos-db/</li>
+              <li>Neon — https://neon.com/pricing</li>
+              <li>Supabase — https://supabase.com/pricing</li>
+              <li>PlanetScale — https://planetscale.com/docs/planetscale-plans</li>
+              <li>MongoDB Atlas — https://www.mongodb.com/pricing</li>
+            </ul>
+            <p>
+              Secondary context: AWS Database Blog (DynamoDB on-demand cuts, Aurora serverless guidance),
+              Microsoft Learn (Elastic Clusters vs Cosmos PG, Azure SQL serverless billing), Firebase/Google
+              blogs (Firestore MongoDB compatibility GA 2025), Neon/PlanetScale product blogs (pricing changes).
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

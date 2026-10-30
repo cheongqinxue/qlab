@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — core · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Anatomy, attention, positions, RoPE. Modality sheets: vision, image gen, audio.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — core &amp; attention</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Block anatomy (most stacks)</span>
+            <ul>
+              <li><strong>Embed</strong> — tokens / patches / frames → vectors (+ position)</li>
+              <li><strong>Layer</strong> — pre-norm → attention → residual → pre-norm → FFN (often SwiGLU) → residual</li>
+              <li><strong>MoE layer</strong> — same attention; FFN replaced by router + top‑k experts (see MoE cell)</li>
+              <li><strong>Head</strong> — logits, class, noise ε, mel, latents, etc.</li>
+            </ul>
+            <p><a href="optimizers.html">AdamW</a> + warmup; FFN: <a href="index.html">SwiGLU</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MoE FFN block (sparse compute)</span>
+            <p>
+              Attention stays dense; the feed-forward sublayer becomes a <strong>router</strong> plus $N$ expert FFNs (each usually SwiGLU-shaped).
+              Each token activates only <strong>top‑k</strong> experts; outputs are combined with router weights.
+            </p>
+            <div class="formula">$$y=\sum_{i\in \mathrm{TopK}(g)} g_i(x)\,\mathrm{Expert}_i(x),\quad g=\mathrm{softmax}(W_g x)$$</div>
+            <figure class="cell-diagram" aria-labelledby="fig-moe-core">
+              <svg viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-moe-core">Router selects top-k experts per token</title>
+                <rect x="8" y="38" width="44" height="28" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="30" y="56" text-anchor="middle" font-size="9" fill="var(--text-primary)">x</text>
+                <line x1="52" y1="52" x2="72" y2="52" stroke="var(--accent)" />
+                <rect x="76" y="32" width="48" height="36" rx="3" fill="var(--accent)" opacity="0.35" stroke="var(--accent)" />
+                <text x="100" y="48" text-anchor="middle" font-size="8" fill="var(--text-primary)">router</text>
+                <text x="100" y="60" text-anchor="middle" font-size="7" fill="var(--text-muted)">top-k</text>
+                <line x1="124" y1="44" x2="148" y2="24" stroke="var(--accent)" />
+                <line x1="124" y1="52" x2="148" y2="52" stroke="var(--accent)" />
+                <line x1="124" y1="60" x2="148" y2="80" stroke="var(--accent)" opacity="0.35" />
+                <rect x="152" y="12" width="52" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--accent)" /><text x="178" y="28" text-anchor="middle" font-size="7">Expert 1</text>
+                <rect x="152" y="40" width="52" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--accent)" /><text x="178" y="56" text-anchor="middle" font-size="7">Expert 2</text>
+                <rect x="152" y="68" width="52" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" opacity="0.5" /><text x="178" y="84" text-anchor="middle" font-size="7" fill="var(--text-muted)">…</text>
+                <line x1="204" y1="52" x2="228" y2="52" stroke="var(--accent)" />
+                <text x="238" y="48" font-size="11" fill="var(--text-muted)">Σ</text>
+                <rect x="252" y="38" width="40" height="28" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="272" y="56" text-anchor="middle" font-size="9">y</text>
+              </svg>
+            </figure>
+            <p>Train/serve: <a href="transformers-efficiency.html#moe">efficiency sheet — MoE</a>. Examples: Switch, Mixtral, DeepSeek-MoE class.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Three families</span>
+            <ul>
+              <li><strong>Encoder-only</strong> — bidirectional self-attn (BERT, ViT). MLM / classify / embed</li>
+              <li><strong>Decoder-only</strong> — causal self-attn (GPT, LLaMA, DiT denoiser)</li>
+              <li><strong>Encoder–decoder</strong> — enc full context; dec causal + cross-attn (T5, Whisper)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multi-head attention (MHA)</span>
+            <p>Original Transformer block: run several attention heads in parallel, then mix with an output projection.</p>
+            <div class="formula">$$\mathrm{head}_i=\mathrm{SDPA}(XW_i^Q,\,XW_i^K,\,XW_i^V),\quad \mathrm{MHA}(X)=\mathrm{Concat}(\mathrm{head}_1,\ldots,\mathrm{head}_h)\,W^O$$</div>
+            <ul>
+              <li>$h$ heads; per-head dim $d_k$ (often $d_{\mathrm{model}}/h$)</li>
+              <li>Each head has its own $W_i^Q,W_i^K,W_i^V$ → distinct $K,V$ to cache at inference</li>
+              <li>Self-attn: same $X$ for Q/K/V; cross-attn: Q from decoder, K/V from encoder</li>
+              <li>Quality reference; KV cache largest vs <a href="transformers-efficiency.html">MQA / GQA / MLA</a></li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SDPA — one head’s operator</span>
+            <div class="formula">$$\mathrm{SDPA}(Q,K,V)=\mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$</div>
+            <ul>
+              <li>Same math inside every head of MHA (and most variants below)</li>
+              <li>Cost per head $\mathcal{O}(n^2 d_k)$; MHA multiplies by $h$ for Q/K/V proj + cache</li>
+              <li>PyTorch <code>scaled_dot_product_attention</code> = fast SDPA kernels, not a new attention type</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Attention map (2024–26)</span>
+            <ul>
+              <li><strong>MHA</strong> — full Q/K/V per head (BERT, GPT-2, ViT)</li>
+              <li><strong>MQA / GQA</strong> — share K,V across heads; same SDPA</li>
+              <li><strong>MLA</strong> — cache low-rank latent, then up-project K,V</li>
+              <li><strong>Sparse / window</strong> — fewer $(q,k)$ pairs; often still softmax</li>
+              <li><strong>DiffAttn</strong> — difference of two softmax maps (scoring change)</li>
+              <li>Details: <a href="transformers-efficiency.html">efficiency sheet</a></li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Positional information</span>
+            <ul>
+              <li><strong>Absolute</strong> — sinusoidal or learned add to embed (original Transformer, BERT)</li>
+              <li><strong>Relative</strong> — distance bias on scores (T5, some speech)</li>
+              <li><strong>RoPE</strong> — rotate $q,k$; see next cell</li>
+              <li><strong>Implicit</strong> — patch / window order only (ViT, Swin)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RoPE (rotary position embedding)</span>
+            <p>Pairs of dims in $q,k$ rotated by angle $m\theta_i$ at position $m$.</p>
+            <div class="formula">$$f(x,m)=x e^{i m\theta}\quad\text{(complex view on consecutive dims)}$$</div>
+            <ul>
+              <li>Relative structure in $q^\top k$; no separate position vector</li>
+              <li>LLaMA, Mistral, Qwen, many encoders</li>
+              <li>Long context: NTK / YaRN scaling, position interpolation</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Modality cheat links</span>
+            <ul>
+              <li><a href="transformers-efficiency.html">Efficiency</a> — KV layouts, FlashAttention, MoE, sparse</li>
+              <li><a href="transformers-peft.html">PEFT</a> — adapters, LoRA</li>
+              <li><a href="transformers-vision.html">Vision</a> — ViT, Swin, CLIP</li>
+              <li><a href="transformers-image-gen.html">Image gen</a> — DiT, MMDiT</li>
+              <li><a href="transformers-audio.html">Audio</a> — Whisper, codecs</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="js/katex-render.js"></script>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

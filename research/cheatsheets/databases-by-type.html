@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Databases by type · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Data-store families, representative products, and selection heuristics (2025–2026 positioning).
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Databases by type</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button
+            type="button"
+            data-action="toggle-theme"
+            aria-pressed="false"
+            title="Toggle light and dark"
+          >
+            Dark
+          </button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Category map (what “type” means)</span>
+            <p>
+              Products overlap: MongoDB is document-first but also a general app database; DynamoDB is
+              key-value with optional document fields; PostgreSQL spans OLTP, JSON, vectors, and
+              time-series via extensions. This sheet groups by <strong>primary storage model</strong> and
+              typical access pattern—not vendor marketing labels.
+            </p>
+            <ul>
+              <li><strong>Row / relational OLTP</strong> — ACID transactions, joins, constraints, ad-hoc SQL.</li>
+              <li><strong>Document</strong> — flexible JSON/BSON records, nested objects, app-centric schemas.</li>
+              <li><strong>Key-value / cache</strong> — O(1) lookups by key; often in-memory or serverless.</li>
+              <li><strong>Wide-column</strong> — partition-key-oriented rows; massive write throughput.</li>
+              <li><strong>Columnar OLAP</strong> — scan/aggregate over huge datasets; append-heavy facts.</li>
+              <li><strong>Vector</strong> — approximate nearest neighbor (ANN) over embeddings.</li>
+              <li><strong>Graph</strong> — nodes, edges, traversals; relationship queries dominate.</li>
+              <li><strong>Time-series</strong> — timestamped samples, retention, roll-ups, downsampling.</li>
+              <li><strong>Embedded / edge</strong> — in-process or single-node; minimal ops.</li>
+              <li><strong>Distributed SQL (NewSQL)</strong> — SQL + horizontal scale + strong consistency.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">How to choose (quick heuristics)</span>
+            <ul>
+              <li>
+                <strong>Start from access patterns</strong>, not brand: point reads, range scans, joins,
+                aggregations, full-text, vector similarity, graph hops, or stream ingest.
+              </li>
+              <li>
+                <strong>Consistency vs latency</strong>: need serializable cross-row transactions → relational
+                OLTP or distributed SQL; tunable/eventual OK → Cassandra, DynamoDB, many caches.
+              </li>
+              <li>
+                <strong>Query flexibility</strong>: ad-hoc SQL/reporting → PostgreSQL or a warehouse;
+                fixed key paths → KV/wide-column; hybrid filters + vectors → Qdrant, Weaviate, or pgvector.
+              </li>
+              <li>
+                <strong>Ops budget</strong>: managed/serverless (Pinecone, DynamoDB, Spanner) vs
+                self-hosted (ClickHouse, Qdrant, Postgres). Embedded (SQLite, DuckDB) when the app owns the file.
+              </li>
+              <li>
+                <strong>Scale shape</strong>: billions of append-only events → columnar; billions of vectors →
+                Milvus/Qdrant; global multi-region SQL → Spanner/Cockroach class (see cloud sheet for hosted SKUs).
+              </li>
+              <li>
+                <strong>HTAP trend (2025+)</strong>: Postgres columnar/compression, ClickHouse vectors, and
+                zero-ETL replicas reduce “OLTP + separate OLAP” sprawl—still evaluate freshness and isolation needs.
+              </li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PostgreSQL (relational / OLTP + extensions)</span>
+            <ul>
+              <li><strong>Strengths</strong>: MVCC OLTP, rich SQL, mature optimizer, parallel queries, extensions (PostGIS, pgvector, Timescale).</li>
+              <li><strong>Use cases</strong>: default OLTP for complex apps, mixed OLTP + reporting, geo, RAG with pgvector on one stack.</li>
+              <li><strong>Indexing</strong>: B-tree, GIN/GiST/BRIN, partial/expression indexes; JSONB GIN.</li>
+              <li><strong>Consistency</strong>: full ACID; serializable isolation available.</li>
+              <li><strong>Query language</strong>: SQL (strong standards alignment).</li>
+              <li><strong>Scaling</strong>: vertical + read replicas; sharding via Citus or app-level; connection pooling (PgBouncer).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MySQL / MariaDB (relational / OLTP)</span>
+            <ul>
+              <li><strong>Strengths</strong>: InnoDB row store, low connection overhead, huge CMS/LAMP ecosystem, mature replication.</li>
+              <li><strong>Use cases</strong>: read-heavy web apps, e-commerce catalogs, simple transactional workloads at high connection counts.</li>
+              <li><strong>Indexing</strong>: B-tree clustered PK (InnoDB); secondary indexes; full-text (InnoDB).</li>
+              <li><strong>Consistency</strong>: ACID (InnoDB); async replicas for read scale (lag-aware reads).</li>
+              <li><strong>Query language</strong>: SQL (dialect differs from Postgres—port carefully).</li>
+              <li><strong>Scaling</strong>: read replicas, Vitess or manual sharding for write scale; Group Replication / Galera for HA clusters.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SQLite (relational, embedded OLTP)</span>
+            <ul>
+              <li><strong>Strengths</strong>: single-file, zero server, public domain, excellent read latency in-process.</li>
+              <li><strong>Use cases</strong>: mobile/desktop, edge devices, local dev, tests, low-write embedded control planes.</li>
+              <li><strong>Indexing</strong>: B-tree; FTS5; limited JSON helpers vs Postgres JSONB.</li>
+              <li><strong>Consistency</strong>: ACID; WAL mode improves concurrent readers; effectively one writer at a time.</li>
+              <li><strong>Query language</strong>: SQL subset with modern CTEs/window functions in recent releases.</li>
+              <li><strong>Scaling</strong>: not a network OLTP tier—replicate via Litestream/backup tools; not for high concurrent writers.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MongoDB (document)</span>
+            <ul>
+              <li><strong>Strengths</strong>: flexible BSON schema, rich aggregation pipeline, multi-doc ACID, sharding, Atlas vector search + search indexes.</li>
+              <li><strong>Use cases</strong>: product catalogs, content, event payloads, mobile backends, unified operational + AI features on documents.</li>
+              <li><strong>Indexing</strong>: single/compound, text, geospatial, vector (Atlas); shard key drives data locality.</li>
+              <li><strong>Consistency</strong>: tunable read/write concerns; replica set elections; causal consistency options.</li>
+              <li><strong>Query language</strong>: MongoDB Query API + aggregation framework (not SQL).</li>
+              <li><strong>Scaling</strong>: horizontal sharding (hash/range/zone); Atlas managed tiers.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Couchbase (document + memory-first KV)</span>
+            <ul>
+              <li><strong>Strengths</strong>: integrated caching layer, sub-ms KV paths, mobile sync (Couchbase Mobile), N1QL SQL-on-JSON.</li>
+              <li><strong>Use cases</strong>: session stores, user profiles, travel/gaming/retail peak traffic, offline-first mobile.</li>
+              <li><strong>Indexing</strong>: primary + secondary on JSON fields; full-text and vector features in platform editions.</li>
+              <li><strong>Consistency</strong>: per-document; multi-node topology with separate service roles (ops complexity).</li>
+              <li><strong>Query language</strong>: N1QL/SQL++ for documents; KV API for hottest paths.</li>
+              <li><strong>Scaling</strong>: multi-dimensional scaling (independent query/index/data services); often paired as cache + document tier.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Redis (key-value / cache / structures)</span>
+            <ul>
+              <li><strong>Strengths</strong>: sub-ms in-memory ops, rich types (strings, hashes, streams, sorted sets), pub/sub, Lua atomicity.</li>
+              <li><strong>Use cases</strong>: cache, sessions, rate limits, leaderboards, feature flags, lightweight queues, distributed locks.</li>
+              <li><strong>Indexing</strong>: key-centric; RediSearch module for secondary/text (where enabled).</li>
+              <li><strong>Consistency</strong>: single-threaded command path per shard; async replication—treat as cache/ ephemeral unless tuned for durability.</li>
+              <li><strong>Query language</strong>: command API (no ad-hoc query engine).</li>
+              <li><strong>Scaling</strong>: Redis Cluster hash slots; Redis 7+ optional multi-threaded I/O; memory-bound footprint.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Amazon DynamoDB (managed key-value / document)</span>
+            <ul>
+              <li><strong>Strengths</strong>: serverless autoscale, single-digit-ms latency, global tables, streams (CDC), on-demand billing.</li>
+              <li><strong>Use cases</strong>: serverless apps, gaming state, IoT ingestion, shopping carts—workloads with stable partition keys.</li>
+              <li><strong>Indexing</strong>: partition key + optional sort key; GSIs/LSIs for alternate access paths (eventual on indexes).</li>
+              <li><strong>Consistency</strong>: per-item; strong reads optional; transactions across ≤25 items.</li>
+              <li><strong>Query language</strong>: GetItem/Query/Scan API; PartiQL optional; no joins—denormalize in design.</li>
+              <li><strong>Scaling</strong>: transparent partition scaling; watch hot partitions and item size (400 KB cap).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Apache Cassandra (wide-column)</span>
+            <ul>
+              <li><strong>Strengths</strong>: masterless ring, linear write scale, multi-DC replication, TTL rows, tunable consistency.</li>
+              <li><strong>Use cases</strong>: high-velocity events, messaging metadata, time-ordered logs when query patterns are fixed upfront.</li>
+              <li><strong>Indexing</strong>: primary key = partition + clustering columns; secondary indexes limited—model one table per query.</li>
+              <li><strong>Consistency</strong>: ONE/QUORUM/ALL per read/write; no cross-partition transactions.</li>
+              <li><strong>Query language</strong>: CQL (SQL-like syntax, wide-column semantics).</li>
+              <li><strong>Scaling</strong>: add nodes for throughput; compaction/repair ops matter at scale.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ScyllaDB (wide-column, Cassandra-compatible)</span>
+            <ul>
+              <li><strong>Strengths</strong>: CQL-compatible, shard-per-core architecture, lower tail latency vs JVM Cassandra on same hardware.</li>
+              <li><strong>Use cases</strong>: same as Cassandra when CPU efficiency and predictable latency matter (IoT, telco, large event pipelines).</li>
+              <li><strong>Indexing</strong>: same partition/clustering model as Cassandra; materialized views (use with care).</li>
+              <li><strong>Consistency</strong>: tunable per query; no general cross-partition ACID.</li>
+              <li><strong>Query language</strong>: CQL.</li>
+              <li><strong>Scaling</strong>: horizontal; also offered as managed (Scylla Cloud).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ClickHouse (columnar / OLAP)</span>
+            <ul>
+              <li><strong>Strengths</strong>: MergeTree storage, extreme scan/aggregate speed, strong compression, materialized views, high concurrency dashboards.</li>
+              <li><strong>Use cases</strong>: product analytics, observability, ad/click streams, real-time BI over append-only facts.</li>
+              <li><strong>Indexing</strong>: sparse primary index + data skipping indexes; projections; recent vector similarity support for hybrid analytics.</li>
+              <li><strong>Consistency</strong>: eventual across replicas; mutations are heavier than append inserts.</li>
+              <li><strong>Query language</strong>: SQL dialect with OLAP functions.</li>
+              <li><strong>Scaling</strong>: sharded clusters; ClickHouse Cloud managed option; Kafka ingest common.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">DuckDB (columnar / embedded OLAP)</span>
+            <ul>
+              <li><strong>Strengths</strong>: in-process columnar engine (1.0+ stable), Parquet/Iceberg/Delta reads, vectorized execution, zero server ops.</li>
+              <li><strong>Use cases</strong>: notebooks, local ETL, feature engineering, serverless SQL over object storage, CI analytics.</li>
+              <li><strong>Indexing</strong>: zone maps/min-max on column parts; not a primary-key OLTP index model.</li>
+              <li><strong>Consistency</strong>: single-writer embedded semantics; MotherDuck adds cloud isolation.</li>
+              <li><strong>Query language</strong>: ANSI SQL (Postgres-friendly).</li>
+              <li><strong>Scaling</strong>: single-node embedded; cloud via MotherDuck for multi-tenant SaaS patterns.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Snowflake-class warehouses (columnar cloud OLAP)</span>
+            <p>
+              Representative engines: <strong>Snowflake</strong>, <strong>Google BigQuery</strong>,
+              <strong>Amazon Redshift</strong>, <strong>Databricks SQL</strong>. Same family: separated storage/compute,
+              ANSI-ish SQL, governance-first—not millisecond OLTP.
+            </p>
+            <ul>
+              <li><strong>Strengths</strong>: elastic warehouses, RBAC, sharing/marketplaces, petabyte scans without owning clusters.</li>
+              <li><strong>Use cases</strong>: enterprise BI, compliance reporting, curated lakehouse marts, batch exploration.</li>
+              <li><strong>Indexing</strong>: automatic micro-partitions/clustering (vendor-specific); Iceberg tables increasingly portable across engines.</li>
+              <li><strong>Consistency</strong>: snapshot isolation for queries; not for interactive row updates.</li>
+              <li><strong>Query language</strong>: SQL (dialect per vendor).</li>
+              <li><strong>Scaling</strong>: spin warehouses/clusters up/down; cost tied to scanned data and compute time.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">pgvector (vector on PostgreSQL)</span>
+            <ul>
+              <li><strong>Strengths</strong>: vectors beside relational rows—JOINs, transactions, RLS; HNSW/IVFFlat indexes; managed on Supabase/Neon/RDS.</li>
+              <li><strong>Use cases</strong>: RAG under ~10–30M vectors, apps already on Postgres, hybrid SQL + similarity.</li>
+              <li><strong>Indexing</strong>: HNSW (recall/latency tradeoff), IVFFlat; SQL filters on metadata columns.</li>
+              <li><strong>Consistency</strong>: inherits Postgres ACID per transaction.</li>
+              <li><strong>Query language</strong>: SQL with <code>&lt;-&gt;</code> / cosine / inner-product operators.</li>
+              <li><strong>Scaling</strong>: vertical + read replicas; very large corpora often move to dedicated vector stores or Citus sharding.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Qdrant (dedicated vector)</span>
+            <ul>
+              <li><strong>Strengths</strong>: Rust core, strong pre-filtered ANN, payload indexes, hybrid dense/sparse, cost-efficient self-host.</li>
+              <li><strong>Use cases</strong>: self-hosted RAG at 10M–500M scale, multi-tenant SaaS with rich metadata filters.</li>
+              <li><strong>Indexing</strong>: HNSW + quantization (scalar/product/binary).</li>
+              <li><strong>Consistency</strong>: collection-level; not a general OLTP system.</li>
+              <li><strong>Query language</strong>: REST/gRPC API; filter DSL on payloads.</li>
+              <li><strong>Scaling</strong>: sharded clusters; Qdrant Cloud managed.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pinecone (managed vector)</span>
+            <ul>
+              <li><strong>Strengths</strong>: fully managed, serverless billing, namespaces, metadata filters, enterprise compliance (SOC2/HIPAA tiers).</li>
+              <li><strong>Use cases</strong>: teams wanting zero vector ops, fast PoCs, uneven query traffic on serverless pricing.</li>
+              <li><strong>Indexing</strong>: proprietary graph/DiskANN-style (managed tuning).</li>
+              <li><strong>Consistency</strong>: eventually consistent replicas; post-filtering can affect result counts under tight filters.</li>
+              <li><strong>Query language</strong>: HTTP/SDK upsert/query API.</li>
+              <li><strong>Scaling</strong>: opaque horizontal scale; no self-hosted option for regulated on-prem.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Weaviate (vector + hybrid search)</span>
+            <ul>
+              <li><strong>Strengths</strong>: native BM25 + vector hybrid, schema/classes, modular backends, knowledge-graph patterns.</li>
+              <li><strong>Use cases</strong>: semantic search with structured schema, multi-tenant collections, GraphRAG-style retrieval.</li>
+              <li><strong>Indexing</strong>: HNSW; inverted index for BM25; optional generative modules.</li>
+              <li><strong>Consistency</strong>: class/shard level; schema migrations need planning.</li>
+              <li><strong>Query language</strong>: GraphQL API + REST; hybrid queries first-class.</li>
+              <li><strong>Scaling</strong>: K8s/Helm; Weaviate Cloud; manual shard rebalance in self-host.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Milvus (vector at scale)</span>
+            <ul>
+              <li><strong>Strengths</strong>: distributed architecture, multiple ANN types (HNSW, IVF-PQ, DiskANN), GPU index builds, Milvus Lite for dev.</li>
+              <li><strong>Use cases</strong>: 100M–billions of vectors, recommendation catalogs, frequent large index rebuilds.</li>
+              <li><strong>Indexing</strong>: pluggable index types + quantization; pre-filter support.</li>
+              <li><strong>Consistency</strong>: eventually consistent segments; higher ops surface (coordinator/query/data nodes).</li>
+              <li><strong>Query language</strong>: SDK/ORM; SQL-like interfaces in ecosystem tools.</li>
+              <li><strong>Scaling</strong>: horizontal sharding default; Zilliz Cloud managed.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Neo4j (property graph)</span>
+            <ul>
+              <li><strong>Strengths</strong>: native graph storage (index-free adjacency), Cypher, graph algorithms, Bloom visualization.</li>
+              <li><strong>Use cases</strong>: fraud rings, recommendations, knowledge graphs, dependency/impact analysis, identity graphs.</li>
+              <li><strong>Indexing</strong>: label/property indexes for entry points; traversals follow stored relationships.</li>
+              <li><strong>Consistency</strong>: ACID on core edition; cluster for HA (fabric/sharding patterns vary by edition).</li>
+              <li><strong>Query language</strong>: Cypher (open spec); GQL momentum in standards.</li>
+              <li><strong>Scaling</strong>: scale-up + read replicas common; very large graphs need modeling/partition strategies.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">TimescaleDB (time-series on PostgreSQL)</span>
+            <ul>
+              <li><strong>Strengths</strong>: hypertables (auto time partitioning), compression, continuous aggregates, full SQL + joins to relational data.</li>
+              <li><strong>Use cases</strong>: metrics, IoT, finance ticks when Postgres ops and SQL matter more than pure ingest records/sec.</li>
+              <li><strong>Indexing</strong>: time + tag indexes on chunks; retention policies.</li>
+              <li><strong>Consistency</strong>: Postgres ACID.</li>
+              <li><strong>Query language</strong>: SQL + time_bucket helpers.</li>
+              <li><strong>Scaling</strong>: vertical; multi-node Timescale for distributed chunks where licensed/deployed.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">InfluxDB (purpose-built time-series)</span>
+            <ul>
+              <li><strong>Strengths</strong>: line-protocol ingest, retention/downsampling, Flux (and SQL in InfluxDB 3 lineage) for analytics.</li>
+              <li><strong>Use cases</strong>: DevOps metrics, IoT telemetry, high-cardinality monitoring pipelines.</li>
+              <li><strong>Indexing</strong>: series key (measurement + tags); TSM/engine optimized for time ranges.</li>
+              <li><strong>Consistency</strong>: per-point writes; not cross-series transactions.</li>
+              <li><strong>Query language</strong>: Flux; SQL interface in newer cloud/core offerings.</li>
+              <li><strong>Scaling</strong>: InfluxDB Cloud/server clusters; 3.x columnar object-store direction for analytics scale.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Embedded &amp; edge (SQLite, DuckDB, libSQL)</span>
+            <ul>
+              <li><strong>Strengths</strong>: no network hop, ship data with the app, deterministic tests, WASM/mobile targets (SQLite/libSQL).</li>
+              <li><strong>Use cases</strong>: offline clients, edge analytics on Parquet, CLI tools, embedded agents, local-first sync (CRDT + SQLite).</li>
+              <li><strong>Indexing</strong>: SQLite B-tree OLTP; DuckDB column statistics for analytics—not interchangeable roles.</li>
+              <li><strong>Consistency</strong>: single-file or in-process; replication via app logic or sync products (Litestream, Turso/libSQL).</li>
+              <li><strong>Query language</strong>: SQL on both; pick SQLite for mutable OLTP rows, DuckDB for analytical scans.</li>
+              <li><strong>Scaling</strong>: scale-out happens at the app tier (many embedded DBs), not inside one file.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CockroachDB (distributed SQL / NewSQL)</span>
+            <ul>
+              <li><strong>Strengths</strong>: Postgres-compatible wire protocol, serializable default isolation, survivable regions, row-level locality controls.</li>
+              <li><strong>Use cases</strong>: global OLTP needing horizontal scale without manual sharding, multi-cloud/Kubernetes deployments.</li>
+              <li><strong>Indexing</strong>: distributed B-tree indexes maintained cluster-wide.</li>
+              <li><strong>Consistency</strong>: serializable transactions across ranges (Raft per range).</li>
+              <li><strong>Query language</strong>: PostgreSQL-compatible SQL (check feature parity for exotic types).</li>
+              <li><strong>Scaling</strong>: add nodes; automatic rebalancing; CockroachDB Cloud managed.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Google Cloud Spanner (distributed SQL class)</span>
+            <ul>
+              <li><strong>Strengths</strong>: globally distributed SQL, external consistency via TrueTime, managed ops, strong multi-region HA story on GCP.</li>
+              <li><strong>Use cases</strong>: financial ledgers, global inventory, regulated workloads already on GCP needing strict ordering.</li>
+              <li><strong>Indexing</strong>: secondary indexes (async backfill awareness); interleaved tables for locality.</li>
+              <li><strong>Consistency</strong>: externally consistent reads/writes; TrueTime-bound staleness controls.</li>
+              <li><strong>Query language</strong>: Spanner SQL (PostgreSQL dialect compatibility expanding—verify for migrations).</li>
+              <li><strong>Scaling</strong>: transparent splits; GCP-only service (compare YugabyteDB/TiDB for portable Spanner-like models).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Also in NewSQL (YugabyteDB, TiDB)</span>
+            <ul>
+              <li><strong>YugabyteDB</strong>: Postgres-compatible API, DocDB storage, multi-cloud; Spanner-inspired replication.</li>
+              <li><strong>TiDB</strong>: MySQL-compatible wire protocol, TiKV row store, HTAP with TiFlash columnar replicas—popular in MySQL ecosystems needing scale.</li>
+              <li><strong>When to evaluate</strong>: need distributed SQL but want MySQL (TiDB) or Postgres (Yugabyte) dialect fidelity vs Cockroach/Spanner defaults.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">References &amp; further reading</span>
+            <p>
+              ClickHouse OLTP vs OLAP guides; TigerData “How to choose an OLAP database” (2025); VectorDB-Bench /
+              production vector comparisons; PostgreSQL extension ecosystem (pgvector, Timescale, PostGIS); CockroachDB
+              vs Spanner architecture notes. For managed SKUs and pricing models, see
+              <a href="cloud-databases.html">Cloud databases</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

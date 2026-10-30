@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — image gen · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Latent diffusion with transformer backbones and token-based gen.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Transformers — image generation</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Latent diffusion pipeline</span>
+            <ul>
+              <li>VAE encodes image → latent grid; denoise in latent space; VAE decode</li>
+              <li>Text/image conditioning via cross-attn or dual-stream blocks</li>
+              <li>Scheduler steps (DDIM, Euler, etc.) wrap same denoiser</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">DiT (Diffusion Transformer)</span>
+            <ul>
+              <li>ViT-like stack on latent patches; predicts noise ε or $v$-target</li>
+              <li><strong>adaLN</strong> — timestep + class/label modulate norm scale/shift</li>
+              <li>Scales with compute; U-Net replacement in modern systems</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MMDiT (e.g. SD3 / Flux-class)</span>
+            <ul>
+              <li>Separate image and text token streams + shared transformer blocks</li>
+              <li>Joint attention between modalities inside block</li>
+              <li>Strong text rendering vs older U-Net diffusion</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Token / AR generation</span>
+            <ul>
+              <li><strong>VQ-VAE</strong> — discrete visual codes; autoregressive transformer (Parti, Muse)</li>
+              <li><strong>Mask modeling</strong> — parallel decode variants</li>
+              <li>Trade-off: long sequences vs diffusion quality at fixed compute</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">U-ViT &amp; hybrids</span>
+            <ul>
+              <li>U-Net skips + ViT bottleneck — bridge from conv era</li>
+              <li>Still seen in legacy checkpoints; new work favors pure DiT</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Control &amp; efficiency</span>
+            <ul>
+              <li><strong>ControlNet / T2I adapters</strong> — extra conditioning path; see <a href="transformers-peft.html">PEFT sheet</a></li>
+              <li>Distillation / consistency models — fewer steps at inference</li>
+              <li>Video: spacetime latents + causal or bidirectional temporal blocks</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

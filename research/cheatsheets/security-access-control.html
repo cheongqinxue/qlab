@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security &amp; access control · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Authentication, authorization models, tokens, tenancy, and API access patterns.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Security &amp; access control</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Foundation</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Authentication vs authorization</span>
+            <ul>
+              <li><strong>Authentication (AuthN)</strong> — who is this caller? (identity proof)</li>
+              <li><strong>Authorization (AuthZ)</strong> — what may they do on which resource?</li>
+              <li>AuthN without AuthZ → logged-in users can hit anything (broken access control)</li>
+              <li>AuthZ without strong AuthN → policies apply to the wrong principal</li>
+            </ul>
+            <figure class="cell-diagram" aria-labelledby="fig-authn-authz">
+              <svg viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-authn-authz">Request passes AuthN then AuthZ</title>
+                <rect x="4" y="24" width="52" height="28" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="30" y="42" text-anchor="middle" font-size="8" fill="var(--text-primary)">Client</text>
+                <line x1="56" y1="38" x2="76" y2="38" stroke="var(--accent)" />
+                <rect x="80" y="20" width="64" height="36" rx="4" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" />
+                <text x="112" y="36" text-anchor="middle" font-size="8" fill="var(--text-primary)">AuthN</text>
+                <text x="112" y="48" text-anchor="middle" font-size="7" fill="var(--text-muted)">identity</text>
+                <line x1="144" y1="38" x2="164" y2="38" stroke="var(--accent)" />
+                <rect x="168" y="20" width="64" height="36" rx="4" fill="var(--accent)" opacity="0.3" stroke="var(--accent)" />
+                <text x="200" y="36" text-anchor="middle" font-size="8" fill="var(--text-primary)">AuthZ</text>
+                <text x="200" y="48" text-anchor="middle" font-size="7" fill="var(--text-muted)">policy</text>
+                <line x1="232" y1="38" x2="252" y2="38" stroke="var(--accent)" />
+                <rect x="256" y="24" width="56" height="28" rx="4" fill="var(--code-bg)" stroke="var(--border-cell)" />
+                <text x="284" y="42" text-anchor="middle" font-size="8" fill="var(--text-primary)">Resource</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Principles (defaults)</span>
+            <ul>
+              <li><strong>Deny by default</strong> — explicit allow rules only</li>
+              <li><strong>Least privilege</strong> — smallest scope/role that works</li>
+              <li><strong>Fail closed</strong> — AuthN/AuthZ errors → 401/403, not anonymous fallback</li>
+              <li><strong>Defense in depth</strong> — gateway + app + DB row policies where needed</li>
+              <li>Secrets in env / vault — never in code, logs, or client bundles</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Authentication patterns</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Proof of identity</span>
+            <ul>
+              <li><strong>Password</strong> — store slow hash (argon2/bcrypt), never plaintext</li>
+              <li><strong>MFA</strong> — TOTP, WebAuthn/passkeys, push; require for admin/sensitive ops</li>
+              <li><strong>SSO</strong> — OIDC/SAML to corporate IdP; app trusts signed assertions</li>
+              <li><strong>Service accounts</strong> — machine identity (client credentials, workload IAM), not user passwords</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Sessions vs bearer tokens</span>
+            <ul>
+              <li><strong>Server session</strong> — opaque cookie → session store; easy revoke; sticky or shared store</li>
+              <li><strong>JWT access token</strong> — signed claims; verify signature + <code>exp</code> + <code>aud</code> + <code>iss</code></li>
+              <li><strong>Refresh token</strong> — long-lived, rotation on use, bind to client (PKCE / device)</li>
+              <li>Prefer <strong>short access</strong> + refresh over long-lived JWTs in localStorage</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">OAuth 2.0 / OIDC (user delegated access)</span>
+            <p>
+              <strong>OAuth2</strong> — authorization (access to APIs). <strong>OIDC</strong> — identity layer (ID token with <code>sub</code>, email claims).
+              Public clients (SPAs, mobile) use <strong>authorization code + PKCE</strong>, not implicit flow.
+            </p>
+            <figure class="cell-diagram" aria-labelledby="fig-oauth">
+              <svg class="diagram-tall" viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg" role="img">
+                <title id="fig-oauth">Authorization code with PKCE (simplified)</title>
+                <text x="40" y="16" text-anchor="middle" font-size="8" fill="var(--text-muted)">User + browser</text>
+                <text x="200" y="16" text-anchor="middle" font-size="8" fill="var(--text-muted)">Your app</text>
+                <text x="340" y="16" text-anchor="middle" font-size="8" fill="var(--text-muted)">IdP</text>
+                <rect x="8" y="24" width="64" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="40" y="40" text-anchor="middle" font-size="7">1 login</text>
+                <line x1="72" y1="36" x2="120" y2="36" stroke="var(--accent)" />
+                <rect x="124" y="24" width="72" height="24" rx="3" fill="var(--bg-cell-alt)" stroke="var(--border-cell)" /><text x="160" y="40" text-anchor="middle" font-size="7">2 code+PKCE</text>
+                <line x1="196" y1="36" x2="280" y2="36" stroke="var(--accent)" />
+                <rect x="284" y="24" width="72" height="24" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="320" y="40" text-anchor="middle" font-size="7">3 tokens</text>
+                <rect x="124" y="56" width="100" height="24" rx="3" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" /><text x="174" y="72" text-anchor="middle" font-size="7">4 API calls w/ access token</text>
+                <text x="200" y="94" text-anchor="middle" font-size="7" fill="var(--text-muted)">Validate audience, scopes, and token signature at resource server</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">API keys vs user tokens</span>
+            <ul>
+              <li><strong>API key</strong> — shared secret; good for server-to-server, scripts; rotate, scope, rate-limit</li>
+              <li><strong>User OAuth token</strong> — acts as user; needs scopes and consent</li>
+              <li>Never expose service keys in frontends; keys ≠ substitute for AuthZ checks</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Authorization models</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RBAC (role-based)</span>
+            <ul>
+              <li>Users → <strong>roles</strong> → <strong>permissions</strong> (e.g. <code>billing:read</code>)</li>
+              <li>Simple admin consoles; risk: role explosion, coarse grants</li>
+              <li>Static roles in code/DB; check on every mutating handler</li>
+            </ul>
+            <figure class="cell-diagram" aria-hidden="true">
+              <svg viewBox="0 0 200 70" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="28" width="44" height="22" rx="3" fill="var(--code-bg)" stroke="var(--border-cell)" /><text x="30" y="43" text-anchor="middle" font-size="8">User</text>
+                <line x1="52" y1="39" x2="68" y2="39" stroke="var(--accent)" />
+                <rect x="72" y="28" width="44" height="22" rx="3" fill="var(--bg-cell-alt)" stroke="var(--accent)" /><text x="94" y="43" text-anchor="middle" font-size="8">Role</text>
+                <line x1="116" y1="39" x2="132" y2="39" stroke="var(--accent)" />
+                <rect x="136" y="22" width="56" height="36" rx="3" fill="var(--accent)" opacity="0.25" stroke="var(--accent)" /><text x="164" y="38" text-anchor="middle" font-size="7">permissions</text>
+              </svg>
+            </figure>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ABAC &amp; ReBAC</span>
+            <ul>
+              <li><strong>ABAC</strong> — policies on attributes (user dept, resource owner, time, IP)</li>
+              <li><strong>ReBAC</strong> — graph relations (Google Zanzibar): “viewer on folder → viewer on file”</li>
+              <li>Use when RBAC matrices become unmaintainable (sharing, org hierarchies)</li>
+              <li>Engines: OPA/Rego, Cedar, SpiceDB — evaluate centrally or embed SDK</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ACLs &amp; scopes</span>
+            <ul>
+              <li><strong>ACL</strong> — list of principals allowed on one resource (good for documents)</li>
+              <li><strong>OAuth scope</strong> — coarse capability string (<code>files:write</code>); map to internal permissions</li>
+              <li>Scopes alone are not enough — still enforce object-level checks (see BOLA)</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">API &amp; multi-tenant</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">OWASP API top risks (access)</span>
+            <ul>
+              <li><strong>BOLA</strong> — broken object level: change <code>/users/123</code> to <code>/users/124</code></li>
+              <li><strong>BFLA</strong> — broken function level: call admin route without role</li>
+              <li>Fix: resolve resource ID → load row → compare <code>tenant_id</code> / owner to principal from token</li>
+              <li>Never trust client-sent tenant ID without matching signed claim</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Multi-tenant isolation</span>
+            <ul>
+              <li>Tenant in token claim (<code>tid</code>, custom) → filter every query</li>
+              <li><strong>Row-level security</strong> (Postgres RLS) as backstop to app bugs</li>
+              <li>Separate DB/schema only when compliance requires hard isolation</li>
+              <li>Background jobs and caches must carry tenant context</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Service-to-service</span>
+            <ul>
+              <li><strong>mTLS</strong> — both sides present certs inside mesh/VPC</li>
+              <li><strong>Workload identity</strong> — cloud IAM (AWS IRSA, GCP SA, K8s SA → JWT)</li>
+              <li>Short-lived tokens; no long-lived shared passwords between services</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Operations &amp; review checklist</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Enforcement points</span>
+            <ul>
+              <li>Edge/gateway: AuthN, rate limits, WAF</li>
+              <li>App middleware: map credential → principal + roles/scopes</li>
+              <li>Handler: object-level AuthZ before read/write</li>
+              <li>DB: RLS or policy for defense in depth</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Logging &amp; audit</span>
+            <ul>
+              <li>Audit log: who, action, resource id, outcome, correlation id</li>
+              <li>Never log passwords, tokens, API keys, full <code>Authorization</code> headers</li>
+              <li>Redact PII by default; retention policy for compliance</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Web cookies &amp; CORS</span>
+            <ul>
+              <li>Session cookies: <code>HttpOnly</code>, <code>Secure</code>, sensible <code>SameSite</code></li>
+              <li>Do not use <code>Access-Control-Allow-Origin: *</code> with credentialed requests in production</li>
+              <li>CSRF: same-site cookies + tokens for state-changing browser forms</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Design review prompts</span>
+            <ul>
+              <li>What happens if token is stolen? (revocation, short TTL, binding)</li>
+              <li>Can user A infer user B’s data from IDs or errors?</li>
+              <li>Are admin paths separated and MFA-gated?</li>
+              <li>Is AuthZ tested (negative cases), not only AuthN login tests?</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

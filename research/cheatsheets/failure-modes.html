@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Failure modes · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Mode ids match <code>tutorials/pathologies/doc/failure-modes/</code>; compare runs to baseline in W&amp;B.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Failure modes</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell">
+            <span class="cell-title">Mode index (qlab ids)</span>
+            <ul>
+              <li><code>explode</code> — gradient explosion</li>
+              <li><code>vanish</code> — gradient vanishing</li>
+              <li><code>adam_collapse</code> — Adam instability</li>
+              <li><code>attention_sink</code> — attention sink</li>
+              <li><code>rank_collapse</code> — rank / spectral collapse (weights)</li>
+              <li><code>logit_collapse</code> — logit / output collapse</li>
+              <li><code>representation_collapse</code> — representation collapse</li>
+              <li><code>layer_grad_imbalance</code> — layer-wise gradient imbalance</li>
+              <li><code>no_warmup</code>, <code>decay_norm_bias</code>, <code>bad_mlm_mask</code> — MLM best-practice pathologies</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">How to read this sheet</span>
+            <p>
+              Each mode: <strong>what</strong> (literature term), <strong>spot</strong> (metrics), <strong>mitigate</strong>,
+              <strong>ref</strong>. Long-form notes:
+              <code>tutorials/pathologies/doc/failure-modes/*.md</code>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Gradient explosion (<code>explode</code>)</span>
+            <p><strong>What:</strong> ‖∇‖ or loss spikes → NaN (Pascanu et al.).</p>
+            <p><strong>Spot:</strong> <code>train/grad_norm</code>, <code>train/update_to_weight_ratio</code>.</p>
+            <p><strong>Mitigate:</strong> clip-by-norm, lower η, warmup, Pre-LN / residuals (He et al.).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Gradient vanishing (<code>vanish</code>)</span>
+            <p><strong>What:</strong> Jacobian product &lt; 1 → weak updates deep in stack or in time.</p>
+            <p><strong>Spot:</strong> flat loss; depth-wise grad norm decay.</p>
+            <p><strong>Mitigate:</strong> residuals, LayerNorm, LSTM/GRU (Hochreiter &amp; Schmidhuber).</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Adam instability (<code>adam_collapse</code>)</span>
+            <p><strong>What:</strong> step η·m̂/(√v̂+ε) spikes; loss diverges (Reddi; Zhang; Bai et al.).</p>
+            <p><strong>Spot:</strong> <code>train/adam_second_moment/*</code>, <code>adam_max_r</code>, g²/v spikes.</p>
+            <p><strong>Mitigate:</strong> raise ε, clip, AMSGrad, moment reset; tune AdamW.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Attention sink (<code>attention_sink</code>)</span>
+            <p><strong>What:</strong> peaked attention on few keys/tokens (Darcet et al.; Xiao et al.).</p>
+            <p><strong>Spot:</strong> <code>attention_max_weight</code>, <code>attention_head_imbalance</code>.</p>
+            <p><strong>Mitigate:</strong> ViT registers; streaming sink KV; init fixes.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Rank collapse (<code>rank_collapse</code>)</span>
+            <p><strong>What:</strong> weight W low effective rank (σ₁ ≫ σ₂…).</p>
+            <p><strong>Not:</strong> <em>neural collapse</em> (Papyan) or <em>dimensional collapse</em> (Jing et al. SSL).</p>
+            <p><strong>Spot:</strong> <code>train/effective_rank/*</code>. <strong>Mitigate:</strong> reduce weight decay.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Logit collapse (<code>logit_collapse</code>)</span>
+            <p><strong>What:</strong> softmax too peaked; H(p) falls (Szegedy et al. label smoothing motivation).</p>
+            <p><strong>Spot:</strong> <code>train/logit_entropy</code>, ECE.</p>
+            <p><strong>Mitigate:</strong> label smoothing, temperature scaling, warmup.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Representation collapse (<code>representation_collapse</code>)</span>
+            <p><strong>What:</strong> features/embeddings lose diversity; contrastive trivial f(x)=const (SimCLR).</p>
+            <p><strong>Spot:</strong> <code>train/embedding_anisotropy</code>, cosine mass near 1.</p>
+            <p><strong>Mitigate:</strong> unfreeze body; negatives in InfoNCE.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Layer grad imbalance (<code>layer_grad_imbalance</code>)</span>
+            <p><strong>What:</strong> embedding/head vs body update mismatch (ULMFiT discriminative LRs).</p>
+            <p><strong>Spot:</strong> <code>train/update_ratio/*</code> by group.</p>
+            <p><strong>Mitigate:</strong> per-block learning rates.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Related literature terms</span>
+            <ul>
+              <li><strong>Neural collapse</strong> — late supervised ETF geometry (Papyan et al. 2020).</li>
+              <li><strong>Dimensional collapse</strong> — SSL covariance rank (Jing et al. 2022).</li>
+              <li><strong>Dead ReLU</strong> — saturated units; change activation or η.</li>
+              <li><strong>Catastrophic forgetting</strong> — sequential tasks; not a single-run spike.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">MLM best-practice modes</span>
+            <ul>
+              <li><code>no_warmup</code> — Post-LN early instability (Xiong et al.).</li>
+              <li><code>decay_norm_bias</code> — decay on norm/bias.</li>
+              <li><code>bad_mlm_mask</code> — wrong mask ratio.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">References</span>
+            <ul>
+              <li>Pascanu et al. 2013; He et al. 2016; Xiong et al. 2020.</li>
+              <li>Reddi et al. 2018; Zhang et al. 2023; Bai et al. 2025.</li>
+              <li>Darcet et al. 2023; Xiao et al. 2023; Jing et al. 2022; Papyan et al. 2020.</li>
+              <li>qlab: <code>tutorials/pathologies/doc/failure-modes/README.md</code></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
