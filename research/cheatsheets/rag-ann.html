@@ -237,7 +237,11 @@
 
           <section class="cell cell-span">
             <span class="cell-title">Feature comparison (high level)</span>
-            <p>Legend: <strong>Y</strong> yes · <strong>P</strong> partial / optional · <strong>—</strong> not a focus. Verify on vendor docs — indexes change per release.</p>
+            <p>
+              Legend: <strong>Y</strong> yes · <strong>P</strong> partial · <strong>—</strong> not a focus.
+              Speed/scale: <strong>L</strong> low · <strong>M</strong> med · <strong>H</strong> high · <strong>VH</strong> very high (relative, same hardware class).
+              Workload-dependent — benchmark your data.
+            </p>
             <div class="cell-table-wrap">
               <table class="cell-table">
                 <thead>
@@ -374,6 +378,75 @@
                     <td>Y</td>
                     <td>Y (Serverless)</td>
                     <td>P</td>
+                  </tr>
+                  <tr>
+                    <td colspan="9"><strong>Scalability &amp; speed</strong> (typical RAG-style dense vectors; not a benchmark)</td>
+                  </tr>
+                  <tr>
+                    <td>Vector count ceiling</td>
+                    <td>VH (DIY shard)</td>
+                    <td>M–H (vertical; Citus P)</td>
+                    <td>H (cluster)</td>
+                    <td>VH (distributed)</td>
+                    <td>H (cluster)</td>
+                    <td>VH (managed tiers)</td>
+                    <td>VH (sharded cluster)</td>
+                    <td>VH (serving clusters)</td>
+                  </tr>
+                  <tr>
+                    <td>Single-query latency (ANN, warm)</td>
+                    <td>VH (in-process)</td>
+                    <td>M (SQL + index)</td>
+                    <td>H</td>
+                    <td>H</td>
+                    <td>H</td>
+                    <td>H (managed)</td>
+                    <td>M–H (cluster load)</td>
+                    <td>H</td>
+                  </tr>
+                  <tr>
+                    <td>Sustained query QPS</td>
+                    <td>VH (you embed)</td>
+                    <td>M (replicas help)</td>
+                    <td>H</td>
+                    <td>VH</td>
+                    <td>H</td>
+                    <td>VH (serverless)</td>
+                    <td>VH (search cluster)</td>
+                    <td>VH</td>
+                  </tr>
+                  <tr>
+                    <td>Bulk ingest / re-embed</td>
+                    <td>VH (offline build)</td>
+                    <td>M (COPY + index build)</td>
+                    <td>H</td>
+                    <td>VH (parallel segments)</td>
+                    <td>H</td>
+                    <td>H (managed)</td>
+                    <td>M (reindex cost)</td>
+                    <td>H (feed pipelines)</td>
+                  </tr>
+                  <tr>
+                    <td>Native horizontal sharding</td>
+                    <td>— (DIY)</td>
+                    <td>P (Citus, manual)</td>
+                    <td>Y (cluster)</td>
+                    <td>Y (distributed)</td>
+                    <td>Y (Raft cluster)</td>
+                    <td>Y (opaque)</td>
+                    <td>Y (index shards)</td>
+                    <td>Y (content nodes)</td>
+                  </tr>
+                  <tr>
+                    <td>Scale caveat</td>
+                    <td>You operate shards</td>
+                    <td>One primary write path</td>
+                    <td>RAM per node</td>
+                    <td>Ops complexity</td>
+                    <td>Object + vector RAM</td>
+                    <td>Cost at VH scale</td>
+                    <td>JVM heap, reindex</td>
+                    <td>Ops skill curve</td>
                   </tr>
                   <tr>
                     <td>Best fit</td>

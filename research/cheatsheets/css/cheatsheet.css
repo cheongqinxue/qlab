@@ -482,6 +482,15 @@ body {
   min-width: 7.5rem;
 }
 
+.cell-table td[colspan] {
+  background: var(--bg-cell-alt);
+  font-size: calc(0.68rem * var(--font-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
 .func-chart {
   margin-top: 0.55em;
   width: 100%;
