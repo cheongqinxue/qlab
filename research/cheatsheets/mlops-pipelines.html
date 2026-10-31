@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MLOps — pipelines &amp; CI · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Orchestration &amp; gates. Lifecycle map → <a href="mlops-lifecycle.html">lifecycle</a>.
+          Cloud jobs → <a href="cloud-deep-learning.html">cloud DL</a> (SkyPilot). After train → <a href="mlops-registry.html">registry</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">MLOps — pipelines &amp; CI</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Pipeline vs one-off script</span>
+            <p>
+              A <strong>pipeline</strong> is a directed graph of steps with declared inputs and outputs: ingest, featurize, train, evaluate, register.
+              Each step should be <strong>rerunnable</strong> from its inputs without manual copy-paste on a laptop.
+              A one-off SSH job can prove an idea; a pipeline is how the team runs it the tenth time.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Typical DAG steps</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Data &amp; features</span>
+            <p>
+              Pull a pinned data snapshot, validate schema, build train/val splits, and optionally write preprocessed caches (tokenized shards, embeddings).
+              Sweeps should read warm caches so GPUs do not wait on CPU — same idea as <a href="cloud-deep-learning.html">pre-transform upfront</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Train &amp; evaluate</span>
+            <p>
+              Run training with a frozen config file, log to <strong>Weights &amp; Biases (W&amp;B)</strong> or MLflow, and emit an eval report against a <strong>golden set</strong> (<a href="metrics.html">metrics</a>).
+              Fail the pipeline if primary metric drops below a threshold compared to the current prod baseline.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Register &amp; notify</span>
+            <p>
+              On success, push artifacts to a registry (<a href="mlops-registry.html">registry sheet</a>) and open a review (PR, ticket, or manual approval).
+              On failure, keep logs and tag the run so someone can diff config and data version.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Tools (roles, not a shopping list)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>MLflow</strong></td>
+                    <td>Experiment tracking, artifact store, model registry hooks</td>
+                  </tr>
+                  <tr>
+                    <td><strong>W&amp;B</strong></td>
+                    <td>Metrics, sweeps, artifacts, run comparison</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Vertex AI Pipelines / Kubeflow / Metaflow</strong></td>
+                    <td>Managed or K8s-native DAG execution on cloud</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GitHub Actions / GitLab CI</strong></td>
+                    <td>Test + smoke train on PR; block merge on regression</td>
+                  </tr>
+                  <tr>
+                    <td><strong>SkyPilot</strong></td>
+                    <td>Provision GPU job, sync code, autostop — launcher more than full DAG (<a href="cloud-deep-learning.html">cloud</a>)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>DVC / lakeFS</strong></td>
+                    <td>Data version pointers alongside git (optional)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">CI for ML (pull requests)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Unit tests on data transforms and metric functions — fast, every commit.</li>
+              <li>Smoke train on a tiny subset (minutes, CPU or small GPU) to catch OOM and shape bugs early.</li>
+              <li>Compare eval on a frozen golden file to main branch; fail if regression exceeds tolerance.</li>
+              <li>Do not run full multi-day pretrain in CI; schedule that in scheduled pipelines or manual triggers.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Single researcher, few models → W&amp;B + git tags may be enough.
+              Team shipping weekly → add registry and CI golden eval.
+              Many parallel train jobs on cloud → SkyPilot or a pipeline runner plus shared artifact bucket.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

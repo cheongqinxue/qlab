@@ -23,6 +23,16 @@
       ],
     },
     {
+      label: "MLOps",
+      items: [
+        { href: "mlops-lifecycle.html", label: "Lifecycle" },
+        { href: "mlops-pipelines.html", label: "Pipelines & CI" },
+        { href: "mlops-registry.html", label: "Registry & promotion" },
+        { href: "mlops-monitoring.html", label: "Monitoring & drift" },
+        { href: "mlops-governance.html", label: "Governance & lineage" },
+      ],
+    },
+    {
       label: "Transformers",
       items: [
         { href: "transformers-core.html", label: "Core & attention" },

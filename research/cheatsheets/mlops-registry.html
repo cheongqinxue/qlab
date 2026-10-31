@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MLOps — registry &amp; promotion · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Artifacts &amp; stages. Pipelines → <a href="mlops-pipelines.html">pipelines</a>.
+          Inference → <a href="transformers-serving.html">serving</a>. Quant layouts → <a href="transformers-compression.html">compression</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">MLOps — registry &amp; promotion</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Why a registry exists</span>
+            <p>
+              Training produces files; production needs a <strong>named, immutable release</strong> with metadata (who trained, on what data, with what score).
+              A <strong>model registry</strong> stores those releases and tracks which stage they are in: development, staging, or production.
+              Without it, “the model in S3” and “what users hit” diverge silently.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">What to store per version</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Artifacts</span>
+            <ul>
+              <li>Weights (full checkpoint, LoRA adapter, or quantized bundle).</li>
+              <li>Tokenizer, config, custom code commit hash.</li>
+              <li>Eval report JSON and primary metric value.</li>
+              <li>For RAG: index build id, embedding model id, chunking version.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Metadata</span>
+            <p>
+              Record training data snapshot id, hyperparameters, random seed, hardware, and pipeline run id.
+              Link to W&amp;B or MLflow run URL so debugging a prod incident starts from one id.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Promotion workflow</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ol>
+              <li>Train completes and passes automated eval gates (<a href="mlops-pipelines.html">pipeline</a>).</li>
+              <li>Register version as <strong>Staging</strong> — deploy to staging endpoint or shadow traffic.</li>
+              <li>Human or policy check (security, legal, spot-check outputs) for high-risk domains (<a href="agents-trust-policy.html">trust &amp; policy</a>).</li>
+              <li>Promote to <strong>Production</strong>; keep previous prod version for instant rollback.</li>
+            </ol>
+            <p>
+              Promotion should be a state change in the registry, not an undocumented overwrite of <code>model_latest.bin</code>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Packaging for serve</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Containers</span>
+            <p>
+              Ship a Docker (or similar) image with pinned Python/CUDA, inference server (vLLM, TGI, custom FastAPI), and an entrypoint that loads registry uri.
+              Build the same image in CI that runs in prod so “works on my VM” matches Kubernetes or Cloud Run.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Quantization &amp; format</span>
+            <p>
+              Register the <strong>exact</strong> quant recipe (GPTQ vs AWQ, group size) with the artifact — serve runtimes reject mismatches (<a href="transformers-compression.html">compression</a>).
+              Treat INT4 prod and FP16 staging as different registered variants if both exist.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Rollback</span>
+            <p>
+              Keep at least one prior prod version hot-swappable.
+              Rollback is re-pointing the deployment to the previous registry stage, not emergency retraining.
+              After rollback, investigate via monitoring (<a href="mlops-monitoring.html">monitoring</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Solo project → git tag + W&amp;B artifact may suffice.
+              Team or compliance → MLflow Model Registry, W&amp;B Registry, or cloud-native (Vertex Model Registry).
+              Multi-component LLM+RAG → register a <strong>release manifest</strong> listing all artifact uris together.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

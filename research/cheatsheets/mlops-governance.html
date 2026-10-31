@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MLOps — governance &amp; lineage · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Audit &amp; access. Security detail → <a href="security-access-control.html">security concepts</a>,
+          <a href="security-implementation.html">implement &amp; deploy</a>.
+          Lifecycle → <a href="mlops-lifecycle.html">lifecycle</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">MLOps — governance &amp; lineage</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Governance in one sentence</span>
+            <p>
+              Governance answers <strong>who may use which data and models, what changed, and what you can show an auditor</strong>.
+              It overlaps security and MLOps; this page focuses on ML-specific lineage and release discipline, not TLS or OAuth mechanics.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Lineage</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Lineage</strong> is the chain from raw data → transforms → train run → registered artifact → deployment → prediction log (where policy allows).
+              When a user reports a bad answer, you should trace model version, index version, and prompt template without guessing.
+            </p>
+            <ul>
+              <li>Store run id, git commit, data snapshot id, and container digest on every registry version (<a href="mlops-registry.html">registry</a>).</li>
+              <li>Log model version on each inference request (header or internal trace).</li>
+              <li>For RAG, log retrieved chunk ids — not necessarily full text if PII-sensitive.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Access &amp; data handling</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Training data</span>
+            <p>
+              Restrict buckets and tables by IAM role; training jobs should use service accounts with least privilege.
+              Do not copy production PII into unlabeled dev buckets “for a quick experiment.”
+              Redact or hash before logging examples to W&amp;B (<a href="cloud-deep-learning.html">cloud</a> egress and retention policies apply too).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Models &amp; prompts</span>
+            <p>
+              Control who can promote registry stages and who can change system prompts in prod.
+              Separate read-only analysts from deployers; use break-glass for emergency rollback with audit log.
+              Agent tools need the same AuthZ as normal APIs (<a href="agents-system-security.html">agent security</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Compliance-oriented practices</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Model cards / datasheets</strong> — intended use, limitations, eval slices, known biases (especially for customer-facing LLMs).</li>
+              <li><strong>Change control</strong> — prod promotion via ticket or PR with eval diff attached.</li>
+              <li><strong>Retention</strong> — how long you keep prompts, outputs, and logs; align with legal hold and GDPR-style deletion requests.</li>
+              <li><strong>Third-party models</strong> — license terms for fine-tune and serve; API data use policies for closed models.</li>
+            </ul>
+            <p>
+              High-risk domains (health, credit, hiring) need domain-specific rules; this sheet stays generic — pair with legal review.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Incident response (ML-flavored)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              For a quality or safety incident: identify registry version and deploy time, rollback if deploy-correlated, freeze further promotions, preserve logs for analysis, and add failing cases to golden eval.
+              For suspected data poisoning or prompt injection at scale, treat as security incident — see <a href="agents-trust-policy.html">trust &amp; policy</a> and security sheets.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Internal tool only → lightweight lineage (run metadata + git) may be enough.
+              Enterprise or regulated → registry stages, IAM on data, retention policy, model cards, and monitored promotion approvals.
+              Multi-tenant SaaS → tenant isolation in data, indexes, and logs is non-negotiable (<a href="security-access-control.html">AuthZ</a>).
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

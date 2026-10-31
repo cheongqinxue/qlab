@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MLOps — lifecycle · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Map of the MLOps track: <a href="mlops-pipelines.html">pipelines</a>,
+          <a href="mlops-registry.html">registry &amp; promotion</a>,
+          <a href="mlops-monitoring.html">monitoring</a>,
+          <a href="mlops-governance.html">governance</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">MLOps — lifecycle</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What MLOps is (here)</span>
+            <p>
+              <strong>MLOps</strong> is how you turn a one-off training run into something you can <strong>repeat, promote, deploy, and watch</strong> without heroics.
+              It is not the same as learning rate schedules (<a href="training-loop.html">training loop</a>) or picking a GPU (<a href="cloud-deep-learning.html">cloud DL</a>).
+              Those sheets build the model; MLOps sheets build the <strong>system around the model</strong>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Lifecycle stages</span>
+            <ol>
+              <li><strong>Define</strong> — problem, success metric, constraints (latency, cost, compliance).</li>
+              <li><strong>Data</strong> — ingest, version, split; see <a href="training-data.html">data for training</a>.</li>
+              <li><strong>Train &amp; evaluate</strong> — experiments, gates on <a href="metrics.html">metrics</a>; debug with <a href="troubleshooting.html">troubleshooting</a>.</li>
+              <li><strong>Register</strong> — immutable artifact + metadata (<a href="mlops-registry.html">registry</a>).</li>
+              <li><strong>Deploy</strong> — serve behind an API; runtime detail in <a href="transformers-serving.html">serving</a>.</li>
+              <li><strong>Monitor</strong> — quality, drift, cost (<a href="mlops-monitoring.html">monitoring</a>).</li>
+              <li><strong>Retire or retrain</strong> — triggered by drift, policy, or new data.</li>
+            </ol>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Environments</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dev / staging / prod</span>
+            <p>
+              <strong>Dev</strong> is where notebooks and fast experiments live; configs may be messy.
+              <strong>Staging</strong> runs the same container and pipeline as prod on holdout data or shadow traffic.
+              <strong>Prod</strong> serves real users; only promoted artifacts land here.
+              Skipping staging works until it does not — treat promotion as a deliberate gate, not a file copy.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What counts as a “version”</span>
+            <p>
+              A model version is not only weights: it is <strong>weights + code + dependencies + data snapshot (or index id) + eval report</strong>.
+              For RAG, version the <strong>embedding model</strong>, <strong>chunking policy</strong>, and <strong>vector index build id</strong> together with the LLM checkpoint.
+              For LoRA, version base model id plus adapter weights (<a href="transformers-peft.html">PEFT</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">LLM &amp; agent products</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              LLM products often ship a <strong>stack</strong>: base model, optional fine-tune, system prompt template, tools, RAG index, and safety filters.
+              MLOps tracks each layer that can change behavior independently, so rollback means “revert index v3 and prompt v2,” not only “old checkpoint.”
+              Agent loops add <strong>tool schemas</strong> and policy configs — see <a href="agents-patterns.html">control patterns</a> and <a href="agents-reliability.html">reliability</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser — which MLOps page next</span>
+            <p>
+              Automating train → eval → register → <a href="mlops-pipelines.html">pipelines</a>.
+              Shipping and staging models → <a href="mlops-registry.html">registry &amp; promotion</a>.
+              Live quality and drift → <a href="mlops-monitoring.html">monitoring</a>.
+              Audit, access, lineage → <a href="mlops-governance.html">governance</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

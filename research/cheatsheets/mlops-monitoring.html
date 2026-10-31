@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MLOps — monitoring &amp; drift · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          After deploy. Registry → <a href="mlops-registry.html">registry</a>.
+          Grounding metrics → <a href="agents-grounding.html">grounding</a>. Agent uptime → <a href="agents-reliability.html">reliability</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">MLOps — monitoring &amp; drift</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Training metrics ≠ production health</span>
+            <p>
+              Val loss on a frozen set tells you how the model behaved <em>then</em>.
+              In production you care about latency, errors, cost, user outcomes, and whether incoming data still looks like training data.
+              Monitoring closes the loop in the <a href="mlops-lifecycle.html">lifecycle</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Always track (any ML service)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Service level</span>
+            <ul>
+              <li>Request rate, p95/p99 latency, error rate (4xx/5xx), timeout rate.</li>
+              <li>GPU/CPU utilization and queue depth on inference pools.</li>
+              <li>Cost per day (tokens, GPU hours) — tie to <a href="cloud-deep-learning.html">cloud billing</a> labels.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Model proxies</span>
+            <p>
+              Log prediction confidence or score distributions when available.
+              For classifiers, track predicted class histograms; sudden shifts often precede quality drops.
+              Compare weekly to a baseline snapshot from launch week.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Drift</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Data drift</span>
+            <p>
+              <strong>Data drift</strong> means input distribution changed — new vocabulary, image styles, or document formats — while labels may still be defined the same way.
+              Detect with embedding distance, PSI on features, or simple stats (length, language id).
+              Drift alone does not prove quality fell, but it triggers re-eval on golden sets.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Concept drift</span>
+            <p>
+              <strong>Concept drift</strong> means the relationship between inputs and correct outputs changed (policy update, product redesign, seasonality).
+              You need delayed labels, human review, or business KPIs to see it; input-only monitors miss it.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">LLM, RAG &amp; agents</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">LLM chat &amp; completion</span>
+            <ul>
+              <li>Output length, refusal rate, average logprob if logged (privacy permitting).</li>
+              <li>Thumbs down / escalation rate; sample for human review.</li>
+              <li>Repeat detection (same boilerplate) — can indicate <a href="failure-modes.html">mode collapse</a> in fine-tuned policies.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RAG</span>
+            <ul>
+              <li>Retrieval <strong>Recall@k</strong> on logged queries with periodic human qrels (<a href="metrics.html">metrics</a>).</li>
+              <li>Empty retrieval rate, average similarity score, citation presence rate.</li>
+              <li>Faithfulness failures — answers not supported by retrieved chunks (<a href="agents-grounding.html">grounding</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Agents</span>
+            <p>
+              Tool call success rate, steps per task, recovery after tool errors, and fraction of runs hitting step or token caps (<a href="agents-reliability.html">reliability</a>).
+              Trace ids linking user session → retrieval → model version (<a href="mlops-registry.html">registry</a> version in logs).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Alerts &amp; response</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Alert on SLO breaches (latency, error spike) and on slow-burn drift (weekly compare to baseline).
+              Runbook: rollback registry stage first if a bad deploy correlates with the timestamp; retrain only when data or policy truly changed.
+              Post-incident, add a case to the golden eval set so CI catches it next time (<a href="mlops-pipelines.html">pipelines</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Batch scoring → monitor batch job success and score distributions.
+              Online API → latency + errors + weekly golden replay.
+              RAG product → retrieval hit rate + faithfulness sample daily.
+              Agents → tool failures and cost per successful task.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
