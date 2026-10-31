@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Metrics &amp; evaluation · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          What to log in training vs what proves the product works. Loss definitions → <a href="loss-functions.html">loss functions</a>.
+          Val gap → <a href="generalization.html">generalization</a>. Retrieval stages → <a href="rag-retrieval.html">RAG retrieval</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Metrics &amp; evaluation</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Training metric vs product metric</span>
+            <p>
+              The <strong>training loss</strong> is what backprop minimizes — often cross-entropy (CE). It should correlate with what you care about, but rarely <em>is</em> the business goal.
+              Pick one <strong>primary eval metric</strong> on a fixed held-out set and report it every run. Log extras for debugging, not as success unless they track the primary.
+            </p>
+            <ul>
+              <li><strong>Same split rules</strong> as <a href="generalization.html">generalization</a> — no train leakage into eval.</li>
+              <li><strong>Generation tasks</strong> — automatic metrics are noisy; keep a small human or LLM-judge set for regressions.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Classical supervised (heads &amp; tabular)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Classification</span>
+            <ul>
+              <li><strong>Accuracy</strong> — fine when classes are balanced; misleading when 99% negative.</li>
+              <li><strong>Precision / recall / F1</strong> — precision = of predicted positives, how many correct; recall = of true positives, how many found. F1 balances both.</li>
+              <li><strong>ROC-AUC / PR-AUC</strong> — rank quality across thresholds; PR-AUC better on heavy imbalance.</li>
+              <li><strong>Confusion matrix</strong> — which classes swap; read before tuning threshold.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Regression</span>
+            <ul>
+              <li><strong>MSE / RMSE</strong> — punishes large errors hard (squares).</li>
+              <li><strong>MAE</strong> — robust to outliers.</li>
+              <li><strong>R²</strong> — variance explained; can mislead if range shifts.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Calibration</span>
+            <p>
+              When predicted probabilities matter (routing, risk), check if “80% confident” is right 80% of the time.
+              <strong>ECE</strong> (expected calibration error) and reliability diagrams; <strong>temperature scaling</strong> on a val set fixes many models without retraining.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Language model pretraining</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Perplexity &amp; cross-entropy</span>
+            <p>
+              <strong>Cross-entropy loss</strong> on next-token prediction is the standard train objective. <strong>Perplexity (PPL)</strong> is
+              $\exp(\mathrm{CE})$ — “how surprised” the model is; lower is better. Comparable only with same tokenizer, vocab, and eval corpus.
+            </p>
+            <ul>
+              <li>Log <code>train/loss</code> and <code>eval/loss</code> or <code>eval/perplexity</code> on a fixed text slice.</li>
+              <li>PPL alone misses reasoning, safety, and tool use — always add task eval for LLMs you ship.</li>
+              <li><strong>Bits per byte/character</strong> — sometimes used to compare across vocab sizes.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Entropy — three meanings</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">1. Uncertainty of a probability distribution</span>
+            <p>
+              <strong>Shannon entropy</strong> measures how spread out a distribution is. For discrete classes or vocab tokens with probabilities $p_k$:
+            </p>
+            <div class="formula">
+              $$H(p) = -\sum_k p_k \log p_k$$
+            </div>
+            <p>
+              High $H$ → many outcomes similarly likely (uncertain). Low $H$ → one outcome dominates (confident/peaked).
+              Maximum entropy for $K$ classes is $\log K$ (uniform $p_k = 1/K$).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">2. Cross-entropy vs entropy (training loss)</span>
+            <p>
+              <strong>Cross-entropy</strong> between true distribution $p$ and model $q$ is $-\sum_k p_k \log q_k$.
+              When $p$ is a one-hot correct label, that is just $-\log q_y$ — the usual CE loss (<a href="loss-functions.html">loss functions</a>).
+            </p>
+            <p>
+              Minimizing CE pushes $q$ toward $p$. It is <em>not</em> the same number as $H(q)$ unless you are explicitly logging softmax entropy.
+              <strong>Perplexity</strong> is $\exp(\mathrm{CE})$ on the true token — average surprise per step, not $H(q)$.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">3. Logit / softmax entropy (diagnostic)</span>
+            <p>
+              Average $H(p)$ where $p$ is the model’s <strong>softmax over logits</strong> (next token or class). Use as a <strong>health metric</strong>, not the train loss.
+            </p>
+            <ul>
+              <li><strong>Too low</strong> — model always nearly sure of one token; ties to <code>logit_collapse</code> (<a href="failure-modes.html">failure modes</a>); try label smoothing or warmup.</li>
+              <li><strong>Too high</strong> — near-uniform guesses; model not learning or temperature too hot at sample time.</li>
+              <li>Log <code>train/logit_entropy</code> or mean entropy over eval batches alongside CE/PPL.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Policy entropy (RL / PPO)</span>
+            <p>
+              For a language policy, entropy is $H$ of the <strong>next-token distribution the policy samples from</strong> at each generated step (often averaged over the rollout).
+              PPO adds an <strong>entropy bonus</strong> so the policy does not collapse to repeating one safe phrase while chasing reward.
+            </p>
+            <ul>
+              <li><strong>Falling entropy during RL</strong> — normal early; if it crashes while reward flatlines, watch for <a href="failure-modes.html">mode collapse</a>.</li>
+              <li><strong>Rising entropy with rising reward</strong> — usually healthier exploration.</li>
+              <li>Pair with <strong>KL to reference</strong> — entropy alone does not tell you if you drifted from the SFT model.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Supervised fine-tuning (SFT)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What you optimize</span>
+            <p>
+              Same token-level CE on demonstration conversations — often only on <strong>assistant</strong> tokens (mask user/system).
+              Training loss going down means better fit to demos, not automatically better chat for users.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What you should eval</span>
+            <ul>
+              <li><strong>Held-out CE / PPL</strong> on a val instruction set (same mask rules as train).</li>
+              <li><strong>Exact match (EM)</strong> — output equals reference string (QA, short answers).</li>
+              <li><strong>Token F1</strong> — overlap on answer span; common on extractive QA when wording varies.</li>
+              <li><strong>Pass@k</strong> — for code: any of $k$ samples passes tests (HumanEval-style).</li>
+              <li><strong>Task suites</strong> — MMLU slice, GSM8K, your domain golden prompts (fixed seed, fixed rubric).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Preference learning &amp; RL (RLHF family)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reward model (RM)</span>
+            <p>
+              Trained to score (prompt, response) pairs — higher for human-preferred wins. Eval <strong>pairwise accuracy</strong> on a held-out preference set
+              (did the RM rank the chosen response above the rejected one?). Watch <strong>length bias</strong> (RM loves verbose answers).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PPO (policy optimization)</span>
+            <p>
+              Policy generates text; reward model (or rule) gives scalar reward. You log:
+            </p>
+            <ul>
+              <li><strong>Mean reward</strong> — should trend up early; can overfit RM hacks later.</li>
+              <li><strong>KL(policy ‖ reference)</strong> — drift from SFT checkpoint; too high = gibberish or policy collapse; too low = no gain. Target band is a hyperparameter.</li>
+              <li><strong>Clip fraction</strong> — how often PPO clip binds; sanity on update size.</li>
+              <li><strong>Policy entropy</strong> — see entropy section above; collapse → repetitive text.</li>
+              <li><strong>Product eval</strong> — win rate vs baseline model on blind human or strong LLM judge; do not trust reward alone.</li>
+            </ul>
+            <p class="cell-caption">Loss shapes: <a href="loss-functions.html">PPO clipped surrogate</a>, KL penalty.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">DPO &amp; offline preference</span>
+            <p>
+              No separate RM at inference — train policy directly from chosen/rejected pairs. Monitor <strong>implicit reward margin</strong> on val pairs and
+              <strong>win rate</strong> vs reference on generations. Still report KL to reference if logged.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">GRPO &amp; group-relative RL</span>
+            <p>
+              Sample a <strong>group</strong> of completions per prompt; reward each; up-weight better-than-average trajectories (common in reasoning RL).
+              Log group mean reward, std, and KL. Same warning: optimize a verifiable reward (math check, unit tests) when possible — not only a learned RM.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Generation quality (automatic)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>BLEU / chrF</strong> — n-gram overlap to reference; brittle for paraphrases.</li>
+              <li><strong>ROUGE</strong> — recall-oriented overlap; summarization legacy.</li>
+              <li><strong>BERTScore / embedding sim</strong> — semantic similarity; better correlation sometimes, model-dependent.</li>
+              <li><strong>LLM-as-judge</strong> — pairwise or scalar; useful for drafts; calibrate against human subset.</li>
+            </ul>
+            <p class="cell-caption">For factual RAG answers, add faithfulness metrics on <a href="agents-grounding.html">grounding</a> — overlap metrics do not catch hallucination.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Information retrieval &amp; ranking</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Set-based (relevant or not)</span>
+            <ul>
+              <li><strong>Recall@k</strong> — fraction of all relevant docs that appear in top $k$. “Did we find it?”</li>
+              <li><strong>Precision@k</strong> — fraction of top $k$ that are relevant. “Is the short list clean?”</li>
+              <li><strong>Hit rate@k</strong> — per query, was at least one relevant doc in top $k$? (common in RAG product dashboards)</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Rank-aware</span>
+            <ul>
+              <li><strong>MRR (mean reciprocal rank)</strong> — $1/r$ where $r$ is rank of first relevant doc; good when one gold doc per query.</li>
+              <li><strong>MAP (mean average precision)</strong> — multiple relevant docs; rewards relevant items ranked high throughout the list.</li>
+              <li><strong>nDCG</strong> — discounted gain by position; supports graded relevance (highly vs mildly relevant).</li>
+            </ul>
+            <p>
+              nDCG@k compares ranked lists using gain $rel_i$ and position discount:
+            </p>
+            <div class="formula">
+              $$\mathrm{DCG@k} = \sum_{i=1}^{k} \frac{2^{rel_i} - 1}{\log_2(i+1)}, \qquad
+              \mathrm{nDCG@k} = \frac{\mathrm{DCG@k}}{\mathrm{IDCG@k}}$$
+            </div>
+            <p class="cell-caption">Define relevance labels consistently — binary vs graded changes scores. See <a href="rag-retrieval.html">retrieval overview</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Retrieval vs end-to-end RAG</span>
+            <ul>
+              <li><strong>Retriever-only eval</strong> — Recall@k / nDCG on qrels (query–document relevance judgments).</li>
+              <li><strong>Reader eval</strong> — EM/F1 on answer with gold passage provided (upper bound) vs full RAG (retriever + LLM).</li>
+              <li><strong>Answer faithfulness</strong> — citation match, NLI vs retrieved chunks (<a href="agents-grounding.html">grounding</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Embeddings &amp; contrastive training</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>InfoNCE / triplet loss</strong> — train metric; track loss plus retrieval Recall@k on a val query set.</li>
+              <li><strong>MTEB-style benchmarks</strong> — aggregate retrieval/classification/clustering; use domain slice that matches your product.</li>
+              <li>Regression gate: fixed set of queries with expected neighbor ids (<a href="rag-representations.html">representations</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Pretrain</strong> → eval PPL + small downstream slice; not PPL alone.</li>
+              <li><strong>SFT chat</strong> → masked val CE + golden task EM/F1 + spot human eval.</li>
+              <li><strong>RLHF / PPO</strong> → KL + reward + blind win rate vs SFT; watch reward hacking.</li>
+              <li><strong>DPO</strong> → val pair accuracy + generation win rate.</li>
+              <li><strong>RAG retriever</strong> → Recall@k / nDCG on labeled qrels; separate answer faithfulness.</li>
+              <li><strong>Imbalanced classifier</strong> → PR-AUC + F1 at operating threshold, not accuracy alone.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script src="js/katex-render.js"></script>
+  </body>
+</html>

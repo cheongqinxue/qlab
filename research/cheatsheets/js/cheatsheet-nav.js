@@ -12,8 +12,14 @@
       items: [
         { href: "index.html", label: "Activation functions" },
         { href: "loss-functions.html", label: "Loss functions" },
+        { href: "generalization.html", label: "Generalization & regularization" },
+        { href: "metrics.html", label: "Metrics & evaluation" },
+        { href: "training-data.html", label: "Data for training" },
+        { href: "training-loop.html", label: "Training loop & schedules" },
         { href: "optimizers.html", label: "Optimizers" },
         { href: "failure-modes.html", label: "Failure modes" },
+        { href: "troubleshooting.html", label: "How to troubleshoot" },
+        { href: "cloud-deep-learning.html", label: "Cloud deep learning" },
       ],
     },
     {

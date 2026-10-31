@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Training loop &amp; schedules · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Steps, batching, LR schedules, precision — the train driver. Optimizer math → <a href="optimizers.html">optimizers</a>.
+          Data hygiene → <a href="training-data.html">data for training</a>. Blow-ups → <a href="failure-modes.html">failure modes</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Training loop &amp; schedules</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">The loop in one sentence</span>
+            <p>
+              For each batch: forward → loss (<a href="loss-functions.html">loss</a>) → backward → (clip grads) → optimizer step → log metrics (<a href="metrics.html">metrics</a>).
+              Everything else — schedule, accumulation, precision — wraps that core.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Epochs, steps &amp; batch size</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Epoch vs step</span>
+            <ul>
+              <li><strong>Epoch</strong> — one full pass over the training set. Fine for small data.</li>
+              <li><strong>Step</strong> — one optimizer update (one or more forward-backward passes). LLM pretrain/SFT usually count <strong>steps</strong> or tokens seen, not epochs.</li>
+              <li>Schedulers and papers say “lr at 10k steps” — match that, not “epoch 3.”</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Batch size &amp; accumulation</span>
+            <p>
+              <strong>Batch size</strong> — examples (or tokens) per forward pass. Larger batches → smoother gradients, more memory.
+              <strong>Gradient accumulation</strong> — run $N$ small forwards with backward, accumulate grads, <strong>one</strong> optimizer step — simulates batch $N\times$ larger without fitting all samples in VRAM.
+            </p>
+            <ul>
+              <li>Effective batch = microbatch × accumulation × (number of GPUs in DDP).</li>
+              <li>Very large batch may need higher LR (linear scaling rule) — verify on val, not gospel.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Learning rate schedules</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Warmup</span>
+            <p>
+              LR ramps from 0 (or small) to base LR over first $W$ steps. Stabilizes early updates when activations and Adam moments are cold — especially transformers (<code>no_warmup</code> pathology in <a href="failure-modes.html">failure modes</a>).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Common schedules</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Schedule</th>
+                    <th scope="col">Shape</th>
+                    <th scope="col">Typical use</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Constant</strong></td>
+                    <td>Flat after warmup</td>
+                    <td>Short fine-tunes with early stopping</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Step decay</strong></td>
+                    <td>Drop LR at fixed milestones</td>
+                    <td>Vision classifiers, classic CV</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cosine decay</strong></td>
+                    <td>Smooth curve to ~0</td>
+                    <td>LLM pretrain, many HF recipes</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Linear decay</strong></td>
+                    <td>Line to end of training</td>
+                    <td>SFT when total steps fixed</td>
+                  </tr>
+                  <tr>
+                    <td><strong>One-cycle</strong></td>
+                    <td>Up then down in one run</td>
+                    <td>Some fast fine-tunes (less common in huge LMs)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Optimizer details (AdamW, weight decay groups) → <a href="optimizers.html">optimizers</a>.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Discriminative LRs (fine-tune)</span>
+            <p>
+              Lower LR on pretrained backbone, higher on new head — fixes <code>layer_grad_imbalance</code>.
+              Parameter groups in PyTorch: <code>optimizer = AdamW([{"params": head, "lr": 1e-3}, {"params": body, "lr": 1e-5}])</code>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Stability &amp; precision</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Mixed precision</span>
+            <p>
+              <strong>FP16</strong> or <strong>BF16</strong> matmuls for speed; master weights often FP32. <strong>GradScaler</strong> scales loss before backward to avoid FP16 underflow — if loss goes NaN, scaler reduces scale.
+              BF16 on supported GPUs (A100+) is simpler (wider exponent); still watch <a href="failure-modes.html">adam_collapse</a> and loss spikes.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Gradient clipping</span>
+            <p>
+              After <code>loss.backward()</code>, clip global grad norm to $\tau$ before <code>optimizer.step()</code>.
+              Standard when training transformers or RNNs; pairs with warmup (<a href="failure-modes.html">explode</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Checkpointing &amp; reproducibility</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Checkpoints</span>
+            <ul>
+              <li><strong>Last</strong> — resume after crash.</li>
+              <li><strong>Best val</strong> — early stopping selection; do not confuse with last.</li>
+              <li>Save optimizer state if resume must continue same Adam moments.</li>
+              <li><strong>EMA</strong> (exponential moving average of weights) — optional shadow weights for eval; common in diffusion, sometimes LM.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reproducibility</span>
+            <ul>
+              <li>Fix seeds (Python, NumPy, torch, CUDA) for debug — full bitwise replay across GPUs is hard.</li>
+              <li>Log: git hash, data snapshot id, hyperparameters, library versions.</li>
+              <li><code>torch.backends.cudnn.deterministic</code> — slower; use when chasing a bug.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Multi-GPU (sketch)</span>
+            <p>
+              <strong>DDP (Distributed Data Parallel)</strong> — one process per GPU; each sees a different microbatch; grads all-reduced so every replica stays identical.
+              Scale learning rate and batch with world size only when your recipe says so; always check val loss.
+            </p>
+            <p class="cell-caption">Inference scale → <a href="transformers-serving.html">serving</a>; not the same as training DDP.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>7B SFT on 1 GPU</strong> → microbatch + accumulation, cosine or linear decay, warmup, AdamW, clip 1.0.</li>
+              <li><strong>Small classifier</strong> → constant LR + early stop on val F1.</li>
+              <li><strong>NaN at step 0</strong> → warmup + clip before tuning schedule (<a href="failure-modes.html">failure modes</a>).</li>
+              <li><strong>Val weird but train fine</strong> → <a href="training-data.html">data splits</a>, not cosine vs linear first.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

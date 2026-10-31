@@ -16,7 +16,7 @@
       <nav class="sheet-nav" aria-label="Cheatsheet topics">
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
-        <p class="nav-footer">Every formula lists its own symbols; shared notation is in the legend cell.</p>
+        <p class="nav-footer">Every formula lists its own symbols; shared notation is in the legend cell. Train vs val gap → <a href="generalization.html">generalization</a>. Eval metrics → <a href="metrics.html">metrics</a>.</p>
       </nav>
 
       <header class="sheet-header">
@@ -221,6 +221,10 @@
             <p>Per-token cross-entropy with a causal mask; labels shifted one step vs logits. Padding excluded via <code>ignore_index</code>.</p>
           </section>
 
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Preferences &amp; reinforcement learning</span>
+          </section>
+
           <section class="cell">
             <span class="cell-title">DPO (preference tuning)</span>
             <div class="formula">$$\Delta(y) = \log \pi_\theta(y|x) - \log \pi_{\mathrm{ref}}(y|x)$$</div>
@@ -234,14 +238,55 @@
             <p><strong>Reads as:</strong> raise the chosen answer’s log-prob relative to the rejected one, measured against the reference so the model can’t drift freely (Rafailov et al.).</p>
           </section>
 
+          <section class="cell cell-span">
+            <span class="cell-title">PPO — clipped surrogate (RLHF workhorse)</span>
+            <p>
+              <strong>Proximal Policy Optimization (PPO)</strong> updates a <strong>policy</strong> $\pi_\theta$ that generates text token by token.
+              A <strong>reward model</strong> scores full responses $r(x,y)$. You do not backprop through the RM — sample completions, score them, then nudge $\pi_\theta$ to raise probability of high-reward strings.
+              PPO limits how much the policy can change per step so training does not destabilize (Schulman et al.).
+            </p>
+            <p>
+              For one generated token (or a chunk), define the <strong>probability ratio</strong> vs the policy snapshot that collected the data:
+            </p>
+            <div class="formula">
+              $$\rho_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\mathrm{old}}}(a_t \mid s_t)}$$
+            </div>
+            <p>
+              $s_t$ is prompt plus tokens so far; $a_t$ is the token chosen. LLM code often sums log-probs over the response and uses one ratio per sequence — same idea.
+              <strong>Advantage</strong> $A_t$ says whether this action beat expectation (from reward, RM score, or a critic / GAE).
+            </p>
+            <div class="formula">
+              $$L^{\mathrm{CLIP}} = -\mathbb{E}_t\Big[\min\big(\rho_t A_t,\; \mathrm{clip}(\rho_t,\, 1-\varepsilon,\, 1+\varepsilon)\, A_t\big)\Big]$$
+            </div>
+            <ul class="where">
+              <li><span class="sym">$\varepsilon$</span>clip range, e.g. $0.2$</li>
+              <li><span class="sym">$A_t$</span>advantage (higher → increase $\rho_t$)</li>
+            </ul>
+            <p>
+              <strong>Reads as:</strong> if the update would push $\rho_t$ far from 1, the clip flattens the gradient — no huge policy jumps from one lucky batch.
+            </p>
+            <p><strong>Full RLHF loss</strong> (typical bundle):</p>
+            <div class="formula">
+              $$L = L^{\mathrm{CLIP}} - c_{\mathrm{ent}}\, H(\pi_\theta) + c_{\mathrm{vf}}\, L^{\mathrm{value}} + \beta\,\mathrm{KL}(\pi_\theta \,\|\, \pi_{\mathrm{ref}})$$
+            </div>
+            <ul class="where">
+              <li><span class="sym">$H(\pi_\theta)$</span>policy entropy — bonus so outputs do not collapse (<a href="failure-modes.html">mode collapse</a>)</li>
+              <li><span class="sym">$L^{\mathrm{value}}$</span>critic MSE to returns (optional; some recipes drop critic)</li>
+              <li><span class="sym">$\pi_{\mathrm{ref}}$</span>SFT checkpoint — KL keeps you near the starting model</li>
+            </ul>
+            <p class="cell-caption">What to log: <a href="metrics.html">metrics</a> — reward, KL, clip fraction, entropy.</p>
+          </section>
+
           <section class="cell">
-            <span class="cell-title">RLHF objective (sketch)</span>
+            <span class="cell-title">RLHF reward objective (what PPO optimizes)</span>
             <div class="formula">$$\max \;\mathbb{E}[r(x,y)] - \beta\,\mathrm{KL}(\pi_\theta \,\|\, \pi_{\mathrm{ref}})$$</div>
             <ul class="where">
-              <li><span class="sym">$r(x,y)$</span>reward model score</li>
-              <li><span class="sym">$\beta$</span>KL penalty weight</li>
+              <li><span class="sym">$r(x,y)$</span>reward model score on completion $y$</li>
+              <li><span class="sym">$\beta$</span>KL penalty weight (may appear inside $L$ above instead)</li>
             </ul>
-            <p>Optimized with policy gradient (PPO clipped surrogate), not plain CE. Entropy bonus counters repetitive output.</p>
+            <p>
+              This is the <em>goal</em>; PPO is the <em>optimizer</em> used in classic RLHF (InstructGPT-style) because raw policy gradients are too noisy at LLM scale.
+            </p>
           </section>
 
           <section class="cell">
@@ -292,6 +337,7 @@
               <li>Szegedy et al. — label smoothing (2016)</li>
               <li>Lin et al. — focal loss (2017)</li>
               <li>Chen et al. — SimCLR / NT-Xent (2020)</li>
+              <li>Schulman et al. — PPO (2017)</li>
               <li>Rafailov et al. — DPO (2023)</li>
               <li>Shao et al. / DeepSeek — GRPO (DeepSeekMath, R1 line)</li>
               <li>qlab: <code>tutorials/pathologies/doc/failure-modes/</code></li>

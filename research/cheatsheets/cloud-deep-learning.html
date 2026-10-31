@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloud deep learning · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Money, machines, and surviving preemption — GCP-flavored examples. Loop &amp; OOM →
+          <a href="training-loop.html">training loop</a>, <a href="troubleshooting.html">troubleshooting</a>.
+          Local W&amp;B files → qlab <code>tutorials/pathologies/bev/</code> (optional viewer).
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Cloud deep learning</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What this sheet covers</span>
+            <p>
+              Running training on a cloud GPU is not “rent a box and SSH.” You pay for <strong>compute hours</strong>, <strong>attached disks</strong>, <strong>object storage</strong>, and especially <strong>network egress</strong> when data crosses regions or leaves Google’s network.
+              This page focuses on cost control, logging, spot (preemptible) survival, and launch discipline — with <strong>Google Cloud Platform (GCP)</strong> as the concrete example where it helps.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">1 — Cost control</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Pick the right machine</span>
+            <p>
+              Match GPU memory to model and batch (7B fine-tune vs 70B full fine-tune are different SKUs). A larger GPU than you need wastes money; too small GPU forces tiny batches and long wall-clock time.
+              For development, use a single smaller GPU or even CPU to validate the pipeline; scale up only after one-batch overfit works (<a href="troubleshooting.html">troubleshooting</a>).
+            </p>
+            <p>
+              On GCP, <strong>Spot VMs</strong> (formerly preemptible) trade a large discount for the risk that Google stops your VM with short notice. They fit long training jobs that <strong>checkpoint and resume</strong>, not jobs you cannot restart.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Spot vs on-demand (when each fits)</span>
+            <ul>
+              <li><strong>Spot</strong> — multi-hour pretrain, fine-tunes with frequent checkpoints to durable storage; you accept occasional restarts.</li>
+              <li><strong>On-demand / committed</strong> — short deadline jobs, interactive debugging, or workloads you cannot resume cleanly.</li>
+            </ul>
+            <p>
+              Spot price varies by zone and supply; if preemptions cluster in one zone, try another region or a slightly different machine type.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Data egress on GCP (GCS example)</span>
+            <p>
+              <strong>Cloud Storage (GCS)</strong> bills storage per GB-month plus <strong>egress</strong> when bytes leave a bucket in ways that count as network transfer.
+              Reading training data from GCS into a <strong>Compute Engine VM in the same region</strong> as the bucket is the cheap pattern: traffic stays on Google’s network and you avoid shipping checkpoints across regions every hour.
+            </p>
+            <p>
+              Costs bite when you (a) read GCS from VMs in <strong>another region</strong>, (b) download large datasets to your laptop repeatedly, or (c) serve artifacts to the public internet without a CDN or careful caching.
+              Put the bucket, the VM, and (if used) Vertex/custom training jobs in one <strong>region</strong> you choose deliberately (e.g. <code>us-central1</code> VM + <code>us-central1</code> bucket).
+            </p>
+            <ul>
+              <li>Checkpoint to <code>gs://your-bucket/...</code> in the same region as the trainer, not to local boot disk only (boot disk dies with the VM).</li>
+              <li>Upload code and small configs via git or a small image; avoid re-copying multi-TB shards on every job start if a persistent regional bucket already holds them.</li>
+              <li>For multi-cloud or hybrid, assume <strong>egress line items</strong> will appear — design once, measure in billing reports.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reading GCP billing</span>
+            <p>
+              Open <strong>Billing</strong> in Google Cloud Console (link from the project picker → Billing → Reports / Cost table).
+              Filter by <strong>project</strong>, <strong>time range</strong>, and <strong>service</strong> (Compute Engine, Storage, Networking).
+            </p>
+            <ul>
+              <li><strong>Compute Engine</strong> — VM hours, attached GPUs, sustained use vs spot line items.</li>
+              <li><strong>Cloud Storage</strong> — storage GB-month; egress SKUs often appear under Storage or Network depending on operation.</li>
+              <li><strong>Network</strong> — egress to internet, cross-region, or specialty paths — often the surprise after a sweep that copies data wrong.</li>
+            </ul>
+            <p>
+              Use <strong>labels</strong> on VMs and buckets (<code>team=ml</code>, <code>experiment=bert-finetune</code>) so Cost breakdown → Group by label shows who spent what.
+              Set a <strong>budget alert</strong> (Billing → Budgets) so email fires at 50% / 90% of monthly cap — alerts do not stop spend, but they prevent month-end shock.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">2 — Observability</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What to track (training health)</span>
+            <p>
+              Log the same signals you would use on a local machine, but assume nobody is watching the terminal.
+              At minimum: training and validation loss, your primary eval metric (<a href="metrics.html">metrics</a>), learning rate, global step, and throughput (samples or tokens per second).
+            </p>
+            <ul>
+              <li><strong>Optimization</strong> — grad norm, clip frequency, loss spikes (ties to <a href="failure-modes.html">failure modes</a>).</li>
+              <li><strong>System</strong> — GPU utilization, GPU memory used, DataLoader stall time; low util often means CPU bottleneck or small batches.</li>
+              <li><strong>LLM / RL</strong> — reward, KL, policy entropy when applicable.</li>
+              <li><strong>Reproducibility</strong> — git commit, command line, config file, data snapshot id as run metadata.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Weights &amp; Biases (W&amp;B)</span>
+            <p>
+              <strong>W&amp;B</strong> is a common choice: log scalars from your training loop, upload config, compare runs in a dashboard, and optionally store artifacts (checkpoints, plots).
+              Initialize once per process in distributed training (rank 0 only) so you do not duplicate runs.
+            </p>
+            <p>
+              Treat W&amp;B as the <strong>experiment record</strong>: name runs clearly, use <strong>tags</strong> and <strong>groups</strong> for sweeps, and log hardware (GPU type, spot vs on-demand) so you can relate cost to curves.
+              You can run offline sync if the cluster has intermittent egress; qlab’s local W&amp;B file viewer (BEV) is optional for inspecting <code>run-*.wandb</code> without the cloud UI.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">3 — Spot preemption: recover cleanly</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What preemption means</span>
+            <p>
+              GCP Spot VMs can receive a <strong>stop signal</strong> (often on the order of seconds to a minute). Your process is killed; local disk on the VM is not a durable checkpoint store.
+              Design training so losing the VM loses at most the work since the last <strong>successful checkpoint write</strong>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Recovery pattern</span>
+            <ol>
+              <li>Every N minutes or M steps, write checkpoint + optimizer state to <strong>GCS in the same region</strong>.</li>
+              <li>On startup, parse <code>gs://...</code> for latest checkpoint (or use a small “pointer” file <code>latest.txt</code> updated atomically).</li>
+              <li>Restore model, optimizer, scheduler, and <strong>global step</strong> so learning rate schedule continues correctly.</li>
+              <li>Handle SIGTERM in your script: trap signal, flush one emergency checkpoint, then exit (best-effort; do not rely on this alone).</li>
+              <li>Relaunch the VM (manually, via script, or orchestrator) with the same image and startup command that resumes from GCS.</li>
+            </ol>
+            <p>
+              Test recovery once on purpose: kill the VM mid-run and confirm the next launch continues from the expected step without duplicating data epochs.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">4 — SkyPilot orchestration</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Why SkyPilot</span>
+            <p>
+              <strong>SkyPilot</strong> is an open-source layer that turns a YAML task definition into “provision cloud resources, run command, sync artifacts, tear down or autostop.”
+              It helps when you outgrow hand-rolled scripts but do not want a full Kubernetes cluster for every experiment.
+            </p>
+            <ul>
+              <li>Declare <strong>resources</strong> (e.g. one A100, spot allowed) and <strong>file mounts</strong> (code, data from cloud bucket).</li>
+              <li><strong>Spot-friendly</strong> workflows: SkyPilot can retry on preemption in another zone or relaunch according to policy — still requires your job to checkpoint.</li>
+              <li><strong>Multi-cloud</strong> optional — same task file can target GCP, AWS, etc., with different cost profiles.</li>
+              <li>Use <strong>autostop</strong> so idle GPUs shut down after your command finishes — forgotten VMs are a common bill leak.</li>
+            </ul>
+            <p class="cell-caption">SkyPilot does not replace checkpoint discipline; it reduces toil around provisioning and retries.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">5 — Launch discipline (best practice)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Small-scale local testing first</span>
+            <p>
+              Run a CPU or one small GPU locally (or on a cheap dev VM) until forward, backward, and one optimizer step work.
+              Overfit a tiny batch, then run a short epoch on a subset before launching a multi-day spot job.
+              Fix data paths, dtype, and masking locally — cloud hourly burn makes debugging expensive.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Estimate OOM before the big job</span>
+            <p>
+              Start with the smallest batch that runs, watch <code>torch.cuda.max_memory_allocated()</code> (or nvidia-smi peak), then scale batch or sequence length.
+              Enable gradient checkpointing and mixed precision in the dry run if you plan to use them in cloud.
+              If a 7B model OOMs at batch 1 on a 24 GB card, no spot policy fixes that — change model size, LoRA (<a href="transformers-peft.html">PEFT</a>), accumulation, or SKU.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Hyperparameter sweeps without idle GPUs</span>
+            <p>
+              GPUs sit idle while the CPU tokenizes, resizes images, or builds tar shards.
+              Pre-transform upfront: write cached tokenized tensors, LMDB, WebDataset shards, or embedding caches to GCS once, then point sweep jobs at that path.
+              Launch workers only when data is warm; use W&amp;B Sweep or parallel SkyPilot tasks with a shared artifact path.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Label runs like you label invoices</span>
+            <p>
+              Name runs so future-you knows what they were: <code>llama3-8b-sft-lr3e-5-spot-us-central1</code>, not <code>run-47</code>.
+              Use consistent <strong>tags</strong> (project, dataset version, spot/on-demand) and GCP <strong>resource labels</strong> on VMs and buckets so billing reports align with W&amp;B groups.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Bill shock after one week</strong> → Billing → group by service/label; check egress and forgotten VMs.</li>
+              <li><strong>Spot job lost hours</strong> → checkpoint interval too long or checkpoints only on local disk.</li>
+              <li><strong>GPU util 30%</strong> → dataloader or preprocessing; pre-cache before sweep.</li>
+              <li><strong>Many manual SSH sessions</strong> → consider SkyPilot or a thin wrapper script with resume from GCS.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

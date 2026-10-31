@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Generalization &amp; regularization · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Why models miss on new data — and levers to fix it. Loss choice → <a href="loss-functions.html">loss functions</a>.
+          Update rules → <a href="optimizers.html">optimizers</a>.           What to log vs what to ship → <a href="metrics.html">metrics</a>.
+          Splits &amp; labels → <a href="training-data.html">data</a>. Loop &amp; LR → <a href="training-loop.html">training loop</a>.
+          Training blow-ups → <a href="failure-modes.html">failure modes</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Generalization &amp; regularization</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What generalization means</span>
+            <p>
+              <strong>Generalization</strong> is performance on <strong>new</strong> examples drawn from the same process as your data — not memorizing the training set.
+              You optimize a <strong>training loss</strong> (<a href="loss-functions.html">loss functions</a>); you judge success on
+              <strong>held-out</strong> data. When train looks good and validation does not, you have a generalization gap.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Bias, variance &amp; irreducible error</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Plain language</span>
+            <ul>
+              <li><strong>Bias</strong> — systematic error from a model that is too simple or wrong inductive assumptions (underfitting). High train <em>and</em> val error.</li>
+              <li><strong>Variance</strong> — sensitivity to which training samples you got; fits noise (overfitting). Train error low, val error high.</li>
+              <li><strong>Irreducible (Bayes) error</strong> — noise in labels or truly random outcomes; no model removes it.</li>
+            </ul>
+            <p>
+              For squared loss at a fixed input, a classic decomposition is
+              expected test error ≈ bias² + variance + irreducible noise. The exact algebra assumes an ensemble of models trained on different samples;
+              the <em>intuition</em> survives for single deep nets: complexity trades bias against variance.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Underfit vs overfit</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Signal</th>
+                    <th scope="col">Likely issue</th>
+                    <th scope="col">First levers</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Train &amp; val both poor</td>
+                    <td>High bias (underfit)</td>
+                    <td>Bigger model, better features, train longer, lower regularization</td>
+                  </tr>
+                  <tr>
+                    <td>Train good, val poor</td>
+                    <td>High variance (overfit)</td>
+                    <td>More data, stronger regularization, early stop, simpler model</td>
+                  </tr>
+                  <tr>
+                    <td>Val better than train</td>
+                    <td>Often leakage, bug, or small val set — investigate before celebrating</td>
+                    <td>Audit splits, augmentation on train only, fix pipeline</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Learning curves &amp; splits</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Train / validation / test</span>
+            <p>
+              <strong>Train</strong> — fit parameters. <strong>Validation</strong> — choose hyperparameters, early stopping, model selection (many peeks → val optimistically biased; keep a untouched <strong>test</strong> for final report).
+              Same metric on train and val; plot both vs epoch or training steps.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Reading curves</span>
+            <ul>
+              <li>Gap widening → overfitting; consider regularization, data, or stop earlier.</li>
+              <li>Both flat and high → underfitting; capacity or optimization (<a href="optimizers.html">LR</a>, train longer).</li>
+              <li>Val improves then degrades → classic early-stop point at val minimum.</li>
+              <li>More training data shrinks variance — curve shows val error dropping as $N$ grows.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Capacity vs data</span>
+            <p>
+              <strong>Capacity</strong> is the model’s ability to fit complicated functions (depth, width, rank of adapters).
+              More capacity lowers bias but raises variance when data is limited.
+              Rule of thumb: match capacity to dataset size and task difficulty — a huge net on 500 labels will memorize unless regularized.
+            </p>
+            <p class="cell-caption">
+              LLMs: pretrain capacity is fixed; bias–variance shows up most in <strong>fine-tuning</strong>, small heads, and embedding adapters
+              (<a href="transformers-peft.html">PEFT</a>, <a href="rag-representations.html">representations</a>), not in picking layer count for GPT-class pretrain.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Regularization</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Weight penalties</span>
+            <p>
+              Add a term that punishes large weights so the fit stays smooth and less twitchy to individual samples.
+            </p>
+            <div class="formula">
+              $$ \mathcal{L}_{\mathrm{total}} = \mathcal{L}_{\mathrm{data}} + \lambda \sum_i w_i^2 \quad \text{(L2 / weight decay)} $$
+            </div>
+            <ul>
+              <li><strong>L2 (weight decay)</strong> — shrinks weights toward zero; default in many transformers (AdamW decouples decay from adaptive steps).</li>
+              <li><strong>L1</strong> — sparsity; some weights driven exactly to zero.</li>
+              <li>$\lambda$ too large → underfit; too small → overfit.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dropout &amp; stochastic depth</span>
+            <p>
+              <strong>Dropout</strong> randomly zeros activations during training; at inference use full net (often scaled).
+              Acts like averaging many thinned networks — reduces co-adaptation and variance. Common in older CNNs/Transformers; many LLMs rely more on scale + weight decay.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Early stopping</span>
+            <p>
+              Monitor validation metric each epoch; stop when it has not improved for <strong>patience</strong> steps; restore weights from the best val checkpoint.
+              Cheap, strong regularizer — equivalent to limiting effective training time / capacity.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Other levers (pointers)</span>
+            <ul>
+              <li><strong>Label smoothing</strong> — softens one-hot targets; calibrates and reduces overconfidence (<a href="loss-functions.html">loss sheet</a>).</li>
+              <li><strong>Data augmentation</strong> — artificial diversity; lowers variance (domain-specific).</li>
+              <li><strong>Batch size / noise</strong> — small batches add gradient noise (sometimes regularizing); not a substitute for val-based decisions.</li>
+              <li><strong>Ensembling</strong> — average models; variance down, cost up.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Double descent (footnote)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              In some overparameterized regimes, test error can <strong>fall again</strong> after the classical U-shaped region as capacity grows further (double descent).
+              Modern deep nets often operate past the interpolation threshold. Still use validation curves and regularization in practice —
+              the simple bias–variance story is the operational guide; double descent explains why “ huge model + early stop + decay” can still generalize.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Not the same as …</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Failure modes</strong> (<a href="failure-modes.html">sheet</a>) — gradient explosion, collapse, Adam instability during training, not val/train gap semantics.</li>
+              <li><strong>Fairness “bias”</strong> — social skew in data or outputs; see <a href="agents-trust-policy.html">agents trust &amp; policy</a>.</li>
+              <li><strong>Statistical bias in estimators</strong> — e.g. logging only accepted outcomes; evaluation design problem.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Train &amp; val both bad</strong> → capacity, features, LR, train longer; reduce $\lambda$.</li>
+              <li><strong>Train good, val bad</strong> → more data, augmentation, dropout/weight decay, early stop; shrink model or rank (PEFT).</li>
+              <li><strong>NaN, loss spikes, flat loss with weird grads</strong> → <a href="failure-modes.html">failure modes</a> first; generalization second.</li>
+              <li><strong>Small fine-tune set</strong> → low rank, few epochs, early stop, strong decay; watch embed overfit on <a href="rag-representations.html">representations</a>.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script src="js/katex-render.js"></script>
+  </body>
+</html>

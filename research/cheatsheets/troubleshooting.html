@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How to troubleshoot ML · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Symptom-first workflow with links to deeper sheets:
+          <a href="failure-modes.html">failure modes</a>,
+          <a href="generalization.html">generalization</a>,
+          <a href="training-data.html">data</a>,
+          <a href="training-loop.html">training loop</a>,
+          <a href="metrics.html">metrics</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">How to troubleshoot ML &amp; deep learning</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Start here</span>
+            <p>
+              Describe the symptom in plain language, such as “loss became NaN at step 400,” instead of jumping to fixes.
+              Reproduce the run on a fixed seed, plot training and validation on the same chart, and compare against a run you trust.
+              Change one setting at a time and write down what you changed, so you know what actually helped.
+            </p>
+            <p>
+              On a new setup, try to overfit a tiny slice of data (often eight to thirty-two examples) until training loss is almost zero.
+              If the model cannot memorize that slice, the problem is usually labels, masking, the data loader, or frozen weights — not a missing schedule tweak.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Train vs validation — four boxes</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Train</th>
+                    <th scope="col">Val</th>
+                    <th scope="col">Likely issue</th>
+                    <th scope="col">Read</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Bad</td>
+                    <td>Bad</td>
+                    <td>The model is underfitting, or the pipeline, labels, or learning rate is wrong.</td>
+                    <td><a href="generalization.html">generalization</a>, <a href="training-loop.html">loop</a>, <a href="training-data.html">data</a></td>
+                  </tr>
+                  <tr>
+                    <td>Good</td>
+                    <td>Bad</td>
+                    <td>The model is overfitting, or validation does not match real use (including leakage).</td>
+                    <td><a href="generalization.html">generalization</a>, <a href="training-data.html">splits</a></td>
+                  </tr>
+                  <tr>
+                    <td>NaN / spike</td>
+                    <td>—</td>
+                    <td>Training became unstable (exploding gradients, Adam spikes, missing warmup).</td>
+                    <td><a href="failure-modes.html">failure modes</a></td>
+                  </tr>
+                  <tr>
+                    <td>Good</td>
+                    <td>Good</td>
+                    <td>Offline metrics look fine but production fails — wrong eval metric or a deploy mismatch.</td>
+                    <td><a href="metrics.html">metrics</a>, <a href="transformers-serving.html">serving</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">By symptom</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Loss is NaN or Inf</span>
+            <p>
+              Lower the learning rate, add a linear warmup, and clip gradient norm before the optimizer step.
+              Check that Adam’s epsilon is not absurdly small and that mixed-precision scaling is not stuck at a bad value.
+              Inspect one batch for mis-set labels, wrong dtypes, or a loss mask that ignores every token.
+            </p>
+            <p>See <a href="failure-modes.html">gradient explosion</a> and <a href="failure-modes.html">Adam instability</a>.</p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Loss flat from step 0</span>
+            <p>
+              Confirm labels are tied to the right logits (causal shift for language models, padding masked out).
+              Verify the optimizer is updating the parameters you expect and that those tensors require gradients.
+              A flat loss can also mean vanishing gradients in a deep stack, or a rare class that never appears in small batches.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Train improves, val flat or worsens</span>
+            <p>
+              This pattern usually means overfitting or a validation set that does not reflect deployment.
+              Try stronger regularization, early stopping, more data, or a smaller model, and re-check that users or documents are not split across train and val.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Val better than train</span>
+            <p>
+              Dropout and augmentation on training only often make validation look slightly better than training, and that is normal.
+              If the gap is large without those effects, treat validation as suspect and look for leakage or an eval set that is too easy.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Out of memory</span>
+            <p>
+              Use a smaller microbatch and accumulate gradients over several steps so the effective batch size stays the same.
+              Shorten sequences, enable gradient checkpointing, or use a smaller model during development.
+              At inference, reduce context length or use a supported quant format — see <a href="training-loop.html">training loop</a> and <a href="transformers-compression.html">compression</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Training slow but stable</span>
+            <p>
+              Profile data loading and GPU utilization before changing the math.
+              More DataLoader workers, pinned memory, and mixed precision often help when the loop is I/O or compute bound.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">LLM &amp; fine-tune specifics</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SFT loss down, chat still bad</span>
+            <p>
+              Check that you train only on assistant tokens and that demonstrations match how users will prompt the model.
+              Training loss is not chat quality — run a fixed golden prompt list every checkpoint.
+              If the base model is weak on the task, more epochs on thin data will not fix it without better examples or a different stage (eval metrics in <a href="metrics.html">metrics</a>).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RL reward up, gibberish or repetition</span>
+            <p>
+              The reward model may be rewarding length or format instead of usefulness, or KL to the reference model may be too weak.
+              Falling policy entropy with flat human quality is a sign of mode collapse — see <a href="failure-modes.html">mode collapse</a> and <a href="loss-functions.html">PPO</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">RAG works in notebook, fails in prod</span>
+            <p>
+              Align chunking, embedding model, index version, and top-k with production.
+              Good retrieval with bad answers is a grounding problem; good answers with wrong tenant data is an access-control problem — see <a href="agents-grounding.html">grounding</a> and <a href="agents-system-security.html">security</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Quantized model much worse</span>
+            <p>
+              Confirm the served runtime matches the quant recipe (GPTQ, AWQ, GGUF, and group size must pair with the loader).
+              Evaluate tasks and long context, not perplexity alone — <a href="transformers-compression.html">compression</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Debug moves (low cost)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Sanity checks</span>
+            <p>
+              Overfit a handful of examples until training loss nears zero; failure here points to a pipeline bug.
+              Sweep a few learning rates on a small subset and confirm validation moves within a short run.
+              Train once with shuffled labels; validation should fall toward chance. If it still improves, look for leakage or a broken loss.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">What to log every run</span>
+            <p>
+              Log training and validation loss, your primary eval metric, gradient norm, learning rate, and throughput.
+              For RL, add reward, KL to reference, and policy entropy.
+              Record git commit, data version, and config so you can compare step ten thousand to a known baseline.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Which sheet to open next</span>
+            <p>
+              Use <a href="failure-modes.html">failure modes</a> when loss spikes or goes NaN.
+              Use <a href="generalization.html">generalization</a> and <a href="training-data.html">data for training</a> when training is stable but validation lags.
+              Use <a href="training-loop.html">training loop</a> and <a href="optimizers.html">optimizers</a> when you are tuning batch size, warmup, or schedules.
+              Use <a href="metrics.html">metrics</a> when you are unsure what “good” should mean.
+              Use <a href="transformers-serving.html">serving</a> and <a href="agents-reliability.html">reliability</a> when problems appear only after deployment.
+              Use <a href="cloud-deep-learning.html">cloud deep learning</a> when the issue is cost, spot preemption, or missing logs on a VM.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

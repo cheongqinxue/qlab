@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data for training · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Splits, leakage, and label quality — before you tune the loop (<a href="training-loop.html">training loop</a>).
+          Metrics → <a href="metrics.html">metrics</a>. Val gap → <a href="generalization.html">generalization</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Data for training</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Data beats defaults</span>
+            <p>
+              Most failed runs are bad <strong>splits</strong>, <strong>leakage</strong>, or <strong>labels</strong> — not the wrong Adam $\beta$.
+              Fix the dataset story before chasing learning rates (<a href="training-loop.html">schedules</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Splits</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Train / validation / test</span>
+            <ul>
+              <li><strong>Train</strong> — fit weights.</li>
+              <li><strong>Validation</strong> — pick hyperparameters, early stop, model selection (you will peek many times).</li>
+              <li><strong>Test</strong> — touch once for final report; if you iterate on test, it becomes val.</li>
+            </ul>
+            <p>
+              For hyperparameter search, use <strong>train → val</strong> only; or train / val / <strong>holdout test</strong> frozen from day one.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Group splits (do not random-shuffle blindly)</span>
+            <p>
+              If one <strong>user, document, or session</strong> contributes many rows, keep all rows in one split. Otherwise the model sees nearly duplicate content in train and val — metrics look great, prod fails.
+            </p>
+            <ul>
+              <li>Users → all rows of user A in train or val, not both.</li>
+              <li>RAG / search → same doc id or near-duplicate chunks grouped.</li>
+              <li>Time series → train on past, val on future (no future leakage).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Leakage checklist</span>
+            <ul>
+              <li>Duplicate or near-duplicate examples across splits (hash text, MinHash).</li>
+              <li>Target encoded in features (predicting price when “list price” column remains).</li>
+              <li>Normalization stats computed on train+val together — fit scalers on <strong>train only</strong>, apply to val/test.</li>
+              <li>Test questions appearing in pretrain or RAG index built from “all data.”</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Labels &amp; noise</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Label quality</span>
+            <p>
+              Wrong labels teach the wrong thing; the model will fit noise if capacity allows.
+              Spot-check a random batch; measure inter-annotator agreement on a slice; track label revision history.
+            </p>
+            <ul>
+              <li><strong>Weak / silver labels</strong> — heuristics, model-generated, rules. Cheap scale; watch systematic bias.</li>
+              <li><strong>Partial labels</strong> — multi-label missing tags treated as negatives hurts; use masked loss or explicit “unknown.”</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Class imbalance</span>
+            <p>
+              Rare positives dominate business value but not row count. Accuracy lies; use metrics from <a href="metrics.html">metrics</a> (PR-AUC, F1 at chosen threshold).
+            </p>
+            <ul>
+              <li><strong>Class weights</strong> in loss — up-weight rare class CE terms.</li>
+              <li><strong>Resampling</strong> — oversample minority or undersample majority (watch overfitting repeats).</li>
+              <li><strong>Focal loss</strong> — down-weight easy examples (<a href="loss-functions.html">loss functions</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Augmentation &amp; mixing</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Vision (typical)</span>
+            <p>
+              Random crop, flip, color jitter, mixup/cutmix — synthetic diversity so the model cannot memorize pixels.
+              Augment <strong>train only</strong>; val/test see clean preprocessing.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Text &amp; LLM data</span>
+            <ul>
+              <li>Paraphrase, back-translation — more phrasing variety for classifiers/embeddings.</li>
+              <li>SFT: quality of demonstrations beats raw count; dedupe near-identical instructions.</li>
+              <li>Do not augment eval sets to “improve scores.”</li>
+              <li>Embedding fine-tune: synthetic queries — <a href="rag-representations.html">representations</a> (low human label).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Curriculum &amp; mixture</span>
+            <p>
+              <strong>Curriculum</strong> — train on easy examples first, then hard (or increasing sequence length).
+              <strong>Mixture</strong> — sample batches from multiple sources (English + code + domain) with fixed ratios; change ratios when one skill lags.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Synthetic &amp; scraped data</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              LLM-generated labels or distillation pairs scale fast. Risks: model copies its own errors, amplifies bias, and memorizes templated phrasing.
+              Filter with rules, second model, or human spot-check; keep a <strong>human or gold eval set</strong> untouched by generation pipeline.
+            </p>
+            <ul>
+              <li>Pretrain web scrape → dedupe (MinHash), quality classifiers, PII/legal filters.</li>
+              <li>Agent trajectories for training → verifiers before FT (<a href="agents-learning.html">agents learning</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">How much data?</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Small task fine-tune</strong> — hundreds to thousands of good labels often enough with a strong base; thousands of noisy labels may hurt vs hundreds of clean.</li>
+              <li><strong>Contrastive / retrieval</strong> — need hard negatives; volume without negatives gives false confidence.</li>
+              <li><strong>LLM pretrain</strong> — Chinchilla-style: model size and token count should scale together; more tokens on a fixed small model helps up to a point (<a href="transformers-models.html">model lineage</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>Val great, prod bad</strong> → leakage or split groups first.</li>
+              <li><strong>Rare class</strong> → weights + PR-AUC, not accuracy.</li>
+              <li><strong>Domain shift</strong> → new data mixture, not only more epochs.</li>
+              <li><strong>Embedding/RAG quality</strong> → data + negatives before bigger model.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

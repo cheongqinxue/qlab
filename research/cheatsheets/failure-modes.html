@@ -12,7 +12,8 @@
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
         <p class="nav-footer">
-          Mode ids match <code>tutorials/pathologies/doc/failure-modes/</code>; compare runs to baseline in W&amp;B.
+          Training goes numerically wrong — spikes, NaNs, dead features — not “val worse than train” (<a href="generalization.html">generalization</a>).
+          Step-by-step workflow → <a href="troubleshooting.html">how to troubleshoot</a>. qlab ids: <code>tutorials/pathologies/doc/failure-modes/</code>.
         </p>
       </nav>
 
@@ -27,113 +28,270 @@
 
       <main class="sheet-main">
         <div class="sheet-grid">
-          <section class="cell">
-            <span class="cell-title">Mode index (qlab ids)</span>
-            <ul>
-              <li><code>explode</code> — gradient explosion</li>
-              <li><code>vanish</code> — gradient vanishing</li>
-              <li><code>adam_collapse</code> — Adam instability</li>
-              <li><code>attention_sink</code> — attention sink</li>
-              <li><code>rank_collapse</code> — rank / spectral collapse (weights)</li>
-              <li><code>logit_collapse</code> — logit / output collapse</li>
-              <li><code>representation_collapse</code> — representation collapse</li>
-              <li><code>layer_grad_imbalance</code> — layer-wise gradient imbalance</li>
-              <li><code>no_warmup</code>, <code>decay_norm_bias</code>, <code>bad_mlm_mask</code> — MLM best-practice pathologies</li>
-            </ul>
-          </section>
-
-          <section class="cell">
-            <span class="cell-title">How to read this sheet</span>
+          <section class="cell cell-span">
+            <span class="cell-title">What this sheet is</span>
             <p>
-              Each mode: <strong>what</strong> (literature term), <strong>spot</strong> (metrics), <strong>mitigate</strong>,
-              <strong>ref</strong>. Long-form notes:
+              A <strong>failure mode</strong> is something that breaks or distorts <em>training dynamics</em>: loss blows up, gradients disappear, Adam takes insane steps,
+              or representations become useless. That is different from a <strong>generalization gap</strong>, where training completes but validation stays poor
+              (<a href="generalization.html">generalization sheet</a>). Here you fix stability and signal flow first; then you re-read val curves.
+            </p>
+            <p>
+              Each mode below has a <strong>qlab id</strong> used in pathology tutorials. Longer notes with citations live in
               <code>tutorials/pathologies/doc/failure-modes/*.md</code>.
             </p>
           </section>
 
+          <section class="cell cell-span">
+            <span class="cell-title">At-a-glance</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Id</th>
+                    <th scope="col">You notice</th>
+                    <th scope="col">Try first</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>explode</code></td>
+                    <td>Loss spike or NaN; huge grad norm</td>
+                    <td>Clip grads, lower LR, warmup, Pre-LN</td>
+                  </tr>
+                  <tr>
+                    <td><code>vanish</code></td>
+                    <td>Loss flat; early layers barely learn</td>
+                    <td>Residuals, LayerNorm, check depth/RNN length</td>
+                  </tr>
+                  <tr>
+                    <td><code>adam_collapse</code></td>
+                    <td>Mid-run spike; weird Adam moments</td>
+                    <td>Raise ε, clip, warmup; AMSGrad / moment reset</td>
+                  </tr>
+                  <tr>
+                    <td><code>attention_sink</code></td>
+                    <td>One token/head hogs attention</td>
+                    <td>Registers, init, streaming sink KV (decode)</td>
+                  </tr>
+                  <tr>
+                    <td><code>rank_collapse</code></td>
+                    <td>Weight matrix acts rank-1</td>
+                    <td>Ease weight decay; check singular values</td>
+                  </tr>
+                  <tr>
+                    <td><code>logit_collapse</code></td>
+                    <td>Overconfident softmax; low entropy</td>
+                    <td>Label smoothing, warmup, temperature</td>
+                  </tr>
+                  <tr>
+                    <td><code>representation_collapse</code></td>
+                    <td>All embeddings look the same</td>
+                    <td>Contrastive negatives; unfreeze backbone</td>
+                  </tr>
+                  <tr>
+                    <td><code>layer_grad_imbalance</code></td>
+                    <td>Head moves, body frozen (or vice versa)</td>
+                    <td>Discriminative LRs per block</td>
+                  </tr>
+                  <tr>
+                    <td><em>mode collapse</em></td>
+                    <td>Same few outputs everywhere (RL, GANs)</td>
+                    <td>Entropy bonus, KL leash, reward audit — below</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">Rows with a qlab <code>id</code> have pathology tutorials; <em>mode collapse</em> is a cross-cutting concept (no dedicated qlab run yet).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Mode collapse (concept)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What it is</span>
+            <p>
+              <strong>Mode collapse</strong> means the model puts almost all probability mass on a <strong>small set of behaviors</strong> — the same phrases in RL,
+              the same images in GANs, the same safe answer for every prompt — instead of covering the diverse training or reward landscape.
+              Training loss or reward can look “okay” while diversity is gone.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">LLM RL / PPO</span>
+            <p>
+              Policy chases a narrow reward hack (length, format, RM favorite tic). <strong>Policy entropy</strong> crashes; samples look copy-pasted.
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> mean policy entropy, distinct-n-gram rate, KL to SFT reference (<a href="metrics.html">metrics</a>).</li>
+              <li><strong>Fix:</strong> entropy bonus; tighten KL; better reward (verifiable tasks); mix SFT data; early stop before entropy bottom.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Not the same as …</span>
+            <ul>
+              <li><code>logit_collapse</code> — softmax too peaked on <em>one step</em>; can happen in CE training without whole-trajectory repetition.</li>
+              <li><code>representation_collapse</code> — encoder vectors identical; contrastive/SimCLR setup.</li>
+              <li><strong>Neural collapse</strong> — supervised late-training class geometry, not “model says the same sentence every time.”</li>
+              <li><strong>GAN mode collapse</strong> — generator fools D with few modes; WGAN / different losses (<a href="loss-functions.html">loss functions</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Gradients</span>
+          </section>
+
           <section class="cell">
             <span class="cell-title">Gradient explosion (<code>explode</code>)</span>
-            <p><strong>What:</strong> ‖∇‖ or loss spikes → NaN (Pascanu et al.).</p>
-            <p><strong>Spot:</strong> <code>train/grad_norm</code>, <code>train/update_to_weight_ratio</code>.</p>
-            <p><strong>Mitigate:</strong> clip-by-norm, lower η, warmup, Pre-LN / residuals (He et al.).</p>
+            <p>
+              Backprop multiplies Jacobians along the path from loss to weights. When that product grows without bound, one update can push weights into a region where activations or logits overflow.
+              You see a sudden loss jump, Inf/NaN, or grad norms orders of magnitude above normal.
+            </p>
+            <ul>
+              <li><strong>Watch in W&amp;B:</strong> <code>train/grad_norm</code>, <code>train/update_to_weight_ratio</code>.</li>
+              <li><strong>Fix:</strong> gradient clipping by global norm; lower learning rate; linear LR warmup (especially Post-LN transformers); residual + norm stacks (He et al.).</li>
+            </ul>
           </section>
 
           <section class="cell">
             <span class="cell-title">Gradient vanishing (<code>vanish</code>)</span>
-            <p><strong>What:</strong> Jacobian product &lt; 1 → weak updates deep in stack or in time.</p>
-            <p><strong>Spot:</strong> flat loss; depth-wise grad norm decay.</p>
-            <p><strong>Mitigate:</strong> residuals, LayerNorm, LSTM/GRU (Hochreiter &amp; Schmidhuber).</p>
+            <p>
+              The opposite problem: repeated factors &lt; 1 in the backward chain shrink the signal until deep layers (or long unrolled time steps) get near-zero updates.
+              Training looks stuck even though the loss is not NaN.
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> flat loss; grad norm falling sharply from output toward input layers.</li>
+              <li><strong>Fix:</strong> skip connections, LayerNorm, gated RNNs (LSTM/GRU) for long sequences; avoid pathological depth without residuals.</li>
+            </ul>
           </section>
 
-          <section class="cell">
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Optimizer</span>
+          </section>
+
+          <section class="cell cell-span">
             <span class="cell-title">Adam instability (<code>adam_collapse</code>)</span>
-            <p><strong>What:</strong> step η·m̂/(√v̂+ε) spikes; loss diverges (Reddi; Zhang; Bai et al.).</p>
-            <p><strong>Spot:</strong> <code>train/adam_second_moment/*</code>, <code>adam_max_r</code>, g²/v spikes.</p>
-            <p><strong>Mitigate:</strong> raise ε, clip, AMSGrad, moment reset; tune AdamW.</p>
+            <p>
+              Adam scales each parameter by roughly <code>η × m̂ / (√v̂ + ε)</code>. When <code>v̂</code> is stale, tiny, or out of sync with the current gradient,
+              the effective step can explode even if the raw gradient looks fine. LLM runs often show a <strong>mid-training loss spike</strong> rather than a slow drift.
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> <code>train/adam_second_moment/*</code>, <code>train/adam_max_r</code>, spike scores like <code>g²/v</code> (SPAM-style).</li>
+              <li><strong>Fix:</strong> do not set ε absurdly small; clip gradients; use warmup; consider AMSGrad, moment reset after spikes, or tuned AdamW (Reddi; Zhang; Bai et al.).</li>
+              <li><strong>Pair with:</strong> <a href="optimizers.html">optimizers</a> — this is not the same as picking the wrong loss scale on a stable run.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Attention &amp; internal geometry</span>
           </section>
 
           <section class="cell">
             <span class="cell-title">Attention sink (<code>attention_sink</code>)</span>
-            <p><strong>What:</strong> peaked attention on few keys/tokens (Darcet et al.; Xiao et al.).</p>
-            <p><strong>Spot:</strong> <code>attention_max_weight</code>, <code>attention_head_imbalance</code>.</p>
-            <p><strong>Mitigate:</strong> ViT registers; streaming sink KV; init fixes.</p>
+            <p>
+              Some heads put almost all mass on one key position (often the first token or a register). Other tokens get ignored, which hurts long-context and streaming decode.
+              It is an attention-pattern pathology, not necessarily a grad explosion.
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> <code>attention_max_weight</code>, head imbalance metrics.</li>
+              <li><strong>Fix:</strong> ViT-style register tokens; sink-aware KV in streaming models; initialization and architecture tweaks (Darcet; Xiao et al.).</li>
+            </ul>
           </section>
 
           <section class="cell">
             <span class="cell-title">Rank collapse (<code>rank_collapse</code>)</span>
-            <p><strong>What:</strong> weight W low effective rank (σ₁ ≫ σ₂…).</p>
-            <p><strong>Not:</strong> <em>neural collapse</em> (Papyan) or <em>dimensional collapse</em> (Jing et al. SSL).</p>
-            <p><strong>Spot:</strong> <code>train/effective_rank/*</code>. <strong>Mitigate:</strong> reduce weight decay.</p>
+            <p>
+              A weight matrix still has full rank on paper, but singular values show one dominant direction — the layer behaves like a low-rank map.
+              Capacity drops; features can become redundant.
+            </p>
+            <ul>
+              <li><strong>Not the same as:</strong> <em>neural collapse</em> (late-class geometry) or SSL <em>dimensional collapse</em> — see below.</li>
+              <li><strong>Watch:</strong> <code>train/effective_rank/*</code> on weights.</li>
+              <li><strong>Fix:</strong> often too much weight decay; reduce decay and compare singular value spectrum.</li>
+            </ul>
           </section>
 
           <section class="cell">
             <span class="cell-title">Logit collapse (<code>logit_collapse</code>)</span>
-            <p><strong>What:</strong> softmax too peaked; H(p) falls (Szegedy et al. label smoothing motivation).</p>
-            <p><strong>Spot:</strong> <code>train/logit_entropy</code>, ECE.</p>
-            <p><strong>Mitigate:</strong> label smoothing, temperature scaling, warmup.</p>
+            <p>
+              The model outputs a very sharp softmax — one class or token dominates with probability ≈ 1. That hurts calibration and can mean the network stopped exploring useful logit directions early.
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> <code>train/logit_entropy</code>, expected calibration error (ECE).</li>
+              <li><strong>Fix:</strong> label smoothing, temperature scaling at eval, LR warmup (Szegedy et al. motivation for smoothing).</li>
+            </ul>
           </section>
 
           <section class="cell">
             <span class="cell-title">Representation collapse (<code>representation_collapse</code>)</span>
-            <p><strong>What:</strong> features/embeddings lose diversity; contrastive trivial f(x)=const (SimCLR).</p>
-            <p><strong>Spot:</strong> <code>train/embedding_anisotropy</code>, cosine mass near 1.</p>
-            <p><strong>Mitigate:</strong> unfreeze body; negatives in InfoNCE.</p>
+            <p>
+              Hidden vectors for different inputs become nearly parallel — the encoder maps everything to the same direction.
+              Common in contrastive learning without enough negatives (SimCLR-style trivial solution <code>f(x) = const</code>).
+            </p>
+            <ul>
+              <li><strong>Watch:</strong> <code>train/embedding_anisotropy</code>, cosine similarities clustered near 1.</li>
+              <li><strong>Fix:</strong> strong augmentations + many negatives; unfreeze more of the body; check batch size for contrastive.</li>
+            </ul>
           </section>
 
           <section class="cell">
             <span class="cell-title">Layer grad imbalance (<code>layer_grad_imbalance</code>)</span>
-            <p><strong>What:</strong> embedding/head vs body update mismatch (ULMFiT discriminative LRs).</p>
-            <p><strong>Spot:</strong> <code>train/update_ratio/*</code> by group.</p>
-            <p><strong>Mitigate:</strong> per-block learning rates.</p>
-          </section>
-
-          <section class="cell">
-            <span class="cell-title">Related literature terms</span>
+            <p>
+              One part of the network (embedding, head, last blocks) takes huge updates while the rest moves slowly — often from using one global LR when parts should move at different speeds (ULMFiT-style fine-tune).
+            </p>
             <ul>
-              <li><strong>Neural collapse</strong> — late supervised ETF geometry (Papyan et al. 2020).</li>
-              <li><strong>Dimensional collapse</strong> — SSL covariance rank (Jing et al. 2022).</li>
-              <li><strong>Dead ReLU</strong> — saturated units; change activation or η.</li>
-              <li><strong>Catastrophic forgetting</strong> — sequential tasks; not a single-run spike.</li>
+              <li><strong>Watch:</strong> <code>train/update_ratio/*</code> by parameter group.</li>
+              <li><strong>Fix:</strong> discriminative learning rates — lower LR on pretrained body, higher on head.</li>
             </ul>
           </section>
 
-          <section class="cell">
-            <span class="cell-title">MLM best-practice modes</span>
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">MLM tutorial modes (encoder best practice)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              These qlab runs show what happens when you skip standard BERT-style training hygiene — useful for comparing against a sane baseline in W&amp;B.
+            </p>
             <ul>
-              <li><code>no_warmup</code> — Post-LN early instability (Xiong et al.).</li>
-              <li><code>decay_norm_bias</code> — decay on norm/bias.</li>
-              <li><code>bad_mlm_mask</code> — wrong mask ratio.</li>
+              <li><code>no_warmup</code> — Post-LN transformer at full LR from step zero; gradients near the top of the stack are huge at init (Xiong et al.). <strong>Fix:</strong> linear warmup or Pre-LN.</li>
+              <li><code>decay_norm_bias</code> — weight decay applied to LayerNorm scale/bias, which many recipes exclude. <strong>Fix:</strong> decay only linear/embedding weights (AdamW param groups).</li>
+              <li><code>bad_mlm_mask</code> — wrong mask ratio or masking policy for MLM. <strong>Fix:</strong> ~15% mask, consistent with pretrain literature; match tokenizer mask token.</li>
             </ul>
           </section>
 
-          <section class="cell">
-            <span class="cell-title">References</span>
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Similar names, different problems</span>
+          </section>
+
+          <section class="cell cell-span">
             <ul>
-              <li>Pascanu et al. 2013; He et al. 2016; Xiong et al. 2020.</li>
-              <li>Reddi et al. 2018; Zhang et al. 2023; Bai et al. 2025.</li>
-              <li>Darcet et al. 2023; Xiao et al. 2023; Jing et al. 2022; Papyan et al. 2020.</li>
-              <li>qlab: <code>tutorials/pathologies/doc/failure-modes/README.md</code></li>
+              <li><strong>Neural collapse</strong> — late in <em>supervised</em> training, class features collapse to a simplex ETF; often discussed as geometry, not an emergency NaN (Papyan et al.).</li>
+              <li><strong>Dimensional collapse</strong> — SSL covariance loses rank (Jing et al.); related spirit to representation collapse, different setup.</li>
+              <li><strong>Dead ReLU</strong> — units stuck at zero; swap activation or LR (<a href="index.html">activations</a>).</li>
+              <li><strong>Catastrophic forgetting</strong> — sequential tasks erase old skills; multi-run lifecycle issue, not one bad step.</li>
             </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <ul>
+              <li><strong>NaN or spike</strong> → explode / adam_collapse checklist (clip, LR, ε, warmup).</li>
+              <li><strong>Flat loss, healthy grads near output only</strong> → vanish or layer imbalance.</li>
+              <li><strong>Train OK numerically, val bad</strong> → <a href="generalization.html">generalization</a>, not this sheet.</li>
+              <li><strong>RL reward up but all outputs identical</strong> → mode collapse (entropy, KL, reward design).</li>
+              <li><strong>Pathology lab</strong> → pick a mode id, run tutorial baseline vs mode, diff signatures in W&amp;B.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">References (entry points)</span>
+            <p class="cell-caption">
+              Pascanu et al. 2013; He et al. 2016; Xiong et al. 2020; Reddi et al. 2018; Zhang et al. 2023; Bai et al. 2025; Darcet et al. 2023; Xiao et al. 2023; Jing et al. 2022; Papyan et al. 2020.
+              Full list: <code>tutorials/pathologies/doc/failure-modes/README.md</code>.
+            </p>
           </section>
         </div>
       </main>
