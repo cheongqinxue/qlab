@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — concepts &amp; objectives · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Next → <a href="testing-strategies.html">strategies</a> ·
+          <a href="testing-python.html">Python &amp; mocks</a> ·
+          CI → <a href="devops-cicd.html">DevOps CI/CD</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — concepts &amp; objectives</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Why test</span>
+            <p>
+              Automated tests give you <strong>confidence to change code</strong> without guessing whether production will break.
+              They turn requirements into executable checks, catch regressions before users do, and document how the system is supposed to behave.
+              Tests do not prove absence of bugs — they reduce risk cheaply and repeatedly.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Testing objectives (what “good” looks like)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Correctness</strong> — outputs match spec for known inputs (including error paths).</li>
+              <li><strong>Regression prevention</strong> — a fixed bug stays fixed; CI reruns the same checks on every merge.</li>
+              <li><strong>Design feedback</strong> — hard-to-test code often signals tight coupling; tests push you toward clear seams.</li>
+              <li><strong>Release gates</strong> — green tests are a minimum bar before deploy; ML adds eval thresholds (see <a href="testing-ml.html">ML testing</a>).</li>
+              <li><strong>Living documentation</strong> — a well-named test reads like an example; keep it in sync with behavior, not wishful comments.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Major test categories</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Type</th>
+                    <th scope="col">Scope</th>
+                    <th scope="col">Typical speed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Unit</strong></td>
+                    <td>One function, class, or module in isolation</td>
+                    <td>Milliseconds</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Integration</strong></td>
+                    <td>Two or more real pieces wired together (DB, HTTP client, file I/O)</td>
+                    <td>Seconds</td>
+                  </tr>
+                  <tr>
+                    <td><strong>End-to-end (e2e)</strong></td>
+                    <td>Full user or API journey through deployed or near-prod stack</td>
+                    <td>Minutes</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Contract / API</strong></td>
+                    <td>Request/response shape and status codes against a schema or golden file</td>
+                    <td>Fast to medium</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Other labels you will hear</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Smoke tests</strong> ask “does the app start and respond?” — minimal path after deploy.
+              <strong>Regression tests</strong> re-run a suite that previously failed or that guards a critical feature.
+              <strong>Acceptance tests</strong> check business scenarios (often manual or BDD-style) before sign-off.
+              <strong>Performance and load tests</strong> measure latency and capacity under stress — see <a href="testing-performance.html">performance &amp; load</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Vocabulary</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Fixture</strong> — reusable setup (data, temp dirs, configured clients) shared across tests.</li>
+              <li><strong>Assertion</strong> — the check that fails the test when behavior is wrong.</li>
+              <li><strong>Mock / stub / fake</strong> — test doubles that replace slow or external dependencies; details on <a href="testing-python.html">Python &amp; pytest</a>.</li>
+              <li><strong>Flaky test</strong> — passes and fails without code changes (timing, shared state, network); fix or quarantine — do not ignore.</li>
+              <li><strong>Coverage</strong> — which lines ran during tests; useful for gaps, not a quality score by itself.</li>
+              <li><strong>Test isolation</strong> — each test should not depend on order or leftover state from another test.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Manual vs automated</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Exploratory manual testing still finds UX and edge cases automation misses.
+              Automate what is <strong>repeatable and high value</strong>: core logic, APIs, regressions, and CI gates.
+              Reserve manual passes for new features, visual design, and one-off production validation.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser — I changed…</span>
+            <p>
+              Pure logic or refactor → unit tests.
+              New DB query or external API wiring → integration test (real test DB or container when feasible).
+              New user flow or deploy path → smoke or e2e on staging.
+              Prompt or model behavior → golden eval set (<a href="testing-ml.html">ML testing</a>), not only unit tests.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

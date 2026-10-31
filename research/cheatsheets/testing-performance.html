@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — performance &amp; load · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Prod SLOs → <a href="devops-observability.html">observability</a> ·
+          CI smoke → <a href="devops-cicd.html">CI/CD</a> ·
+          Inference → <a href="transformers-serving.html">serving</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — performance &amp; load</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Objectives</span>
+            <p>
+              Performance testing answers <strong>how fast</strong> and <strong>how much</strong> under controlled load.
+              You set targets before the test (latency percentiles, throughput, error rate) and compare results to those targets.
+              Load testing finds breaking points and queue buildup before a launch or traffic spike does it for you.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Terms</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Latency</strong> — time one request takes (report p50, p95, p99, not only average).</li>
+              <li><strong>Throughput</strong> — requests or tokens per second the system sustains.</li>
+              <li><strong>Concurrency</strong> — how many in-flight requests (users or workers).</li>
+              <li><strong>Soak test</strong> — moderate load for hours; catches memory leaks and connection pool exhaustion.</li>
+              <li><strong>Spike test</strong> — sudden jump in traffic; tests autoscaling and backoff.</li>
+              <li><strong>Stress test</strong> — increase load until errors rise; find the knee of the curve.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Performance vs load vs capacity</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Kind</th>
+                    <th scope="col">Question</th>
+                    <th scope="col">When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Micro-benchmark</strong></td>
+                    <td>Is this function hot?</td>
+                    <td>During optimization; not a substitute for system tests</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Load test</strong></td>
+                    <td>Do we meet SLO at expected RPS?</td>
+                    <td>Pre-release, after infra change</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Capacity plan</strong></td>
+                    <td>How many replicas for peak?</td>
+                    <td>Quarterly or before major event</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">ML and LLM serving specifics</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Measure <strong>time-to-first-token (TTFT)</strong> and <strong>tokens/sec</strong> separately for streaming APIs.</li>
+              <li>Warmup — first request compiles CUDA graphs or loads weights; exclude warmup from SLO stats or report cold vs warm.</li>
+              <li>Batching changes latency–throughput tradeoff; load test with realistic batching settings from production.</li>
+              <li>GPU memory caps max batch size; stress until OOM or queue timeout to know headroom.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Tools (common choices)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>k6</strong></td>
+                    <td>JavaScript scenarios, thresholds in code, good CI integration</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Locust</strong></td>
+                    <td>Python user behaviors, distributed workers</td>
+                  </tr>
+                  <tr>
+                    <td><strong>hey / wrk</strong></td>
+                    <td>Quick HTTP hammering; less scenario richness</td>
+                  </tr>
+                  <tr>
+                    <td><strong>vegeta</strong></td>
+                    <td>Constant RPS HTTP load, simple CLI</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Example — k6 threshold smoke</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>import http from "k6/http";
+import { check, sleep } from "k6";
+
+export const options = {
+  vus: 10,
+  duration: "30s",
+  thresholds: {
+    http_req_failed: ["rate&lt;0.01"],
+    http_req_duration: ["p(95)&lt;500"],
+  },
+};
+
+export default function () {
+  const res = http.post(
+    `${__ENV.BASE_URL}/v1/chat`,
+    JSON.stringify({ message: "ping" }),
+    { headers: { "Content-Type": "application/json" } }
+  );
+  check(res, { "status 200": (r) =&gt; r.status === 200 });
+  sleep(1);
+}</pre>
+            <p>
+              Run against staging with production-like hardware when possible; a laptop hitting localhost is only a smoke signal.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Example — Locust user flow</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>from locust import HttpUser, task, between
+
+class ApiUser(HttpUser):
+    wait_time = between(0.5, 2.0)
+
+    @task(3)
+    def predict(self) -&gt; None:
+        self.client.post("/predict", json={"features": [1.0, 2.0, 3.0]})
+
+    @task(1)
+    def health(self) -&gt; None:
+        self.client.get("/health")</pre>
+            <p>
+              Weight tasks to match real traffic mix; a load test that only hits <code>/health</code> lies about capacity.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Environment and fairness</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Load generators must not become the bottleneck — scale k6/Locust workers or run from the same region as the service.</li>
+              <li>Use dedicated staging; never unplanned load against prod without a game day process.</li>
+              <li>Fix dataset size and auth tokens; realistic payloads beat tiny JSON ping bodies for ML APIs.</li>
+              <li>Watch server metrics during the run — CPU, GPU util, queue depth, 5xx rate (<a href="devops-observability.html">observability</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">CI placement</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Full load tests rarely belong on every PR — they are noisy and expensive.
+              Use a <strong>short k6 smoke</strong> (few VUs, 30s) on merge to main, or nightly full runs with trend charts.
+              Pair with unit-level timeouts on critical paths so obvious regressions still fail fast in PR CI.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Optimizing one kernel → micro-benchmark + profiler, then confirm with end-to-end load.
+              Launching API → load test at 2× expected peak with p95 SLO.
+              Long-running workers → soak test overnight.
+              Black Friday / model viral moment → spike + autoscale validation.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — LLM comparison · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Pick models for agents — patterns → <a href="agents-patterns.html">control patterns</a>.
+          Eval harness → <a href="testing-ml.html">ML testing</a>.
+          Serving → <a href="transformers-serving.html">transformers serving</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — LLM comparison</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Closed vs open weights</span>
+            <p>
+              <strong>Closed (API) models</strong> run on the vendor’s GPUs — you pay per token, do not ship weights, and disk/VRAM are not your problem.
+              <strong>Open-weight models</strong> let you download checkpoints, self-host, fine-tune, and audit — you own disk, VRAM, and ops (or pay a third-party inference host).
+              For agents, the same pattern (tools + loop) applies; what changes is cost model, latency, data residency, and how you regression-test quality.
+              Anthropic’s <strong>5.x line</strong> includes <strong>Opus 5.5</strong> (frontier general) and <strong>Fable 5.1</strong> (top coding/reasoning tier; <strong>Mythos 5.1</strong> is a limited-availability sibling at the same price).
+              Google’s current agent stack is the <strong>Gemini 3</strong> series (<strong>3.1 Pro</strong>, <strong>3.8 Flash</strong>, plus <strong>3 Flash</strong> / Flash-Lite tiers); <strong>2.5</strong> remains on the API but is largely superseded for new agent work.
+              OpenAI’s API flagship line is <strong>GPT-6</strong>: <strong>Astra</strong> (max reasoning/coding), <strong>6.1 Sol</strong> (near-Astra, default for hard agent work), <strong>6.1 Terra</strong> (fast multimodal + computer use), and <strong>6 Luna</strong> (volume/cost). Tool-heavy agents should use the <strong>Responses API</strong> on Sol/Astra per OpenAI docs.
+            </p>
+            <p class="cell-caption">
+              Snapshot for API pricing, speed, and open-weight sizing: <strong>late Oct 2026</strong> — verify Hugging Face cards before you standardize on a checkpoint.
+              Benchmarks are <strong>vendor or leaderboard snapshots</strong> — SWE-bench Verified scores especially depend on agent scaffold, tools, and pass@1 vs multi-try.
+              Verify before contracts: OpenAI, Anthropic, Google Gemini, and provider docs; speed medians from
+              <a href="https://artificialanalysis.ai/leaderboards/models">Artificial Analysis</a> (standardized API workload).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Matrix legend</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Modality</strong> — inputs→output; <strong>T</strong> text, <strong>I</strong> image, <strong>V</strong> video, <strong>A</strong> audio (<code>T+I→T</code> = text and image in, text out).</li>
+              <li><strong>Context</strong> — max input tokens the model/API accepts in one request (not how much you should fill — agent loops burn context fast).</li>
+              <li><strong>Disk</strong> — approximate download size for open weights (BF16/full and Q4_K_M GGUF where noted). API models: hosted.</li>
+              <li><strong>VRAM</strong> — rough GPU memory to serve (weights + KV cache); open VRAM column is Q4 at ~4k tokens; scale up roughly linearly with context length self-hosted.</li>
+              <li><strong>$/M</strong> — USD per million tokens on first-party API (input / prompt cache read / output). Gemini cache excludes hourly storage.</li>
+              <li><strong>TTFT</strong> — time to first token (seconds). <strong>Speed</strong> — output tokens per second after first token.</li>
+              <li><strong>SWE-bench V</strong> — SWE-bench Verified (real GitHub fixes). <strong>HumanEval</strong> — Python function completion (saturated at frontier).</li>
+              <li><strong>Understanding</strong> — MMLU-Pro and/or GPQA Diamond (%). <strong>Tool use</strong> — BFCL v3/v4 or MCP-Atlas (%), when published.</li>
+              <li><strong>Human eval</strong> — LMSYS Chatbot Arena Elo (text or code arena) where available; higher is better.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Closed-source (API) — comparison matrix</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Context</th>
+                    <th scope="col">Modality</th>
+                    <th scope="col">Disk</th>
+                    <th scope="col">VRAM</th>
+                    <th scope="col">Input $/M</th>
+                    <th scope="col">Cache $/M</th>
+                    <th scope="col">Output $/M</th>
+                    <th scope="col">TTFT</th>
+                    <th scope="col">tok/s</th>
+                    <th scope="col">SWE-bench V</th>
+                    <th scope="col">HumanEval</th>
+                    <th scope="col">Understanding</th>
+                    <th scope="col">Tool use</th>
+                    <th scope="col">Human eval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>GPT-6 Astra</td>
+                    <td>1.05M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>10.00</td>
+                    <td>1.00</td>
+                    <td>50.00</td>
+                    <td>~2–270§</td>
+                    <td>~78</td>
+                    <td>~85+</td>
+                    <td>~97+</td>
+                    <td>GPQA ~93+</td>
+                    <td>Strong‡ (Responses)</td>
+                    <td>Top tier AA</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-6.1 Sol</td>
+                    <td>1.05M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>2.00</td>
+                    <td>0.10</td>
+                    <td>10.00</td>
+                    <td>~2–130§</td>
+                    <td>~50–71</td>
+                    <td>~80–88</td>
+                    <td>~96+</td>
+                    <td>GPQA ~92; HLE ~47</td>
+                    <td>Strong‡ (Responses)</td>
+                    <td>Code ~1520+</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-6.1 Terra</td>
+                    <td>1.05M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>1.00</td>
+                    <td>0.05</td>
+                    <td>5.00</td>
+                    <td>~1–45</td>
+                    <td>~90–91</td>
+                    <td>~75–82</td>
+                    <td>~95+</td>
+                    <td>Strong (vision/UI)</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-6 Luna</td>
+                    <td>1.05M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>0.10</td>
+                    <td>0.01</td>
+                    <td>0.50</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>Moderate</td>
+                    <td>~90+</td>
+                    <td>Mid-tier</td>
+                    <td>Basic‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-4o</td>
+                    <td>128k</td>
+                    <td>T+I+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>2.50</td>
+                    <td>1.25</td>
+                    <td>10.00</td>
+                    <td>0.89</td>
+                    <td>181</td>
+                    <td>~33–38†</td>
+                    <td>90.2</td>
+                    <td>MMLU ~88.7</td>
+                    <td>BFCL ~77‡</td>
+                    <td>Arena ~1268</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-5.2 (prior gen)</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>1.75</td>
+                    <td>0.18</td>
+                    <td>14.00</td>
+                    <td>~45–270§</td>
+                    <td>~60–78</td>
+                    <td>~80</td>
+                    <td>~95+</td>
+                    <td>GPQA 92.4</td>
+                    <td>Strong‡</td>
+                    <td>Code ~1520</td>
+                  </tr>
+                  <tr>
+                    <td>Claude Sonnet 4.6</td>
+                    <td>200k (1M opt.)</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>3.00</td>
+                    <td>0.30</td>
+                    <td>15.00</td>
+                    <td>~1.1</td>
+                    <td>~107</td>
+                    <td>79.6</td>
+                    <td>~95+</td>
+                    <td>MMMLU 89.3; GPQA 74.1</td>
+                    <td>BFCL high‡</td>
+                    <td>Text 1438</td>
+                  </tr>
+                  <tr>
+                    <td>Claude Sonnet 5.5</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>2.00</td>
+                    <td>0.10</td>
+                    <td>10.00</td>
+                    <td>~3.8–11</td>
+                    <td>~101–139</td>
+                    <td>85.2</td>
+                    <td>~96+</td>
+                    <td>Strong</td>
+                    <td>Strong‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Claude Opus 5.5</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>4.00</td>
+                    <td>0.20</td>
+                    <td>20.00</td>
+                    <td>~6–730§</td>
+                    <td>~80–97</td>
+                    <td>~88–92</td>
+                    <td>~96+</td>
+                    <td>GPQA ~94; HLE ~50+</td>
+                    <td>Strong‡</td>
+                    <td>Top tier AA</td>
+                  </tr>
+                  <tr>
+                    <td>Claude Fable 5.1</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>10.00</td>
+                    <td>0.25</td>
+                    <td>50.00</td>
+                    <td>~2–240§</td>
+                    <td>~55–69</td>
+                    <td>~95</td>
+                    <td>~97+</td>
+                    <td>GPQA 92.6; MMLU-Pro 91.5</td>
+                    <td>Best‡</td>
+                    <td>Code ~1653</td>
+                  </tr>
+                  <tr>
+                    <td>Claude Opus 4.6</td>
+                    <td>200k (1M opt.)</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>5.00</td>
+                    <td>0.50</td>
+                    <td>25.00</td>
+                    <td>~7–16</td>
+                    <td>~80</td>
+                    <td>80.8</td>
+                    <td>97.1</td>
+                    <td>GPQA 91.3; MMMLU 91.1</td>
+                    <td>94% tool pick¶</td>
+                    <td>Code 1548</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 3.1 Pro</td>
+                    <td>1M (2M β)</td>
+                    <td>T+I+V+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>2.00¶¶</td>
+                    <td>0.20</td>
+                    <td>12.00</td>
+                    <td>~25–120§</td>
+                    <td>~85–120</td>
+                    <td>80.6</td>
+                    <td>~95+</td>
+                    <td>GPQA 94.3; MMMLU 92.6</td>
+                    <td>Strong‡ (customtools)</td>
+                    <td>Text ~1492</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 3.8 Flash</td>
+                    <td>1M</td>
+                    <td>T+I+V+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>0.75◇</td>
+                    <td>0.075</td>
+                    <td>3.75</td>
+                    <td>~3–25</td>
+                    <td>~120</td>
+                    <td>~80+</td>
+                    <td>~95+</td>
+                    <td>GPQA ~90+</td>
+                    <td>Agentic‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 3 Flash</td>
+                    <td>1M</td>
+                    <td>T+I+V+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>0.50</td>
+                    <td>0.05</td>
+                    <td>3.00</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>78.0</td>
+                    <td>~90+</td>
+                    <td>GPQA 90.4</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 3.1 Flash-Lite</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>0.25</td>
+                    <td>0.03</td>
+                    <td>1.50</td>
+                    <td>Low</td>
+                    <td>Very high</td>
+                    <td>Moderate</td>
+                    <td>~85+</td>
+                    <td>MMMU ~81</td>
+                    <td>Basic‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 2.5 Pro (prior gen)</td>
+                    <td>1M (2M preview)</td>
+                    <td>T+I+V+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>1.25¶¶</td>
+                    <td>0.125</td>
+                    <td>10.00</td>
+                    <td>~25–120§</td>
+                    <td>~85–120</td>
+                    <td>~80</td>
+                    <td>~95</td>
+                    <td>GPQA ~92; MMLU-Pro ~92</td>
+                    <td>Good‡</td>
+                    <td>Text ~1492</td>
+                  </tr>
+                  <tr>
+                    <td>Gemini 2.5 Flash (prior gen)</td>
+                    <td>1M</td>
+                    <td>T+I+V+A→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>0.15–0.30</td>
+                    <td>Implicit††</td>
+                    <td>0.60–1.25</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>~78</td>
+                    <td>~90+</td>
+                    <td>GPQA 90.4</td>
+                    <td>Moderate‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Grok 4 (xAI API)</td>
+                    <td>128k–256k</td>
+                    <td>T+I→T</td>
+                    <td>Hosted</td>
+                    <td>Hosted</td>
+                    <td>~3–5</td>
+                    <td>Varies</td>
+                    <td>~15–25</td>
+                    <td>~6–33</td>
+                    <td>~72–87</td>
+                    <td>—</td>
+                    <td>~95</td>
+                    <td>HLE ~50.7</td>
+                    <td>—</td>
+                    <td>Text ~1493</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              † Early GPT-4o SWE scores without full agent stack; current agentic coding much higher on same benchmark family.
+              ‡ BFCL / internal tool-call evals — compare only within same benchmark version.
+              § Reasoning and “max effort” modes inflate TTFT; non-reasoning Sonnet/GPT-4o-class models are fastest for chat loops.
+              ¶ Anthropic-reported tool-selection accuracy on a 20-task suite (not BFCL).
+              ¶¶ Gemini input tier shown for prompts ≤200k tokens.
+              †† Gemini 2.5: implicit cache discount up to ~75% on repeated prefix; explicit cache billed separately (+ storage $/hr).
+              ‡‡ Context: “1M opt.” = extended context tier on Anthropic (availability/plan-dependent). Gemini &gt;200k input often has higher $/M (see vendor table).
+              ◊ Fable 5.1 SWE-bench Verified ~95% is Anthropic-reported (agent scaffold); treat as directional. Opus 5.5 benchmarks vary by extended-thinking effort — see Anthropic system cards.
+              ◇ Gemini 3.8 Flash $/M shown at Google’s discounted Standard tier through Dec 2026; doubles Jan 2027 per API pricing page. Use <code>gemini-3.1-pro-preview-customtools</code> if custom function tools are ignored.
+              △ OpenAI GPT-6 $/M is Standard tier for prompts &lt;272k tokens; above 272k input, OpenAI bills 2× input/cache and 1.5× output for the full request. Cache column = cache read (5% of input for 6.1 Sol/Terra/Luna; Astra $1/M).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Open-weight — frontier &amp; mid (self-host)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              All rows are <strong>downloadable weights</strong> — no hosted API pricing here (use vendor APIs only if you outsource inference).
+              <strong>Disk</strong> is BF16/safetensors vs typical Q4_K_M unless noted (ternary = PrismML packings; NVIDIA <strong>NVFP4</strong> checkpoints are deployment-oriented).
+              <strong>VRAM</strong> is indicative at ~4k–8k context; long context scales KV cache sharply (hybrid/linear-attention models cache less per layer).
+              Families called out below: <strong>Nemotron 3.5</strong> (Mamba–MoE agents), <strong>Muse</strong> (Meta agentic), <strong>LFM</strong> (Liquid tri-hybrid edge).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Context</th>
+                    <th scope="col">Modality</th>
+                    <th scope="col">Params</th>
+                    <th scope="col">Disk</th>
+                    <th scope="col">VRAM</th>
+                    <th scope="col">TTFT</th>
+                    <th scope="col">tok/s</th>
+                    <th scope="col">SWE-bench V</th>
+                    <th scope="col">HumanEval</th>
+                    <th scope="col">Understanding</th>
+                    <th scope="col">Tool use</th>
+                    <th scope="col">Human eval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Qwen3.8-27B</td>
+                    <td>262k (1M YaRN)</td>
+                    <td>T+I→T</td>
+                    <td>27.8B dense</td>
+                    <td>~51 GB BF16 / ~15 GB Q4</td>
+                    <td>~17 GB Q4 @4k</td>
+                    <td>~0.5–1.5</td>
+                    <td>40–90</td>
+                    <td>SWE-Pro ~62; TB2 ~73</td>
+                    <td>LCB ~90</td>
+                    <td>GPQA 89.2; MMLU-Pro strong</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Qwen3.8-Flash-Next</td>
+                    <td>262k</td>
+                    <td>T+I→T</td>
+                    <td>125B / 6B active MoE</td>
+                    <td>Large; FP8 ~201 GB</td>
+                    <td>Multi-GPU</td>
+                    <td>~1–3</td>
+                    <td>50–120</td>
+                    <td>~75+†</td>
+                    <td>~92+</td>
+                    <td>GPQA high</td>
+                    <td>Strong‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemma 4 31B</td>
+                    <td>256k</td>
+                    <td>T+I+A→T</td>
+                    <td>31B dense</td>
+                    <td>~62 GB BF16 / ~19 GB Q4</td>
+                    <td>~20–24 GB Q4</td>
+                    <td>~0.6–2</td>
+                    <td>35–80</td>
+                    <td>~55+†</td>
+                    <td>~90+</td>
+                    <td>GPQA 84.3; MMLU-Pro 85.2</td>
+                    <td>Good‡</td>
+                    <td>Arena top open</td>
+                  </tr>
+                  <tr>
+                    <td>Gemma 4 26B-A4B MoE</td>
+                    <td>256k</td>
+                    <td>T+I+A→T</td>
+                    <td>26B / 3.8B active</td>
+                    <td>~52 GB BF16 / ~16 GB Q4</td>
+                    <td>~18–22 GB Q4</td>
+                    <td>~0.5–1.5</td>
+                    <td>40–100</td>
+                    <td>~50+†</td>
+                    <td>~88+</td>
+                    <td>Strong for size</td>
+                    <td>Good‡</td>
+                    <td>Arena #6 open</td>
+                  </tr>
+                  <tr>
+                    <td>Ornith-1.5-122B</td>
+                    <td>256k</td>
+                    <td>T+I→T</td>
+                    <td>122B (MoE tiers)</td>
+                    <td>~73–77 GB Q4 pack</td>
+                    <td>~80 GB+</td>
+                    <td>~1–3</td>
+                    <td>30–70</td>
+                    <td>Agentic†</td>
+                    <td>~92+</td>
+                    <td>Strong</td>
+                    <td>Strong‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-OSS-120B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>117B / 5.1B active MoE</td>
+                    <td>~234 GB BF16 / ~65 GB Q4</td>
+                    <td>~48 GB+ Q4</td>
+                    <td>~1–2</td>
+                    <td>40–100</td>
+                    <td>~70+†</td>
+                    <td>~95</td>
+                    <td>GPQA 80.9; AIME 96.6</td>
+                    <td>Strong‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>DeepSeek V4.1-Flash</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>552B / 16B active MoE</td>
+                    <td>~458 GB+ FP8</td>
+                    <td>Datacenter cluster</td>
+                    <td>~1–3</td>
+                    <td>50–175</td>
+                    <td>~75+†</td>
+                    <td>~92+</td>
+                    <td>MMLU-Pro high</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>GLM-5.3-Flash</td>
+                    <td>1M</td>
+                    <td>T+I→T</td>
+                    <td>320B / 18B active MoE</td>
+                    <td>~600 GB+ BF16</td>
+                    <td>Multi-GPU</td>
+                    <td>~2–4</td>
+                    <td>40–90</td>
+                    <td>~78+†</td>
+                    <td>~94+</td>
+                    <td>GPQA ~88+</td>
+                    <td>Strong‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Granite 4.2-30B</td>
+                    <td>128k (512k ext.)</td>
+                    <td>T→T</td>
+                    <td>30B dense</td>
+                    <td>~60 GB BF16 / ~18 GB Q4</td>
+                    <td>~20–24 GB Q4</td>
+                    <td>~0.6–2</td>
+                    <td>35–80</td>
+                    <td>Enterprise agent RL</td>
+                    <td>~88+</td>
+                    <td>RULER 128k strong</td>
+                    <td>Reasoning tools‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Nemotron 3.5 Super-VL</td>
+                    <td>1M</td>
+                    <td>T+I+V→T</td>
+                    <td>120B / 12B active MoE</td>
+                    <td>BF16 multi-shard; NVFP4 ~68 GB</td>
+                    <td>2–4× H100 / GB200</td>
+                    <td>~1–3</td>
+                    <td>50–120</td>
+                    <td>71.1</td>
+                    <td>LCB 88.2</td>
+                    <td>GPQA 89.5</td>
+                    <td>VL + tools‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Muse Spark Open</td>
+                    <td>1M</td>
+                    <td>T+I+A+V→T</td>
+                    <td>816B / 42B active MoE</td>
+                    <td>~537 GB NVFP4 / ~1.65 TB BF16</td>
+                    <td>4× Blackwell+ (NVFP4)</td>
+                    <td>~2–5</td>
+                    <td>High throughput</td>
+                    <td>Frontier†</td>
+                    <td>~95+</td>
+                    <td>US open flagship</td>
+                    <td>Multimodal agent‡</td>
+                    <td>Top open</td>
+                  </tr>
+                  <tr>
+                    <td>LFM2.5-24B-A2B</td>
+                    <td>131k</td>
+                    <td>T→T</td>
+                    <td>24B / 2.45B active MoE</td>
+                    <td>~48 GB BF16 / ~14 GB Q4</td>
+                    <td>~16–20 GB Q4</td>
+                    <td>~0.5–1.5</td>
+                    <td>60–140</td>
+                    <td>Agentic†</td>
+                    <td>~85+</td>
+                    <td>vs Qwen3.6-35B-A3B</td>
+                    <td>Harness-tuned‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Llama 3.3 70B (legacy)</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>70B dense</td>
+                    <td>~140 GB / ~40 GB Q4</td>
+                    <td>~44–48 GB Q4</td>
+                    <td>0.5–2</td>
+                    <td>30–80</td>
+                    <td>~45–55†</td>
+                    <td>~88</td>
+                    <td>MMLU ~86</td>
+                    <td>Moderate</td>
+                    <td>~1380</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Open-weight — compact &amp; edge (&lt; ~24 GB VRAM typical)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Sweet spot for <strong>local agents</strong>, laptop GPUs, and high fan-out tool loops.
+              Includes extreme quant (Ternary Bonsai 2), <strong>OpenBMB MiniCPM</strong> (edge VLM + sub-8B chat), <strong>Nemotron Lightning</strong> on one 80 GB GPU, <strong>Muse Glimmer</strong> on 24 GB, and <strong>LFM3/LFM2.5</strong> sub-3B–8B edge models.
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Context</th>
+                    <th scope="col">Modality</th>
+                    <th scope="col">Params</th>
+                    <th scope="col">Disk</th>
+                    <th scope="col">VRAM</th>
+                    <th scope="col">TTFT</th>
+                    <th scope="col">tok/s</th>
+                    <th scope="col">SWE-bench V</th>
+                    <th scope="col">HumanEval</th>
+                    <th scope="col">Understanding</th>
+                    <th scope="col">Tool use</th>
+                    <th scope="col">Human eval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Ternary Bonsai 2 27B</td>
+                    <td>262k</td>
+                    <td>T+I→T</td>
+                    <td>27B (Qwen3.8 base)</td>
+                    <td>~6–7.6 GB ternary</td>
+                    <td>~8–12 GB</td>
+                    <td>~0.5–1.5</td>
+                    <td>40–80</td>
+                    <td>~98% of base†</td>
+                    <td>~90+</td>
+                    <td>Near Qwen3.8-27B</td>
+                    <td>VLM + tools</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Ternary Bonsai 2 9B</td>
+                    <td>262k</td>
+                    <td>T+I→T</td>
+                    <td>~9B + VLM tower</td>
+                    <td>~2.4 GB LM (PQ2_0)</td>
+                    <td>~3 GB @8k</td>
+                    <td>&lt;0.5</td>
+                    <td>60–150</td>
+                    <td>Moderate†</td>
+                    <td>~85+</td>
+                    <td>Qwen3.5-9B class</td>
+                    <td>VLM + tools</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Ternary Bonsai 2 4B / 2B</td>
+                    <td>262k</td>
+                    <td>T+I→T</td>
+                    <td>4B / 2B</td>
+                    <td>~1.2 GB / ~0.55 GB</td>
+                    <td>&lt;2 GB</td>
+                    <td>&lt;0.3</td>
+                    <td>Very high</td>
+                    <td>Light†</td>
+                    <td>~75+</td>
+                    <td>Edge</td>
+                    <td>Basic</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Qwen3.5-9B</td>
+                    <td>256k</td>
+                    <td>T+I→T</td>
+                    <td>9.7B dense</td>
+                    <td>~19 GB BF16 / ~5 GB Q4</td>
+                    <td>~7 GB Q4 @4k</td>
+                    <td>&lt;0.4</td>
+                    <td>80–180</td>
+                    <td>Moderate†</td>
+                    <td>~88+</td>
+                    <td>GPQA 81.7</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Qwen3.5-4B</td>
+                    <td>256k</td>
+                    <td>T+I→T</td>
+                    <td>4B dense</td>
+                    <td>~8 GB BF16 / ~3 GB Q4</td>
+                    <td>~4–6 GB Q4</td>
+                    <td>&lt;0.3</td>
+                    <td>100–220</td>
+                    <td>Light†</td>
+                    <td>~82+</td>
+                    <td>Mid</td>
+                    <td>Moderate‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>MiniCPM-V 4.6</td>
+                    <td>128k</td>
+                    <td>T+I→T</td>
+                    <td>~8B LM + SigLIP ViT</td>
+                    <td>~16 GB BF16 / ~5 GB AWQ</td>
+                    <td>~8–12 GB Q4/AWQ</td>
+                    <td>&lt;0.5</td>
+                    <td>60–140</td>
+                    <td>Light–mod†</td>
+                    <td>~85+</td>
+                    <td>Doc/chart OCR strong</td>
+                    <td>Moderate‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>MiniCPM5-8B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>8.2B dense</td>
+                    <td>~16 GB BF16 / ~5 GB Q4</td>
+                    <td>~6–8 GB Q4 @4k</td>
+                    <td>&lt;0.4</td>
+                    <td>80–180</td>
+                    <td>Moderate†</td>
+                    <td>~88+</td>
+                    <td>MMLU-Pro mid–high</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>MiniCPM5-1B</td>
+                    <td>64k</td>
+                    <td>T→T</td>
+                    <td>1.2B dense</td>
+                    <td>~2.4 GB BF16 / ~0.8 GB GGUF Q4</td>
+                    <td>~1–2 GB</td>
+                    <td>&lt;0.2</td>
+                    <td>120+</td>
+                    <td>Light</td>
+                    <td>~75+</td>
+                    <td>Edge chat</td>
+                    <td>Basic</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemma 4 12B Unified</td>
+                    <td>256k</td>
+                    <td>T+I+A→T</td>
+                    <td>12B (encoder-free MM)</td>
+                    <td>~24 GB BF16 / ~8 GB Q4</td>
+                    <td>~9–12 GB Q4</td>
+                    <td>~0.4–1</td>
+                    <td>60–140</td>
+                    <td>LCB ~72†</td>
+                    <td>~88+</td>
+                    <td>GPQA 78.8; MMLU-Pro 77.2</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Gemma 4 E4B (edge)</td>
+                    <td>128k</td>
+                    <td>T+I→T</td>
+                    <td>~4.5B effective</td>
+                    <td>~9 GB BF16 / ~3 GB Q4</td>
+                    <td>~4–6 GB</td>
+                    <td>&lt;0.3</td>
+                    <td>100+</td>
+                    <td>Light</td>
+                    <td>~80+</td>
+                    <td>Edge multimodal</td>
+                    <td>Basic</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>GPT-OSS-20B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>21B / 3.6B active MoE</td>
+                    <td>~42 GB BF16 / ~14 GB Q4</td>
+                    <td>~14–16 GB Q4</td>
+                    <td>~0.4–1</td>
+                    <td>60–120</td>
+                    <td>~55+†</td>
+                    <td>~92</td>
+                    <td>AIME 96%</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>ZAYA1-8B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>8.4B / 760M active MoE</td>
+                    <td>~17 GB BF16</td>
+                    <td>~10–14 GB BF16</td>
+                    <td>~0.3–0.8</td>
+                    <td>80–200</td>
+                    <td>LCB ~65†</td>
+                    <td>~90+</td>
+                    <td>GPQA 71; MMLU-Pro 74.2</td>
+                    <td>zaya_xml tools‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Granite 4.2-8B</td>
+                    <td>128k (512k ext.)</td>
+                    <td>T→T</td>
+                    <td>8B dense</td>
+                    <td>~16 GB BF16 / ~5 GB Q4</td>
+                    <td>~6–8 GB Q4</td>
+                    <td>&lt;0.4</td>
+                    <td>70–160</td>
+                    <td>Agent RL tuned</td>
+                    <td>~85+</td>
+                    <td>Enterprise RAG</td>
+                    <td>Reasoning tools‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Granite 4.2-3B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>3B dense</td>
+                    <td>~6 GB BF16 / ~2 GB Q4</td>
+                    <td>~3–4 GB Q4</td>
+                    <td>&lt;0.2</td>
+                    <td>120+</td>
+                    <td>Light</td>
+                    <td>~78+</td>
+                    <td>Edge</td>
+                    <td>Basic‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Ornith-1.5-9B</td>
+                    <td>256k</td>
+                    <td>T+I→T</td>
+                    <td>9B</td>
+                    <td>~6.6 GB Ollama Q4</td>
+                    <td>~8 GB</td>
+                    <td>&lt;0.4</td>
+                    <td>70–150</td>
+                    <td>Self-improve loop†</td>
+                    <td>~85+</td>
+                    <td>Mid</td>
+                    <td>Moderate‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Muse Glimmer-30B</td>
+                    <td>131k+</td>
+                    <td>T+I→T</td>
+                    <td>29.6B dense + ViT</td>
+                    <td>~17 GB Q4 GGUF / ~64 GB BF16</td>
+                    <td>~19 GB (text+vision Q4)</td>
+                    <td>~0.6–1.5</td>
+                    <td>40–90 (+ DFlash)</td>
+                    <td>76.0</td>
+                    <td>~92+</td>
+                    <td>GPQA 83.5; AIME 94.7</td>
+                    <td>Agentic VLM‡</td>
+                    <td>Arena open top tier</td>
+                  </tr>
+                  <tr>
+                    <td>Nemotron 3.5 Lightning</td>
+                    <td>1M (256k 1×GPU)</td>
+                    <td>T→T</td>
+                    <td>30B / 3B active MoE</td>
+                    <td>BF16 ~60 GB; NVFP4 smaller</td>
+                    <td>1× H100 80 GB (BF16)</td>
+                    <td>~0.5–1.5</td>
+                    <td>80–200+</td>
+                    <td>51.6</td>
+                    <td>~88+</td>
+                    <td>MMLU-Pro 81.9; GPQA 75.4</td>
+                    <td>Long agent‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Nemotron 3 Nano Omni</td>
+                    <td>256k</td>
+                    <td>T+I+V+A→T</td>
+                    <td>31B / ~3B active MoE</td>
+                    <td>62 GB BF16 / 33 GB FP8 / 21 GB NVFP4</td>
+                    <td>1× H100 (BF16); 5090 NVFP4</td>
+                    <td>~0.8–2</td>
+                    <td>High (omni)</td>
+                    <td>GUI / agentic†</td>
+                    <td>—</td>
+                    <td>Doc/OCR/video/audio leaderboards</td>
+                    <td>Tool + CoT‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Nemotron 3.5 Bolt 74B-A9B</td>
+                    <td>256k</td>
+                    <td>T+I+V→T</td>
+                    <td>74B / 9B active</td>
+                    <td>~24 GB “2-bit” build</td>
+                    <td>~24 GB @128k</td>
+                    <td>~0.8–2</td>
+                    <td>50–100</td>
+                    <td>Moderate†</td>
+                    <td>~88+</td>
+                    <td>GPQA 88.8; BrowseComp 70</td>
+                    <td>VL compressed‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>Nemotron 3.5 Bolt-E4B</td>
+                    <td>64k</td>
+                    <td>T→T</td>
+                    <td>~4B effective</td>
+                    <td>~4 GB Q4 “4GB” build</td>
+                    <td>~4–6 GB</td>
+                    <td>&lt;0.3</td>
+                    <td>High</td>
+                    <td>Light</td>
+                    <td>~80+</td>
+                    <td>Voice/device tuned</td>
+                    <td>τ²-Bench 55‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>LFM3-1.7B</td>
+                    <td>256k</td>
+                    <td>T→T</td>
+                    <td>1.73B dense</td>
+                    <td>~3.5 GB BF16 / ~1 GB Q4</td>
+                    <td>~1–2 GB Q4</td>
+                    <td>&lt;0.2</td>
+                    <td>120+</td>
+                    <td>43.4 (OpenCode)</td>
+                    <td>LCB 73.5</td>
+                    <td>BFCL v4 71.4</td>
+                    <td>Native tools‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>LFM2.5-8B-A1B</td>
+                    <td>128k</td>
+                    <td>T→T</td>
+                    <td>8B / ~1B active MoE</td>
+                    <td>~16 GB BF16 / ~5 GB Q4</td>
+                    <td>~6–8 GB Q4</td>
+                    <td>&lt;0.3</td>
+                    <td>100–200</td>
+                    <td>Light–mod†</td>
+                    <td>~82+</td>
+                    <td>Agent post-train</td>
+                    <td>Good‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>LFM2.5-2.6B</td>
+                    <td>131k</td>
+                    <td>T→T</td>
+                    <td>2.69B dense</td>
+                    <td>~5 GB BF16 / ~1.6 GB Q4</td>
+                    <td>~2–4 GB Q4</td>
+                    <td>&lt;0.2</td>
+                    <td>120+</td>
+                    <td>Light</td>
+                    <td>~78+</td>
+                    <td>Edge agent</td>
+                    <td>Moderate‡</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td>LFM2.5-VL-450M / LFM3-VL-2B</td>
+                    <td>32k / 128k</td>
+                    <td>T+I→T</td>
+                    <td>450M / 2B</td>
+                    <td>&lt;1 GB / ~4 GB Q4</td>
+                    <td>&lt;2 GB / ~4 GB</td>
+                    <td>&lt;0.2</td>
+                    <td>Very high</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>Vision edge</td>
+                    <td>Basic‡</td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              † Benchmarks vary by scaffold; Bonsai claims ~98% of dense base — validate on your agent golden set.
+              ‡ Tool columns: BFCL/MCP where published; Granite/ZAYA/GPT-OSS/Nemotron/LFM ship tool formats in cards (Nemotron: OpenMDW-1.1).
+              <strong>MiniCPM</strong> — OpenBMB; <code>openbmb/MiniCPM-V-4.6*</code> (VLM), <code>MiniCPM5-*</code> (dense chat); AWQ/GGUF for laptop serve; strong doc/chart agents at small VRAM.
+              <strong>Ornith</strong> (not “Omith”) — Ornith-1.5 family from Ornith AI; Bonsai 2 needs PrismML llama.cpp/MLX builds for PTQ1_0/PQ2_0.
+              Qwen numbering: treat <strong>3.8</strong> as current flagship open line; 3.5 fills compact dense slots.
+              <strong>Muse:</strong> Glimmer = 30B local agent distill; Spark Open = 816B MoE datacenter tier. <strong>Nemotron 3 Nano Omni</strong> = text+image+video+audio in, text out (C-RADIO v4-H + Parakeet audio); English-only; checkpoints <code>Nemotron-3-Nano-Omni-30B-A3B-Reasoning-*</code>. <strong>Nemotron 3.5 Bolt-E4B</strong> is a Nemotron post-train on Gemma 4 E4B, not NVIDIA-native arch.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">How to use benchmarks for agents</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Coding agent</strong> — prioritize SWE-bench Verified and LiveCodeBench over HumanEval alone (HumanEval is saturated).</li>
+              <li><strong>Tool-heavy agent</strong> — BFCL or MCP-Atlas plus your own golden tasks (schemas, idempotency, auth).</li>
+              <li><strong>Research / analysis</strong> — GPQA, MMLU-Pro, MMMU for multimodal; add domain golden sets.</li>
+              <li><strong>Chat product</strong> — Arena Elo tracks human preference but is not a safety or correctness guarantee.</li>
+              <li><strong>Cost + latency</strong> — multiply tool-loop tokens; cache hits (Claude/OpenAI/Gemini) matter most on fixed system prompts and RAG prefixes.</li>
+              <li><strong>Long context agents</strong> — prefer 128k+ API models or summarization / <a href="agents-memory.html">memory</a> instead of stuffing full tool traces; self-host VRAM scales with context.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Agent-oriented chooser</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Long repo or doc context</strong> — <strong>GPT-6.1 Sol</strong> / <strong>Gemini 3.1 Pro</strong> / Claude 1M (1.05M on GPT-6); compress old tool steps and keep RAG in cacheable prefixes.
+              <strong>Low latency, many tool steps</strong> — <strong>GPT-6.1 Terra</strong> (non-reasoning), <strong>Gemini 3.8 Flash</strong>, GPT-4o, or <strong>GPT-6 Luna</strong>; cache system + tool definitions.
+              <strong>Hard coding / repo edits</strong> — <strong>Claude Fable 5.1</strong>, <strong>GPT-6 Astra</strong> / <strong>6.1 Sol</strong>, Opus 5.5, or <strong>Gemini 3.1 Pro</strong>; use Sol before Astra if cost matters; budget high TTFT on <code>reasoning.effort=max</code>.
+              <strong>Computer-use / GUI agents</strong> — <strong>GPT-6.1 Terra</strong> or Gemini with computer-use tools; OpenAI expects Responses API + tool fees.
+              <strong>Multimodal agents</strong> (PDF, audio, video in one thread) — Gemini 3.1 Pro or 3.8 Flash native multimodal I/O.
+              <strong>On-prem frontier</strong> — <strong>Qwen3.8-27B</strong> or <strong>Gemma 4 31B</strong> Q4 on a 24–48 GB GPU; MoE at scale: Qwen3.8-Flash-Next, GPT-OSS-120B, DeepSeek V4.1-Flash.
+              <strong>On-prem laptop / edge agent</strong> — <strong>Muse Glimmer-30B</strong> (24 GB), <strong>Nemotron 3.5 Lightning</strong> (80 GB BF16 or NVFP4 on Spark), <strong>LFM3-1.7B</strong> / <strong>LFM2.5-8B-A1B</strong>, Bonsai 2 9B, ZAYA1-8B, Granite 4.2-8B, <strong>MiniCPM5-8B</strong>.
+              <strong>Multimodal local agent</strong> — <strong>Nemotron 3 Nano Omni</strong> (doc/video/audio agents on 32–80 GB), Muse Glimmer, Nemotron Super-VL or Bolt, LFM3-VL-2B, <strong>MiniCPM-V 4.6</strong> (screenshots/PDFs on ~8–12 GB); budget VRAM for encoders and long multimodal context.
+              Always run <a href="testing-ml.html">your golden agent eval</a> — public benchmarks do not include your tools, data, or policies.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

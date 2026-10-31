@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — ML &amp; LLM systems · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Metrics defs → <a href="metrics.html">metrics</a> ·
+          Gates → <a href="mlops-pipelines.html">pipelines</a> ·
+          Mocks → <a href="testing-python.html">pytest</a> ·
+          Sanity train → <a href="troubleshooting.html">troubleshooting</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — ML &amp; LLM systems</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Two layers</span>
+            <p>
+              <strong>Software tests</strong> prove the training and serving code runs correctly (shapes, APIs, no crashes).
+              <strong>Model eval</strong> proves the model meets quality bars on held-out data — different objective, often slower.
+              You need both; neither replaces the other.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Data tests (before training)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Schema and types — columns exist, dtypes match, image paths resolve.</li>
+              <li>Distribution checks — class balance, null rates, out-of-range values (see <a href="training-data.html">training data</a>).</li>
+              <li>Leakage — same patient, session, or near-duplicate in train and val splits.</li>
+              <li>Reproducibility — fixed seed produces identical batch order for a tiny shard.</li>
+            </ul>
+            <p>
+              Run data tests in CI when the dataset version changes, not only on laptop.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Training smoke tests</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>One-batch or one-epoch overfit</strong> on a tiny subset: loss should drop sharply if the loop, labels, and loss are wired correctly.
+              Keep runtime under a few minutes in CI — downsample data and model width for the smoke job only.
+              Full training belongs outside PR gates; promotion uses registry and eval (<a href="mlops-registry.html">registry</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Eval as regression (golden set)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Freeze a <strong>golden evaluation set</strong> with known labels or reference answers.
+              On each model candidate, compute metrics defined on <a href="metrics.html">metrics</a>; fail CI if below thresholds or if metrics drop more than a tolerance vs the baseline.
+              Store predictions as artifacts when you need to debug a regression.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Serving and inference tests</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Contract test — POST <code>/predict</code> returns JSON schema, latency under a local budget.</li>
+              <li>Golden vectors — fixed input tensor or image → expected class or embedding within tolerance.</li>
+              <li>Batch vs single — same result for one item run alone vs in a batch when the API promises that.</li>
+              <li>Version header — response includes model id or sha for traceability.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">RAG-specific checks</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Retrieval regression</strong> — fixed queries; assert expected doc ids appear in top-k (does not need an LLM).
+              <strong>End-to-end RAG eval</strong> — optional LLM judge or human rubric on a small set; run less often than retrieval tests.
+              Grounding policy and hallucination risks → <a href="agents-grounding.html">grounding</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">LLM non-determinism</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Pin <code>temperature=0</code> and seed where the API allows it for repeatable CI.</li>
+              <li>Assert structure — valid JSON, required keys, regex for ids — not exact marketing copy.</li>
+              <li>Separate <strong>tool-call tests</strong> (mock LLM) from <strong>quality eval</strong> (live or larger model, nightly).</li>
+              <li>Snapshot LLM outputs only with team agreement and frequent review of diffs.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Agents</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Unit-test tool schemas, permission checks, and retry logic with mocked tools.
+              Recorded trajectories (fixture JSON) replay tool sequences without calling the network.
+              Reliability patterns — timeouts, fallbacks — on <a href="agents-reliability.html">agents reliability</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">What not to duplicate here</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Pipeline stage layout, artifact promotion, and prod drift monitoring stay on
+              <a href="mlops-pipelines.html">MLOps pipelines</a> and <a href="mlops-monitoring.html">monitoring</a>.
+              This page is the testing mindset; those pages are the operational wiring.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Changed dataloader code → data tests + one-batch smoke.
+              New checkpoint → golden eval + serving golden vector.
+              Changed prompt template → structured output tests + small golden Q&amp;A eval.
+              Changed retrieval index → fixed-query hit test before any LLM eval.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

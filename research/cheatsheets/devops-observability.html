@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — observability · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Map → <a href="devops-overview.html">overview</a>.
+          Model drift &amp; RAG → <a href="mlops-monitoring.html">MLOps monitoring</a>.
+          Agent traces → <a href="agents-reliability.html">agents reliability</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — observability</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Three pillars</span>
+            <p>
+              <strong>Logs</strong> tell you what happened in discrete events (“payment failed for user 123”).
+              <strong>Metrics</strong> are numbers over time (request rate, error rate, latency percentiles).
+              <strong>Traces</strong> follow one request across services (API → DB → cache).
+              You need all three for different questions; metrics alert, logs explain, traces locate bottlenecks.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">What to instrument first</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Golden signals (HTTP services)</span>
+            <ul>
+              <li><strong>Latency</strong> — p50/p95/p99 response time.</li>
+              <li><strong>Traffic</strong> — requests per second.</li>
+              <li><strong>Errors</strong> — 5xx rate, failed jobs.</li>
+              <li><strong>Saturation</strong> — CPU, memory, queue depth, DB connections.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Logging hygiene</span>
+            <p>
+              Use structured logs (JSON) with <strong>request id</strong> propagated across calls.
+              Never log passwords, API keys, or full credit card numbers — see security logging rules.
+              Log level INFO for normal path, ERROR with stack traces for failures; avoid DEBUG in prod unless sampled.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">SLOs &amp; alerting</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              An <strong>SLO (service level objective)</strong> is a target you agree on, such as “99.5% of requests complete under 500ms over 30 days.”
+              An <strong>SLI</strong> is the measured indicator; an <strong>SLA</strong> is often a contract with customers.
+              Alert on <strong>SLO burn</strong> (error budget draining fast), not on every blip — pages should be actionable.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Tools (roles)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tool class</th>
+                    <th scope="col">Examples</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Metrics</td>
+                    <td>Prometheus + Grafana, Datadog, Cloud Monitoring</td>
+                  </tr>
+                  <tr>
+                    <td>Logs</td>
+                    <td>Loki, ELK, Cloud Logging, Datadog logs</td>
+                  </tr>
+                  <tr>
+                    <td>Traces</td>
+                    <td>OpenTelemetry → Jaeger, Tempo, vendor APM</td>
+                  </tr>
+                  <tr>
+                    <td>Errors</td>
+                    <td>Sentry (exceptions with context)</td>
+                  </tr>
+                  <tr>
+                    <td>Uptime</td>
+                    <td>Synthetic checks (ping critical endpoints)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">OpenTelemetry (OTel) is a common vendor-neutral way to emit traces and metrics from app code.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">When things break</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Start from the user symptom, check dashboards for correlated spike, open traces or logs for one failing request id, then recent deploys (<a href="devops-cicd.html">CI/CD</a>).
+              Roll back if deploy time matches; otherwise fix forward with a tested patch.
+              Write a short postmortem: timeline, root cause, action items — even for solo projects, future-you is the audience.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Side project → platform logs + Sentry may be enough.
+              Production API → metrics dashboard + alerts on 5xx and latency.
+              ML API → add model version in logs and ML quality sampling on <a href="mlops-monitoring.html">MLOps monitoring</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

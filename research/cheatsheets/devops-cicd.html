@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — CI/CD · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Map → <a href="devops-overview.html">overview</a>. Images → <a href="devops-containers.html">containers</a>.
+          ML train gates → <a href="mlops-pipelines.html">MLOps pipelines</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — CI/CD</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">CI vs CD</span>
+            <p>
+              <strong>Continuous Integration (CI)</strong> runs on every push or pull request: install deps, lint, test, sometimes build an artifact.
+              It answers “does this merge break the repo?”
+              <strong>Continuous Delivery/Deployment (CD)</strong> takes a green build and promotes it to an environment — staging automatically, production with approval or fully automatic if you trust the gates.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Typical pipeline stages</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ol>
+              <li><strong>Checkout</strong> — clone git at commit sha (immutable reference).</li>
+              <li><strong>Test</strong> — unit tests, type check, lint; fail fast (<a href="testing-concepts.html">testing</a>, <a href="testing-performance.html">load smoke</a>).</li>
+              <li><strong>Build</strong> — compile, bundle, or <code>docker build</code> (<a href="devops-containers.html">containers</a>).</li>
+              <li><strong>Publish</strong> — push image or package to registry with tag = git sha.</li>
+              <li><strong>Deploy</strong> — update staging; smoke test; then prod or manual gate.</li>
+            </ol>
+            <p>
+              Keep prod deploys <strong>repeatable</strong>: the same pipeline definition, not a human running shell history on a bastion host.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Git workflow (broad audience)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Work on a <strong>branch</strong>; open a <strong>pull request (PR)</strong>; CI must pass before merge to <code>main</code>.
+              <code>main</code> stays deployable — if it is red, fixing it is priority one.
+              Tag releases (<code>v1.2.0</code>) when you want a named rollback point; image tags often include git sha for traceability.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Tools you will meet</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>GitHub Actions</strong></td>
+                    <td>CI/CD in repo YAML; common for OSS and small teams</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GitLab CI</strong></td>
+                    <td>Integrated pipeline + registry in GitLab</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CircleCI / Buildkite</strong></td>
+                    <td>Hosted runners, larger org patterns</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Argo CD / Flux</strong></td>
+                    <td>GitOps — cluster syncs to manifest repo (K8s)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Rollback &amp; safety</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Deployments should be <strong>rolling</strong> or <strong>blue-green</strong> so a bad version does not take everything down at once.
+              Rollback means redeploying the previous known-good image tag, not rebuilding from memory.
+              Database migrations need their own plan — app rollback does not undo schema changes automatically.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">ML-specific CI (pointer)</span>
+            <p>
+              Add smoke train and golden eval on PRs — details on <a href="mlops-pipelines.html">MLOps pipelines</a>.
+              App CI still runs for the serving wrapper even when weights come from a registry.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Personal project → GitHub Actions: test on PR, optional deploy to PaaS on main.
+              Team → required reviews + staging deploy + smoke tests before prod.
+              K8s shop → build in CI, deploy via GitOps or helm from same pipeline.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

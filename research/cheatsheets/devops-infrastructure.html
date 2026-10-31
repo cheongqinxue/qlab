@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — infrastructure · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Map → <a href="devops-overview.html">overview</a>. Secrets &amp; Auth →
+          <a href="security-implementation.html">security implement</a>. GCP billing → <a href="cloud-deep-learning.html">cloud DL</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — infrastructure</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Infrastructure as code (IaC)</span>
+            <p>
+              <strong>Infrastructure as Code</strong> means servers, networks, databases, and IAM bindings are defined in files (Terraform, Pulumi, CloudFormation, Bicep) stored in git.
+              You review infra changes like code changes, reproduce environments, and avoid “clickops” nobody can replay.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Twelve-factor habits (apps)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Config in environment</strong> — database URLs and feature flags via env vars, not hardcoded.</li>
+              <li><strong>Secrets outside git</strong> — Secret Manager, Vault, or CI secret store; see repo <code>.env-template</code> pattern.</li>
+              <li><strong>Stateless processes</strong> — store uploads in object storage, sessions in Redis, not local disk on one pod.</li>
+              <li><strong>Logs as streams</strong> — app writes stdout; platform collects (<a href="devops-observability.html">observability</a>).</li>
+              <li><strong>Dev/prod parity</strong> — same container image from staging to prod; only config changes.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cloud building blocks</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Compute</span>
+            <p>
+              VMs, autoscaling groups, Kubernetes node pools, or serverless containers. Pick based on control vs ops load.
+              GPU workloads often stay on VMs or specialized pools — <a href="cloud-deep-learning.html">cloud DL</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Networking (head start)</span>
+            <p>
+              <strong>Load balancer</strong> terminates TLS and spreads HTTP to healthy backends.
+              <strong>VPC</strong> isolates private subnets; only public edges expose ports.
+              Understand <strong>ingress</strong> vs <strong>internal service</strong> before debugging “connection refused.”
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Data stores</span>
+            <p>
+              Managed Postgres, Redis, object storage — provisioned via IaC with backups and encryption at rest enabled by default in prod.
+              Picking DB types → <a href="databases-by-type.html">databases</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Terraform mental model</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              You declare <strong>resources</strong> (bucket, VM, IAM role); Terraform plans a diff and applies it.
+              <strong>State</strong> tracks what exists — store remote state (S3/GCS + lock) for teams.
+              Modules reuse patterns (e.g. “standard web service”).
+              Start small: one project, one environment, then split staging/prod workspaces.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Solo demo → PaaS + manual env vars may skip Terraform for months.
+              Shared staging/prod → IaC for databases, buckets, and IAM from day one.
+              Regulated → separate accounts/projects, audit logs, no shared prod credentials on laptops.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

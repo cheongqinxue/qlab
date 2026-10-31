@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — Python, pytest &amp; mocks · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Concepts → <a href="testing-concepts.html">objectives</a> ·
+          ML eval → <a href="testing-ml.html">ML &amp; LLM</a> ·
+          Agents harness → <code>agents/</code> conftest patterns.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — Python, pytest &amp; mocks</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">pytest layout</span>
+            <p>
+              Put tests under <code>tests/</code> mirroring package names.
+              Files and functions start with <code>test_</code>; classes with <code>Test</code>.
+              One test should exercise <strong>one behavior</strong>; use fixtures for shared setup.
+              Mark slow or integration tests (<code>@pytest.mark.integration</code>) so CI can split fast vs slow jobs.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Arrange – act – assert</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>def test_discount_applies_once():
+    cart = Cart(items=[Item(price=10.0)])
+    cart.apply_coupon("SAVE10", percent=10)
+
+    assert cart.total() == pytest.approx(9.0)</pre>
+            <p>
+              Use <code>pytest.approx</code> for floats.
+              For async code, prefer <code>@pytest.mark.asyncio</code> on the test or <code>asyncio.run()</code> in a thin sync wrapper when the suite is mostly sync.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Fixtures and conftest.py</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <code>conftest.py</code> holds fixtures visible to sibling tests — ideal for env vars, temp config paths, and shared clients.
+              Scope <code>function</code> (default) gives isolation; <code>session</code> shares expensive setup (e.g. one Docker DB) when tests are read-only.
+            </p>
+            <pre>@pytest.fixture
+def api_client(tmp_path: Path) -&gt; TestClient:
+    os.environ["DATA_DIR"] = str(tmp_path)
+    from myapp.main import app
+    return TestClient(app)</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Test doubles — pick the right one</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Kind</th>
+                    <th scope="col">Use when</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Stub</strong></td>
+                    <td>Return canned data; no assertions on how it was called</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Mock</strong></td>
+                    <td>Verify calls (args, count); simulate failures</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Fake</strong></td>
+                    <td>Working in-memory impl (fake S3, sqlite instead of postgres)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Spy</strong></td>
+                    <td>Real object with call recording wrapped around it</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Prefer <strong>fakes and real local deps</strong> for integration confidence; use mocks at <strong>system boundaries</strong> you do not own (cloud APIs, billing, live LLM).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Mock complex systems — pattern 1: env + fixture mode</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Production code reads config from the environment; tests point it at fixtures and disable bootstrap side effects.
+              Same pattern as agent harnesses: set <code>*_AGENTS=fixture</code>, empty observability keys, in-memory backends.
+            </p>
+            <pre>@pytest.fixture(autouse=True)
+def service_test_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -&gt; None:
+    monkeypatch.setenv("APP_CONFIG", str(tmp_path / "config.json"))
+    monkeypatch.setenv("USE_LIVE_LLM", "0")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 2: monkeypatch.setattr on the import site</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Patch where the name is <strong>looked up</strong>, not where it is defined.
+              Replace heavy builders (<code>build_runtime</code>, <code>get_openie_extractor</code>) with lambdas returning test doubles.
+            </p>
+            <pre>def test_index_route_uses_stub_extractor(monkeypatch: pytest.MonkeyPatch) -&gt; None:
+    stub = StubExtractor(entities=[("Paris", "GPE")])
+    monkeypatch.setattr("server.routes.index.get_openie_extractor", lambda: stub)
+
+    response = client.post("/index", json={"text": "Paris is nice."})
+    assert response.status_code == 200
+    assert stub.call_count == 1</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 3: unittest.mock.patch for context managers</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>from unittest.mock import MagicMock, patch
+
+@patch("myapp.storage.boto3.client")
+def test_upload_calls_s3(mock_boto_client: MagicMock) -&gt; None:
+    s3 = MagicMock()
+    mock_boto_client.return_value = s3
+
+    upload_report(b"csv-bytes", key="runs/abc/metrics.csv")
+
+    s3.put_object.assert_called_once()
+    _, kwargs = s3.put_object.call_args
+    assert kwargs["Key"] == "runs/abc/metrics.csv"</pre>
+            <p>
+              Assert on <strong>behavior you own</strong> (correct key, bucket, content type), not every boto internal call.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 4: fake HTTP with responses or httpx mock</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>import httpx
+import respx
+
+@respx.mock
+def test_webhook_retries_on_503() -&gt; None:
+    route = respx.post("https://partner.example/hook").mock(
+        side_effect=[httpx.Response(503), httpx.Response(200)]
+    )
+    send_webhook({"event": "done"})
+    assert route.call_count == 2</pre>
+            <p>
+              For FastAPI/Starlette, <code>TestClient</code> exercises your app without binding a port; still mock outbound HTTP to third parties.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 5: cloud storage (GCS / S3) without the cloud</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Option A — inject a storage interface; fake stores blobs in a <code>dict[str, bytes]</code>.
+              Option B — use emulator or <code>moto</code> (AWS) for integration tests.
+              Option C — patch the client method that your code calls (<code>bucket.blob().upload_from_string</code>) to write to <code>tmp_path</code>.
+            </p>
+            <pre>class FakeBlob:
+    def __init__(self, store: dict[str, bytes], name: str) -&gt; None:
+        self._store, self.name = store, name
+
+    def upload_from_string(self, data: bytes, **_: object) -&gt; None:
+        self._store[self.name] = data
+
+class FakeBucket:
+    def __init__(self, store: dict[str, bytes]) -&gt; None:
+        self._store = store
+
+    def blob(self, name: str) -&gt; FakeBlob:
+        return FakeBlob(self._store, name)</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 6: W&amp;B / experiment trackers</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Never hit the cloud in unit tests.
+              Set <code>WANDB_MODE=disabled</code> or mock <code>wandb.init</code> / <code>wandb.log</code> to no-ops that record calls in a list for assertions.
+            </p>
+            <pre>@pytest.fixture(autouse=True)
+def no_wandb(monkeypatch: pytest.MonkeyPatch) -&gt; None:
+    monkeypatch.setenv("WANDB_MODE", "disabled")
+
+def test_training_logs_loss_once(monkeypatch: pytest.MonkeyPatch) -&gt; None:
+    logged: list[tuple[str, float]] = []
+    monkeypatch.setattr("wandb.log", lambda metrics: logged.append(("loss", metrics["loss"])))
+    train_one_step(model, batch)
+    assert len(logged) == 1</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 7: LLM and agent chains</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Unit tests should not call OpenAI.
+              Inject a <strong>fixture LLM</strong> that returns scripted tool calls or JSON from a file.
+              Test orchestration: correct tool selected, args parsed, errors surfaced.
+              Quality of natural language belongs in golden eval (<a href="testing-ml.html">ML testing</a>), not in mocked unit tests.
+            </p>
+            <pre>class ScriptLLM:
+    def __init__(self, replies: list[str]) -&gt; None:
+        self._replies = list(replies)
+
+    def complete(self, prompt: str) -&gt; str:
+        return self._replies.pop(0)
+
+def test_agent_calls_search_tool():
+    llm = ScriptLLM(['{"tool":"search","args":{"q":"qlab"}}', "Done."])
+    agent = Agent(llm=llm, tools=[SearchTool()])
+    result = agent.run("find qlab docs")
+    assert "Done." in result</pre>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 8: database — testcontainers vs sqlite</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Sqlite in-memory is fast for SQLAlchemy models if you avoid postgres-only features.
+              For postgres-specific SQL (JSONB, RLS), use a disposable postgres (Docker / testcontainers) in an integration job.
+              Wrap each test in a transaction rollback or truncate tables in fixture teardown for isolation.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Pattern 9: time, randomness, and async sleeps</span>
+          </section>
+
+          <section class="cell cell-span">
+            <pre>def test_token_expires(monkeypatch: pytest.MonkeyPatch) -&gt; None:
+    t = {"now": 1_000_000.0}
+    monkeypatch.setattr("myapp.auth.time.time", lambda: t["now"])
+    token = issue_token(ttl_sec=60)
+    t["now"] += 61
+    assert is_expired(token)</pre>
+            <p>
+              Fix seeds for numpy/torch in tests that touch sampling.
+              Avoid <code>time.sleep</code> in unit tests — patch clocks or use deterministic schedulers.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Anti-patterns</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li>Mocking your own domain logic so the test only checks the mock — you tested nothing.</li>
+              <li>Shared mutable globals between tests — order-dependent flakes.</li>
+              <li>Asserting exact LLM prose in unit tests — brittle; use schema and tool-call assertions instead.</li>
+              <li>Catching broad exceptions in production code just to satisfy coverage — test real error types.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

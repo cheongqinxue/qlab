@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — strategies · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Concepts → <a href="testing-concepts.html">objectives</a> ·
+          Load → <a href="testing-performance.html">performance</a> ·
+          Run in CI → <a href="devops-cicd.html">CI/CD</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — strategies</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Strategy in one sentence</span>
+            <p>
+              Put the <strong>most tests where failures are cheapest to find and fix</strong>, and reserve slow, brittle checks for a thin layer at the top.
+              Your strategy should match how the system fails in practice — not a diagram you copied once.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Test pyramid</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Classic shape: <strong>many unit tests</strong>, <strong>fewer integration tests</strong>, <strong>few e2e tests</strong>.
+              Unit tests run on every save or PR; e2e runs on merge to main or nightly because they are slow and can flake on infra.
+              The pyramid keeps feedback fast while still proving critical paths end-to-end.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Testing trophy (integration-heavy)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              For services with lots of I/O — HTTP APIs, databases, queues — teams often invest more in <strong>integration tests</strong> with real dependencies in containers.
+              Unit tests still cover pure logic; e2e stays small.
+              ML pipelines fit here too: test data loaders and eval harness against fixture files, not only mocked tensors.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Shift-left</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Shift-left</strong> means finding defects earlier: lint and unit tests on the developer machine, then the same suite in CI on every pull request.
+              Fail fast on the cheapest stage — do not discover a broken import only after a 40-minute deploy.
+              Pre-commit hooks help for formatting; keep heavy integration in CI with cached deps.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">What to add first on a new feature</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ol>
+              <li>Happy path for the new behavior (unit or API test).</li>
+              <li>One or two error cases (invalid input, auth failure, empty result).</li>
+              <li>Regression test if you fixed a production bug.</li>
+              <li>Integration test if the feature touches persistence or a third party.</li>
+              <li>Smoke or e2e only if the feature is a full user journey or deploy-critical.</li>
+            </ol>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">TDD vs test-after</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Test-driven development (TDD)</strong> writes a failing test, then minimal code to pass, then refactor — great for crisp APIs and parsers.
+              <strong>Test-after</strong> is fine when exploring; add tests before merge so main stays protected.
+              Neither replaces design review or production monitoring (<a href="devops-observability.html">observability</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Other techniques (when they help)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Parametrized tests</strong> — same logic, many input rows (edge cases without copy-paste).</li>
+              <li><strong>Property-based testing</strong> — generate random inputs; assert invariants (e.g. sort is ordered, decode(encode(x)) == x).</li>
+              <li><strong>Snapshot tests</strong> — compare output to a stored file; good for serializers and stable reports; risky for LLM text unless you pin seeds and scope tightly.</li>
+              <li><strong>Mutation testing</strong> — deliberately break code to see if tests catch it; advanced, usually later.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">CI layering (pointer)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Typical PR job: lint, typecheck, fast unit tests.
+              Optional parallel job: integration with service containers.
+              Nightly or pre-release: e2e, <a href="testing-performance.html">load smoke</a>, full ML eval (<a href="mlops-pipelines.html">MLOps pipelines</a>).
+              Pipeline mechanics live on <a href="devops-cicd.html">CI/CD</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              Library or pure ML math → pyramid-heavy, mostly unit.
+              BFF or microservice → trophy: integration + contract tests, few e2e.
+              Agent or RAG product → unit for tools and schema, integration with mocked LLM, golden eval for quality (<a href="testing-ml.html">ML testing</a>).
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -23,6 +23,26 @@
       ],
     },
     {
+      label: "Testing",
+      items: [
+        { href: "testing-concepts.html", label: "Concepts & objectives" },
+        { href: "testing-strategies.html", label: "Strategies" },
+        { href: "testing-python.html", label: "Python, pytest & mocks" },
+        { href: "testing-ml.html", label: "ML & LLM systems" },
+        { href: "testing-performance.html", label: "Performance & load" },
+      ],
+    },
+    {
+      label: "DevOps",
+      items: [
+        { href: "devops-overview.html", label: "Overview" },
+        { href: "devops-containers.html", label: "Containers" },
+        { href: "devops-cicd.html", label: "CI/CD" },
+        { href: "devops-infrastructure.html", label: "Infrastructure" },
+        { href: "devops-observability.html", label: "Observability" },
+      ],
+    },
+    {
       label: "MLOps",
       items: [
         { href: "mlops-lifecycle.html", label: "Lifecycle" },
@@ -73,6 +93,7 @@
     {
       label: "Agents",
       items: [
+        { href: "agents-llms.html", label: "LLM comparison" },
         { href: "agents-patterns.html", label: "Control patterns" },
         { href: "agents-memory.html", label: "Memory & state" },
         { href: "agents-learning.html", label: "Learning & improvement" },

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — containers · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">Map → <a href="devops-overview.html">overview</a>. Ship pipeline → <a href="devops-cicd.html">CI/CD</a>.
+          Model images → <a href="mlops-registry.html">MLOps registry</a>.</p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — containers</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Why containers exist</span>
+            <p>
+              A <strong>container</strong> packages your app, runtime, and libraries into one runnable unit that behaves the same on your laptop, CI, and production.
+              You stop fighting “Python 3.9 on the server but 3.11 locally.” The host runs a container engine; your image carries the rest.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Core ideas</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Image vs container</span>
+            <p>
+              An <strong>image</strong> is the read-only template (layers built from a Dockerfile or buildpack).
+              A <strong>container</strong> is a running instance of that image. You build once, run many containers from the same tag.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Dockerfile habits</span>
+            <ul>
+              <li>Pin base image tags (<code>python:3.11-slim</code>, not bare <code>latest</code> in prod).</li>
+              <li>Copy dependency file first, install, then copy code — better layer cache on rebuild.</li>
+              <li>Run as non-root user when the platform allows it.</li>
+              <li>One main process per container (API server or worker, not both unless you know why).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Registry</span>
+            <p>
+              Push images to a <strong>registry</strong> (Docker Hub, GHCR, ECR, GCR/Artifact Registry). Production pulls by digest or immutable tag.
+              CI builds the image, scans it optionally, pushes, then deploy references that tag — <a href="devops-cicd.html">CI/CD</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Where containers run</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Docker Compose (local / small)</span>
+            <p>
+              Compose wires app + database + redis on one machine for dev or tiny demos.
+              Good for head start; not a full production HA story by itself.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">PaaS (managed runtime)</span>
+            <p>
+              Cloud Run, Fly.io, Render, Heroku-class: you provide an image or git repo; the platform scales and routes HTTP.
+              Lowest ops for solo builders; less control over networking and GPU attach.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Kubernetes (K8s)</span>
+            <p>
+              Kubernetes schedules many containers across a cluster, handles restarts, rolling updates, and service discovery.
+              Reach for it when you have multiple services, team scale, or strict HA — not for day-one “hello API” unless the org already runs K8s.
+              ML inference (vLLM) often lands on K8s or a managed variant at scale — <a href="transformers-serving.html">serving</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">ML &amp; GPU notes</span>
+            <p>
+              GPU training containers need CUDA-compatible base images and drivers on the host (or managed ML instances).
+              Inference images bundle vLLM/TGI or your FastAPI wrapper — register the same digest you tested in staging (<a href="mlops-registry.html">registry</a>).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser</span>
+            <p>
+              First HTTP service → Dockerfile + one PaaS or Compose.
+              Team product → registry + CI build + staging deploy.
+              Many microservices or on-prem → learn K8s basics after containers feel normal.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

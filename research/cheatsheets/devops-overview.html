@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — overview · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Platform map for a head start. Next:
+          <a href="devops-containers.html">containers</a>,
+          <a href="devops-cicd.html">CI/CD</a>,
+          <a href="devops-infrastructure.html">infrastructure</a>,
+          <a href="devops-observability.html">observability</a>.
+          ML on top → <a href="mlops-lifecycle.html">MLOps</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — overview</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What DevOps means here</span>
+            <p>
+              <strong>DevOps</strong> is how you turn code into something that runs reliably for users: build it, ship it, configure it, watch it, and roll back when it breaks.
+              It applies to web apps, APIs, data jobs, and the <strong>platform</strong> that serves ML models — not the training math itself.
+            </p>
+            <p>
+              <strong>MLOps</strong> (<a href="mlops-lifecycle.html">lifecycle</a>) sits on top when the artifact is a model or RAG stack.
+              <strong>Cloud deep learning</strong> (<a href="cloud-deep-learning.html">cloud DL</a>) is one way to run heavy train jobs.
+              This section is the shared basement: containers, pipelines, infra, and logs.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">The loop in your head</span>
+            <ol>
+              <li><strong>Write</strong> code in git with tests.</li>
+              <li><strong>Build</strong> an artifact (binary, container image, static site).</li>
+              <li><strong>Deploy</strong> to an environment (dev → staging → prod).</li>
+              <li><strong>Observe</strong> metrics and logs; pages when SLOs break.</li>
+              <li><strong>Change</strong> again — small diffs, automated gates, fast rollback.</li>
+            </ol>
+            <p>
+              “DevOps culture” is really <strong>short feedback loops</strong> and <strong>same path to prod every time</strong>, not a specific tool brand.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Environments</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Development</strong> is on your laptop or a shared dev sandbox; breaking things is cheap.
+              <strong>Staging</strong> mirrors production closely (same container, similar data shape) for final checks.
+              <strong>Production</strong> serves real traffic; changes arrive through automation or a controlled promotion, not manual SCP.
+              Config differences (database url, feature flags) should be <strong>environment variables</strong>, not separate forked codebases — see <a href="devops-infrastructure.html">infrastructure</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">How the DevOps pages split</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Containers</span>
+            <p>
+              Package app + dependencies into an image so “works on my machine” becomes “works on the cluster.”
+              <a href="devops-containers.html">Containers sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">CI/CD</span>
+            <p>
+              Automate test → build → deploy on every merge; that is continuous integration and delivery.
+              <a href="devops-cicd.html">CI/CD sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Infrastructure</span>
+            <p>
+              Describe servers, networks, and cloud resources as code; inject secrets safely.
+              <a href="devops-infrastructure.html">Infrastructure sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Observability</span>
+            <p>
+              Logs, metrics, and traces so you know what prod is doing without SSH guessing.
+              <a href="devops-observability.html">Observability sheet</a>; ML-specific drift → <a href="mlops-monitoring.html">MLOps monitoring</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Security crosses everything</span>
+            <p>
+              Auth on APIs, secrets not in git, TLS at the edge — <a href="security-access-control.html">security concepts</a> and
+              <a href="security-implementation.html">implement &amp; deploy</a>. DevOps implements; security defines what must hold.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Chooser — where to start reading</span>
+            <p>
+              Shipping a Python API for the first time → containers, then CI/CD.
+              Solo researcher adding a demo endpoint → containers + one PaaS deploy may be enough.
+              Team on GCP/AWS → infrastructure + observability early.
+              Training models only so far → <a href="cloud-deep-learning.html">cloud DL</a>, then MLOps when you have a serve path.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
