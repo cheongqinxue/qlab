@@ -24,3 +24,15 @@ Most of the repo lives under two top-level folders:
     - **`doc/`** — Notes on metrics, failure-mode signatures, and how the pathology runs are wired.
   - **`unigram/`** — Unigram language-model tokenizer using Viterbi segmentation over learned piece costs.
   - **`vertibi/`** — Minimal Viterbi decoder over a vocabulary cost map (used by `unigram/`).
+
+## Development
+
+Install git hooks (Ruff lint + format, basic file hygiene):
+
+```bash
+uv sync --group dev
+pre-commit install
+pre-commit run --all-files   # optional: check entire tree before first commit
+```
+
+Lint rules live in `pyproject.toml` under `[tool.ruff.lint]` (includes blind/bare `except` checks via `BLE` / `E722`).

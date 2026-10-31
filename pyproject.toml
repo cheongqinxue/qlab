@@ -45,7 +45,35 @@ dependencies = [
 agents-ui = ["streamlit>=1.45.0"]
 
 [dependency-groups]
-dev = ["ruff>=0.9.0"]
+dev = ["pre-commit>=4.0.0", "ruff>=0.9.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = [".venv", "**/__pycache__"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "UP",
+  "B",
+  "BLE",
+  "SIM",
+  "S110",
+]
+ignore = [
+  "E501", # line length handled by formatter where possible
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S110"]
+
+[tool.ruff.format]
+quote-style = "double"
+
 [tool.pytest.ini_options]
 markers = [
     "slow: long-running ingest or scale tests",
@@ -62,6 +90,7 @@ pythonpath = [
     "agents/hipporag",
     "agents/cove",
     "agents/hmem",
+    "agents/model_eval",
     "agents",
 ]
 testpaths = [
@@ -73,4 +102,5 @@ testpaths = [
     "agents/cove/tests",
     "agents/hmem/tests",
     "agents/agents_utils/tests",
+    "agents/model_eval/tests",
 ]

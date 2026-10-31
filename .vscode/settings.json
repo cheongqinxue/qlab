@@ -10,6 +10,7 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
+    "ruff.lint.run": "onSave",
     "[python]": {
         "editor.wordWrap": "bounded",
         "editor.wordWrapColumn": 100,
