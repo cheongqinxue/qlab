@@ -161,6 +161,8 @@ Curated JSONL prompts, shared LangGraph **ReAct** agent, Langfuse traces + failu
 
 Set **`AGENT_NAME=model_eval`** (or use `run_eval.sh`) for Langfuse filtering.
 
+**Results matrix:** [`research/cheatsheets/agents-model-eval.html`](../research/cheatsheets/agents-model-eval.html) — open via `python -m http.server` from `research/cheatsheets/` ([`model_eval/README.md`](model_eval/README.md) for export/rescore).
+
 ---
 
 Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse. See skill [`.cursor/skills/agents-demo-experiment/`](../.cursor/skills/agents-demo-experiment/SKILL.md).
