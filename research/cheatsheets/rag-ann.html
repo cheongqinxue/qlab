@@ -232,6 +232,167 @@
           </section>
 
           <section class="cell cell-band cell-span">
+            <span class="cell-title">Sizing with numbers (planning)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Vector storage (raw float32)</span>
+            <p>
+              Uncompressed dense vectors: <strong>bytes ≈ N × D × 4</strong> (N = points, D = dimensions).
+              Add payload/metadata separately (often 0.5–2× vector bytes for rich JSON).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Corpus N</th>
+                    <th scope="col">D</th>
+                    <th scope="col">Raw vectors (GiB)</th>
+                    <th scope="col">HNSW graph overhead (rule)</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1M</td>
+                    <td>768</td>
+                    <td>~2.9</td>
+                    <td>+30–100% RAM → ~4–6 GiB index RAM</td>
+                    <td>Typical RAG doc index; fits one 16–32 GiB node with headroom</td>
+                  </tr>
+                  <tr>
+                    <td>10M</td>
+                    <td>768</td>
+                    <td>~29</td>
+                    <td>~40–60 GiB total HNSW (M=16, efConstruction default class)</td>
+                    <td>Single beefy RAM node or small Qdrant cluster</td>
+                  </tr>
+                  <tr>
+                    <td>100M</td>
+                    <td>768</td>
+                    <td>~286</td>
+                    <td>IVF-PQ / ScaNN / sharded HNSW — not one RAM graph</td>
+                    <td>Milvus/OpenSearch shards or Faiss IVF-PQ + rerank</td>
+                  </tr>
+                  <tr>
+                    <td>91M (250k/day × 365d)</td>
+                    <td>256 (MRL truncate)</td>
+                    <td>~22</td>
+                    <td>PQ ~32–64× on codes → ~0.4–1 GiB codes + graph/index overhead</td>
+                    <td>Per-user chat LTM at scale; still shard by time or tenant</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              PQ/SQ: store codes, not full floats — asymmetric distance (ADC) at query time.
+              Example: 10M × 768 with IVF-PQ m=48, 8-bit → often <strong>~3–8 GiB</strong> index vs ~29 GiB raw (Faiss-class; tune for recall).
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Query latency &amp; QPS (indicative)</span>
+            <p>
+              Not a benchmark — <strong>order-of-magnitude</strong> for warm HNSW, k=10, single region, D=768, filtered ANN.
+              Measure recall@k vs exact on <em>your</em> queries before trusting these bands.
+            </p>
+            <ul>
+              <li><strong>Faiss HNSW in-process</strong> — p50 ~0.5–3 ms, p99 ~2–15 ms on 1M vectors (CPU AVX2); QPS limited by your wrapper (often 500–5k/s per core class).</li>
+              <li><strong>Qdrant / Weaviate (1M, 1 node, 8 vCPU)</strong> — p50 ~2–8 ms, p99 ~15–40 ms; ~200–1.5k filtered QPS/node typical before saturation.</li>
+              <li><strong>pgvector HNSW (1M, 32 GiB RDS-class)</strong> — p50 ~5–25 ms SQL+ANN; ~50–400 QPS depending on concurrent writers, connection pool, and <code>ef_search</code>.</li>
+              <li><strong>Pinecone serverless (managed)</strong> — p50 often ~10–50 ms + network; QPS billed as read units — compare $/M queries at your N (see vendor calculator).</li>
+              <li><strong>Milvus distributed (10M+)</strong> — p50 ~5–20 ms per query at moderate load; QPS scales with query nodes (100s–10k+ cluster-dependent).</li>
+            </ul>
+            <p>
+              <strong>Pre-filter penalty:</strong> selective filter (one <code>user_id</code>, 500 vectors) — near-exact scan of subset; low selectivity (10% of N) — integrated filter+HNSW matters; post-filter-only engines can miss recall or spike latency.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">HNSW knobs → numbers</span>
+            <ul>
+              <li><strong>M=16</strong> (default class) — ~1.3–1.8× vector RAM for graph; good default to 10M scale.</li>
+              <li><strong>ef_search=64–128</strong> — recall@10 often 0.92–0.99 vs flat on semantic data; doubling ef ≈ +20–40% query CPU.</li>
+              <li><strong>ef_construction=100–200</strong> — build time minutes–hours on 10M; higher = better graph, slower ingest.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Multitenancy — decision guide</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Do not use “one collection per user” at millions of tenants</span>
+            <p>
+              <strong>Qdrant Cloud:</strong> default <strong>≤1000 collections/cluster</strong> (docs); managed configs as low as <strong>~200</strong> have been cited — each collection has fixed overhead (segments, optimizers).
+              Qdrant’s own guidance: in almost all cases use <strong>one (or few) collections</strong> + tenant isolation in payload — see
+              <a href="https://qdrant.tech/documentation/manage-data/multitenancy/">multitenancy docs</a>.
+            </p>
+            <p>
+              Same pattern elsewhere: <strong>Pinecone namespaces</strong> are not meant for 2M B2C users (namespace count + ops limits); use <strong>one index + metadata filter</strong> on <code>user_id</code>.
+              <strong>Weaviate multi-tenancy</strong> (tenant per shard class) fits B2B “hundreds–thousands of orgs”, not 2M consumer accounts unless tiered.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Patterns (when to pick which)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Pattern</th>
+                    <th scope="col">Tenant count</th>
+                    <th scope="col">Isolation</th>
+                    <th scope="col">Engine examples</th>
+                    <th scope="col">Gotcha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Single collection + payload pre-filter</strong> (<code>user_id</code> keyword, <code>is_tenant: true</code> on Qdrant)</td>
+                    <td>10³–10⁷+</td>
+                    <td>App + filter mandatory; index assists tenant locality</td>
+                    <td>Qdrant, Milvus scalar filter, Pinecone metadata, OpenSearch knn+bool</td>
+                    <td>Missing filter = data leak; load-test selective vs wide filters</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PostgreSQL RLS + pgvector</strong></td>
+                    <td>10³–10⁶ vectors total (not per user)</td>
+                    <td>DB-enforced row policy</td>
+                    <td>pgvector + <code>SET app.user_id</code></td>
+                    <td>ANN + RLS + write load; vertical scale ceiling ~low hundreds QPS</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Collection / index per tenant (B2B)</strong></td>
+                    <td>&lt;100–500 orgs</td>
+                    <td>Hard boundary, separate backups</td>
+                    <td>Qdrant collection, ES index per customer</td>
+                    <td>Hits cloud collection caps; cost ∝ collections</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Shard per large tenant</strong> (tiered)</td>
+                    <td>Few whales + many minnows</td>
+                    <td>Whale on dedicated shard</td>
+                    <td>Qdrant user-defined sharding, Milvus partitions</td>
+                    <td>Routing layer; rebalance when tenant grows</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Separate indexes by data class</strong></td>
+                    <td>N/A</td>
+                    <td>Catalog vs private chat never mixed in one search</td>
+                    <td>2 collections: <code>products_public</code>, <code>user_memory</code></td>
+                    <td>Not “tenant=collection”; split by <em>trust domain</em></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              <strong>Interview cheat:</strong> 2M ecommerce users with per-user chat memory → <strong>one collection</strong>, point payload <code>user_id</code>, every query includes filter, harness rejects tool args that override tenant id.
+              Product catalog → <strong>second collection</strong> (no user_id) or shared catalog + ACL at app layer.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
             <span class="cell-title">Major engines &amp; brands (2025–26)</span>
           </section>
 
@@ -239,8 +400,7 @@
             <span class="cell-title">Feature comparison (high level)</span>
             <p>
               Legend: <strong>Y</strong> yes · <strong>P</strong> partial · <strong>—</strong> not a focus.
-              Speed/scale: <strong>L</strong> low · <strong>M</strong> med · <strong>H</strong> high · <strong>VH</strong> very high (relative, same hardware class).
-              Workload-dependent — benchmark your data.
+              Qualitative speed rows below are coarse — use the <strong>sizing &amp; indicative QPS</strong> section for numbers.
             </p>
             <div class="cell-table-wrap">
               <table class="cell-table">
@@ -347,15 +507,15 @@
                     <td>Y (native)</td>
                   </tr>
                   <tr>
-                    <td>Multi-tenant / namespaces</td>
+                    <td>Multi-tenant (millions B2C)</td>
                     <td>—</td>
-                    <td>P (RLS, schemas)</td>
-                    <td>Y (collections)</td>
-                    <td>Y (partitions)</td>
-                    <td>Y (classes/tenant)</td>
-                    <td>Y (namespaces)</td>
-                    <td>Y (index per tenant)</td>
-                    <td>Y (apps/namespaces)</td>
+                    <td>P (RLS + pgvector)</td>
+                    <td>Y (payload <code>is_tenant</code> filter — not 1 coll/user)</td>
+                    <td>Y (scalar filter / tiered shard)</td>
+                    <td>P (native MT for B2B scale)</td>
+                    <td>Y (metadata filter — not 1 NS/user)</td>
+                    <td>Y (bool + knn filter)</td>
+                    <td>Y (YQL filter)</td>
                   </tr>
                   <tr>
                     <td>SQL or familiar queries</td>
@@ -380,51 +540,51 @@
                     <td>P</td>
                   </tr>
                   <tr>
-                    <td colspan="9"><strong>Scalability &amp; speed</strong> (typical RAG-style dense vectors; not a benchmark)</td>
+                    <td colspan="9"><strong>Reference @ ~1M vectors, D=768, warm HNSW, k=10</strong> (see sizing section — not a guarantee)</td>
                   </tr>
                   <tr>
-                    <td>Vector count ceiling</td>
-                    <td>VH (DIY shard)</td>
-                    <td>M–H (vertical; Citus P)</td>
-                    <td>H (cluster)</td>
-                    <td>VH (distributed)</td>
-                    <td>H (cluster)</td>
-                    <td>VH (managed tiers)</td>
-                    <td>VH (sharded cluster)</td>
-                    <td>VH (serving clusters)</td>
+                    <td>Index RAM (order of)</td>
+                    <td>You allocate</td>
+                    <td>~4–8 GiB (+ Postgres shared_buffers)</td>
+                    <td>~4–8 GiB / node</td>
+                    <td>~4–8 GiB / segment + coord</td>
+                    <td>~5–10 GiB</td>
+                    <td>Opaque (RU pricing)</td>
+                    <td>~8–20 GiB heap</td>
+                    <td>~6–12 GiB / content node</td>
                   </tr>
                   <tr>
-                    <td>Single-query latency (ANN, warm)</td>
-                    <td>VH (in-process)</td>
-                    <td>M (SQL + index)</td>
-                    <td>H</td>
-                    <td>H</td>
-                    <td>H</td>
-                    <td>H (managed)</td>
-                    <td>M–H (cluster load)</td>
-                    <td>H</td>
+                    <td>p50 query latency</td>
+                    <td>0.5–3 ms in-proc</td>
+                    <td>5–25 ms</td>
+                    <td>2–8 ms</td>
+                    <td>5–20 ms (distributed)</td>
+                    <td>2–10 ms</td>
+                    <td>10–50 ms + WAN</td>
+                    <td>5–30 ms</td>
+                    <td>3–15 ms</td>
                   </tr>
                   <tr>
-                    <td>Sustained query QPS</td>
-                    <td>VH (you embed)</td>
-                    <td>M (replicas help)</td>
-                    <td>H</td>
-                    <td>VH</td>
-                    <td>H</td>
-                    <td>VH (serverless)</td>
-                    <td>VH (search cluster)</td>
-                    <td>VH</td>
+                    <td>Sustained ANN QPS (1 node class)</td>
+                    <td>1k–10k+ in-proc</td>
+                    <td>50–400</td>
+                    <td>200–1.5k</td>
+                    <td>500–5k cluster</td>
+                    <td>200–2k</td>
+                    <td>Plan by $/read unit</td>
+                    <td>200–3k shard</td>
+                    <td>500–5k</td>
                   </tr>
                   <tr>
-                    <td>Bulk ingest / re-embed</td>
-                    <td>VH (offline build)</td>
-                    <td>M (COPY + index build)</td>
-                    <td>H</td>
-                    <td>VH (parallel segments)</td>
-                    <td>H</td>
-                    <td>H (managed)</td>
-                    <td>M (reindex cost)</td>
-                    <td>H (feed pipelines)</td>
+                    <td>Re-embed 1M vectors ingest</td>
+                    <td>Minutes (offline)</td>
+                    <td>Hours (index rebuild)</td>
+                    <td>~10–60 min batch</td>
+                    <td>Parallel segments</td>
+                    <td>~15–90 min</td>
+                    <td>Managed pipeline</td>
+                    <td>Reindex window</td>
+                    <td>Feed + index</td>
                   </tr>
                   <tr>
                     <td>Native horizontal sharding</td>

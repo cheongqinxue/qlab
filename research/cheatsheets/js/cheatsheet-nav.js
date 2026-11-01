@@ -59,6 +59,7 @@
         { href: "transformers-models.html", label: "Model lineage" },
         { href: "transformers-efficiency.html", label: "Efficiency" },
         { href: "transformers-serving.html", label: "Serving & hosting" },
+        { href: "transformers-serving-ray-vllm.html", label: "Ray Serve + vLLM prod" },
         { href: "transformers-compression.html", label: "Compression" },
         { href: "transformers-peft.html", label: "PEFT & adapters" },
         { href: "transformers-vision.html", label: "Vision" },

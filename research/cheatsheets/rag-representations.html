@@ -134,6 +134,197 @@
             <p>OpenAI text-embedding-3 “dimensions” parameter and similar APIs expose this idea; not every open model supports arbitrary truncation without MRL training.</p>
           </section>
 
+          <section class="cell cell-band cell-span" id="embedder-catalog">
+            <span class="cell-title">Embedding / representation models — comparison</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Snapshot for <strong>retrieval bi-encoders</strong> (single vector per doc unless noted).
+              <strong>VRAM</strong> = rough GPU memory for inference (batch=1, FP16/BF16, model weights + activations) — not training.
+              <strong>API $</strong> = list price per 1M tokens where public (verify vendor pages; Nov 2026 order-of-magnitude).
+              <strong>Context</strong> = max input tokens the embedder accepts. <strong>Late interaction</strong> = ColBERT-style MaxSim (multi-vector per doc).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Params</th>
+                    <th scope="col">VRAM (infer, ~)</th>
+                    <th scope="col">License / host</th>
+                    <th scope="col">Matryoshka</th>
+                    <th scope="col">API $ / 1M tok</th>
+                    <th scope="col">Context</th>
+                    <th scope="col">Late interact.</th>
+                    <th scope="col">Modalities</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>text-embedding-3-small</strong></td>
+                    <td>— (closed)</td>
+                    <td>— (API)</td>
+                    <td>OpenAI API</td>
+                    <td>Y (dims 512–1536)</td>
+                    <td>~$0.02</td>
+                    <td>8191</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>text-embedding-3-large</strong></td>
+                    <td>— (closed)</td>
+                    <td>— (API)</td>
+                    <td>OpenAI API</td>
+                    <td>Y (256–3072)</td>
+                    <td>~$0.13</td>
+                    <td>8191</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>voyage-3 / voyage-3-lite</strong></td>
+                    <td>— (closed)</td>
+                    <td>— (API)</td>
+                    <td>Voyage API</td>
+                    <td>P (lite smaller dim)</td>
+                    <td>~$0.06–0.12</td>
+                    <td>32k class</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cohere embed-v4 / embed-english-v3</strong></td>
+                    <td>— (closed)</td>
+                    <td>— (API)</td>
+                    <td>Cohere API</td>
+                    <td>P</td>
+                    <td>~$0.10</td>
+                    <td>512–128k (SKU)</td>
+                    <td>—</td>
+                    <td>Text (+ v4 multimodal SKUs)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>BGE-M3</strong></td>
+                    <td>568M</td>
+                    <td>~2–3 GiB</td>
+                    <td>MIT (self-host)</td>
+                    <td>P (multi-vector mode)</td>
+                    <td>—</td>
+                    <td>8192</td>
+                    <td>P (dense + sparse + multi-v)</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>bge-large-en-v1.5</strong></td>
+                    <td>335M</td>
+                    <td>~1.5 GiB</td>
+                    <td>MIT</td>
+                    <td>— (fixed 1024)</td>
+                    <td>—</td>
+                    <td>512</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>multilingual-e5-large</strong></td>
+                    <td>560M</td>
+                    <td>~2 GiB</td>
+                    <td>MIT</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>512</td>
+                    <td>—</td>
+                    <td>Text (100+ langs)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>gte-large-en-v1.5</strong></td>
+                    <td>434M</td>
+                    <td>~1.8 GiB</td>
+                    <td>MIT</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>8192</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>nomic-embed-text-v1.5</strong></td>
+                    <td>137M</td>
+                    <td>~0.5 GiB</td>
+                    <td>Apache 2.0</td>
+                    <td>Y (64–768)</td>
+                    <td>—</td>
+                    <td>8192</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>jina-embeddings-v3</strong></td>
+                    <td>570M</td>
+                    <td>~2 GiB</td>
+                    <td>CC-BY-NC (check) / API</td>
+                    <td>Y (trunc dims)</td>
+                    <td>~$0.05 (API)</td>
+                    <td>8192</td>
+                    <td>—</td>
+                    <td>Text</td>
+                  </tr>
+                  <tr>
+                    <td><strong>EmbeddingGemma 2</strong> (text)</td>
+                    <td>~271M</td>
+                    <td>~0.8–1.2 GiB</td>
+                    <td>Gemma license (open weights)</td>
+                    <td>Y (128–768)</td>
+                    <td>— (self-host)</td>
+                    <td>8192</td>
+                    <td>—</td>
+                    <td>Text, code</td>
+                  </tr>
+                  <tr>
+                    <td><strong>EmbeddingGemma 2</strong> (all modalities)</td>
+                    <td>~744M</td>
+                    <td>~2–4 GiB (modalities loaded)</td>
+                    <td>Gemma license</td>
+                    <td>Y (128–768)</td>
+                    <td>—</td>
+                    <td>8192 (+ vision/audio tokens)</td>
+                    <td>—</td>
+                    <td>Text, image, video, audio, interleaved</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CLIP ViT-L/14</strong></td>
+                    <td>428M (dual)</td>
+                    <td>~1.5 GiB</td>
+                    <td>MIT</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>77 (text) / image</td>
+                    <td>—</td>
+                    <td>Image ↔ text (not unified doc text)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>ColBERTv2</strong></td>
+                    <td>110M (+ index)</td>
+                    <td>~0.5 GiB encode</td>
+                    <td>MIT (research stack)</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>180–512 typical</td>
+                    <td><strong>Y</strong> (MaxSim)</td>
+                    <td>Text</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              <strong>Throughput hint:</strong> 250k embeds/day ≈ ~3/s average, ~15/s peak@5× — a single <strong>0.5–2 GiB</strong> GPU or CPU batch worker suffices for &lt;600M models; batch overnight for backfill.
+              <strong>Chooser:</strong> API if ops-free; <strong>BGE/E5/GTE</strong> for text-only OSS; <strong>EmbeddingGemma 2</strong> when catalog + user content mixes modalities in one index;
+              <strong>ColBERT</strong> when recall@10 plateaus on bi-encoder but you can pay index size (~10–50× vs one vector/chunk).
+            </p>
+          </section>
+
           <section class="cell cell-band cell-span">
             <span class="cell-title">Images &amp; multimodal equivalents</span>
           </section>

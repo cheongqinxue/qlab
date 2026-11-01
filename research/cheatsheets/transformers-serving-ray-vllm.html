@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — Ray Serve &amp; vLLM production · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Production patterns for self-hosted LLM inference. Overview →
+          <a href="transformers-serving.html">serving &amp; hosting</a>. Agent SLOs →
+          <a href="agents-reliability.html">reliability</a>. KV/VRAM math →
+          <a href="transformers-efficiency.html">efficiency</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Ray Serve + vLLM (production)</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Split responsibilities</span>
+            <p>
+              <strong>vLLM</strong> — loads weights, continuous batching, PagedAttention, OpenAI-compatible HTTP/gRPC; one process (or TP group) per model replica.
+              <strong>Ray Serve</strong> — deployment graph, autoscaling replicas, request routing, queuing at the Python layer, colocating embed/classifier CPU workers with GPU LLM workers.
+              Pattern: <code>FastAPI/LangGraph BFF → Ray Serve deployment → vLLM replica(s)</code>, not “Ray replaces vLLM.”
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">vLLM — minimal setup</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">OpenAI-compatible server (reference)</span>
+            <pre class="cell-code"><code>python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype auto \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.90 \
+  --max-num-seqs 64 \
+  --max-num-batched-tokens 8192 \
+  --enable-prefix-caching \
+  --host 0.0.0.0 --port 8000</code></pre>
+            <ul>
+              <li><strong>--gpu-memory-utilization</strong> — fraction of GPU RAM for weights+KV; leave headroom if same GPU runs CUDA graphs / NCCL.</li>
+              <li><strong>--max-num-seqs</strong> — concurrent sequences (decode slots); raising it ↑ KV RAM, ↑ throughput until memory bound.</li>
+              <li><strong>--max-num-batched-tokens</strong> — caps prefill batch; prevents one huge prompt from starving others.</li>
+              <li><strong>TP</strong> — add <code>--tensor-parallel-size N</code> when one GPU cannot hold the checkpoint.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Kubernetes (single deployment sketch)</span>
+            <ul>
+              <li>One <strong>Pod per vLLM replica</strong>; request <code>nvidia.com/gpu: 1</code> (or N for TP — prefer single pod multi-GPU with NCCL).</li>
+              <li><strong>liveness</strong> — HTTP <code>/health</code>; <strong>readiness</strong> — model loaded + optional generate 1 token.</li>
+              <li><strong>preStop</strong> — drain: flip readiness false, wait <code>terminationGracePeriodSeconds</code> &gt; longest allowed generation.</li>
+              <li>Mount HF cache PVC or bake image with weights; pin <code>VLLM_VERSION</code> + CUDA driver on node pool.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Queuing &amp; backpressure (vLLM + harness)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Where queues live</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Layer</th>
+                    <th scope="col">Knob</th>
+                    <th scope="col">Purpose</th>
+                    <th scope="col">Risk if wrong</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>API / BFF</td>
+                    <td>Global concurrency limit per user</td>
+                    <td>Fairness, abuse control</td>
+                    <td>Retry storms from clients</td>
+                  </tr>
+                  <tr>
+                    <td>Ray Serve</td>
+                    <td><code>max_ongoing_requests</code>, <code>max_queued_requests</code></td>
+                    <td>Reject or 429 when saturated</td>
+                    <td>Unbounded queue → memory + tail latency</td>
+                  </tr>
+                  <tr>
+                    <td>vLLM</td>
+                    <td><code>max-num-seqs</code>, scheduler queue</td>
+                    <td>GPU-side batching</td>
+                    <td>Internal pile-up; timeouts cascade</td>
+                  </tr>
+                  <tr>
+                    <td>Client harness</td>
+                    <td>Deadline per turn, max retries=2, jitter</td>
+                    <td>Stop hammering hot GPU</td>
+                    <td>Duplicate tool side effects if retrying whole agent turn</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>Rule:</strong> cap queue depth at the <em>outermost</em> layer you control (Serve or ingress) so vLLM never holds unbounded waiting requests.
+              Interactive chat: prefer <strong>429 + short message</strong> over 60s queue wait. Offline embed jobs: separate deployment with larger batches.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Ray Serve — setup &amp; scaling</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Deployment skeleton (Python)</span>
+            <pre class="cell-code"><code>@serve.deployment(
+    autoscaling_config={
+        "min_replicas": 1,
+        "max_replicas": 6,
+        "target_ongoing_requests": 8,
+        "upscale_delay_s": 30,
+        "downscale_delay_s": 600,
+    },
+    max_ongoing_requests=10,
+    ray_actor_options={"num_gpus": 1},
+)
+class VLLMDeployment:
+    def __init__(self):
+        # spawn or connect to vLLM AsyncLLMEngine / HTTP sidecar
+        ...
+
+    async def __call__(self, request):
+        ...</code></pre>
+            <ul>
+              <li><strong>target_ongoing_requests</strong> — Ray adds replicas when average in-flight requests per replica exceeds this (after delays).</li>
+              <li><strong>max_ongoing_requests</strong> — hard cap per replica; excess should queue at Serve (bounded) or fail fast.</li>
+              <li><strong>min_replicas ≥ 1</strong> for prod chat — scale-to-zero saves $ but cold start (model load) kills SLO.</li>
+              <li>Separate deployments: <code>llm-chat</code> (low batch wait), <code>embed-batch</code> (high batch, CPU/GPU small).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Scaling policy (peak 5× example)</span>
+            <ul>
+              <li>Baseline: <strong>1 GPU replica</strong> handles ~avg load at target_ongoing_requests=8–16 (measure tokens/s on your model).</li>
+              <li>Peak: <strong>max_replicas=6</strong> → 6× capacity if scheduler keeps replicas warm; align with K8s cluster max GPU quota.</li>
+              <li><strong>upscale_delay_s</strong> — avoid flapping on 30s spikes; <strong>downscale_delay_s</strong> — long enough to survive diurnal trough without cold start on next spike.</li>
+              <li>GPU node pool autoscaler must provision nodes <em>before</em> Ray can place new replicas — watch pending pods.</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Batching</span>
+            <ul>
+              <li>vLLM <strong>continuous batching</strong> — automatic across concurrent decodes; you tune caps, not manual batch size.</li>
+              <li>Ray Serve <strong>batching decorators</strong> — use for embedding/classifier microservices, not for token streaming LLM unless offline.</li>
+              <li>Do not route CPU embed and GPU decode through one overloaded actor — split services to prevent embed backlog blocking chat.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Availability &amp; retries</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>Multi-replica + load balancer</strong> — Ray Serve handle or K8s Service; sticky sessions not required for stateless LLM if KV is per-request.</li>
+              <li><strong>Idempotent reads</strong> — safe to retry HTTP GET/tool reads; <strong>mutations</strong> (cart, refund ticket) need idempotency keys at app layer.</li>
+              <li><strong>Circuit breaker</strong> — if p95 latency &gt; 2× SLO or error rate &gt; 5% for 1 min, stop retries to vLLM; return degraded response or queue to human.</li>
+              <li><strong>Canary</strong> — new model revision on 5% traffic; compare error rate, tokens/s, task success before full rollout.</li>
+              <li><strong>Graceful drain</strong> — on deploy, stop sending new requests to old revision until in-flight completes (Ray max_ongoing_requests + K8s preStop).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Failure modes (symptoms → diagnose → fix vs prevent)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>Fix now (live)</strong> — stops the incident while users are still hitting the system (flags, admission, emergency <code>serve deploy</code>, <code>kubectl</code>).
+              <strong>After stable / prevent</strong> — insurance and hardening once traffic is healthy; not a substitute for live fixes.
+              Channels: <strong>BFF flag</strong> (Postgres admin UI, LaunchDarkly, or <code>kubectl set env</code>) · <strong>serve deploy</strong> (YAML in repo) · <strong>cloud/K8s UI or CLI</strong> (nodes, quota).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Failure</th>
+                    <th scope="col">Symptoms</th>
+                    <th scope="col">Diagnose</th>
+                    <th scope="col">Fix now (live)</th>
+                    <th scope="col">After stable / prevent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>No GPU for new replica</strong></td>
+                    <td>p95 latency climbs, 503/429 rise, users report hangs. Serve replica count below max but load stays high.</td>
+                    <td>Ray UI → Serve → replicas <strong>STARTING/PENDING</strong>. <code>kubectl describe pod</code> → insufficient <code>nvidia.com/gpu</code>. Autoscaler events blocked or at max.</td>
+                    <td><strong>BFF flag:</strong> human-only / no new LLM turns. <strong>serve deploy:</strong> set non-critical deployment <code>max_replicas: 0</code> to free a GPU; set chat <code>max_replicas</code> to schedulable GPU count only. <strong>K8s/cloud CLI or UI:</strong> add one GPU node if pool allows. Do not increase client retries.</td>
+                    <td>Raise GPU pool <code>maxCount</code> and quota in IaC. Set <code>max_replicas</code> ≤ proven schedulable GPUs. Alert on Pending worker pods. Document which deployment to drain first.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Pending replica storm</strong></td>
+                    <td>Autoscaling keeps adding replicas but healthy capacity never grows. Queue depth and error rate increase together.</td>
+                    <td><code>serve status</code> or Ray UI: desired replicas ↑, <strong>ready</strong> flat. Many STARTING; <code>kubectl</code> Pending GPU or stuck init.</td>
+                    <td><strong>BFF flag:</strong> open LLM circuit / admission off. <strong>serve deploy:</strong> chat <code>max_replicas</code> = number of GPUs you can run now (often 1); scale embed/staging to <code>max_replicas: 0</code> so a pending chat actor can bind a GPU. Do <em>not</em> keep raising desired replicas.</td>
+                    <td><strong>Pre-warm (insurance):</strong> raise <code>min_replicas</code> before known peaks so spare models are loaded. Fix root scheduling (pool size, init image). Re-enable higher <code>max_replicas</code> only after each extra GPU is proven schedulable.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Retry storm</strong></td>
+                    <td>GPU util high but errors still spike. Edge QPS exceeds real user sessions. vLLM sees duplicate or bursty retries after timeouts.</td>
+                    <td>Compare gateway QPS to session count. BFF retry metrics ↑. 503/504 aligned with client retry loops.</td>
+                    <td><strong>BFF flag:</strong> force circuit open + set max retries to 0. User sees handoff or “try again” — no new vLLM calls. Do not tune Ray autoscale until retry multiplier falls.</td>
+                    <td>Ship bounded retries with jitter in BFF code. Idempotency keys on tool mutations. Dashboard alert when retry ratio or LLM QPS/session exceeds threshold.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Slow scale-out (peak missed)</strong></td>
+                    <td>Burst overloads system; latency recovers before new replicas become ready. Incidents match campaigns or outages.</td>
+                    <td>Time from upscale to <strong>ready</strong> replica &gt; SLO (node boot + pull + model load). Autoscaler latency in cloud metrics.</td>
+                    <td><strong>BFF flag:</strong> admission cap or overflow API for the rest of the burst. <strong>K8s/cloud UI:</strong> manually add GPU nodes if the peak is still ongoing. <strong>serve deploy:</strong> only raise <code>min_replicas</code> if free GPUs already exist — useless if Pending.</td>
+                    <td><strong>Pre-warm:</strong> <code>min_replicas</code> + extra nodes before scheduled events. Smaller <code>upscale_delay_s</code> if flapping is acceptable. Load-test cold-start time in runbooks.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Unbounded queue</strong></td>
+                    <td>Users wait tens of seconds with no tokens. Serve/worker memory grows. Timeouts cascade.</td>
+                    <td>Ray metrics: queue length unbounded. <code>max_queued_requests</code> unset or too high. vLLM <code>num_requests_waiting</code> pegged.</td>
+                    <td><strong>BFF flag:</strong> reject new streams. <strong>serve deploy:</strong> lower <code>max_queued_requests</code>; return 429 at Serve. Gateway deadlines on open SSE. Lower <code>max-num-seqs</code> only if OOM — else reject beats pile-up.</td>
+                    <td>Set permanent queue caps in <code>serve_config.yaml</code>. Load-test tail latency with cap. User-visible queue position optional.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>All replicas saturated</strong></td>
+                    <td>Every request slow; cliff to 503 when caps hit. Ongoing per replica ≈ <code>max_ongoing_requests</code>.</td>
+                    <td>Per-replica ongoing at cap. KV cache % high. TTFT and inter-token latency both bad.</td>
+                    <td><strong>BFF flag:</strong> shed load (human queue, smaller model route, overflow API). If GPUs exist but replicas not scaling, check upscale delays — live lever is admission, not “more max” without GPUs.</td>
+                    <td>Raise <code>max_replicas</code> with matching GPU pool. Tune <code>target_ongoing_requests</code>. Quant or smaller model for steady-state headroom.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GPU OOM / vLLM crash</strong></td>
+                    <td>Intermittent 500s, pod restarts, one long thread kills a worker. CUDA OOM or KV exhausted in logs.</td>
+                    <td>Pod restart count ↑. vLLM OOM logs. Often long agent context.</td>
+                    <td><strong>BFF flag:</strong> truncate or block extreme context on new turns. <strong>kubectl:</strong> delete one hung worker pod. <strong>serve deploy / vLLM args:</strong> lower <code>max-num-seqs</code> or <code>max-model-len</code> on surviving replicas.</td>
+                    <td>VRAM budget in runbooks. Product max context. KV quant where supported. Regression test on longest agent trace.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cluster at quota / autoscaler max</strong></td>
+                    <td>Pending pods for hours. No new nodes. Quota or pool max in cloud UI.</td>
+                    <td>GPU quota 100%. Node pool <code>maxCount</code> hit. Autoscaler “scale-up forbidden”.</td>
+                    <td><strong>BFF flag:</strong> overflow API + human-only. <strong>serve deploy:</strong> <code>max_replicas</code> = GPUs you actually have (stop pending storm). Repurpose dev/batch GPU nodes to prod pool if break-glass allows.</td>
+                    <td>Quota increase in cloud IaC. Permanent pool headroom. Right-size <code>max_replicas</code> to quota reality.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Ray UI is for diagnosis (Serve → replica states). Live capacity changes are almost always <strong>serve deploy</strong> on Git-managed YAML plus <strong>BFF flags</strong> and <strong>kubectl</strong>/cloud console for GPUs.
+              See <a href="failure-modes.html">failure modes</a> and <a href="troubleshooting.html">troubleshooting</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Observability</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Metrics to chart</span>
+            <ul>
+              <li><strong>TTFT</strong>, <strong>inter-token latency</strong>, <strong>total generation time</strong> — per model revision.</li>
+              <li><strong>GPU</strong> — util %, KV cache usage %, <code>num_requests_running/waiting</code> (vLLM exposes Prometheus).</li>
+              <li><strong>Ray</strong> — queue length, replica count, ongoing requests, actor restarts.</li>
+              <li><strong>Business</strong> — tool error rate, escalation rate, WF conversion (from Langfuse/LangSmith traces).</li>
+            </ul>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Tracing</span>
+            <p>
+              Propagate <code>trace_id</code> from BFF → Ray → vLLM request id. Log <strong>not</strong> prompts containing PII in prod INFO;
+              sample debug traces. Align with <a href="devops-observability.html">observability sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cost control (cloud GPU)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Lever</th>
+                    <th scope="col">Typical savings</th>
+                    <th scope="col">Tradeoff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Right-size model</strong> (8B vs 70B)</td>
+                    <td>3–10× $/token</td>
+                    <td>Quality on hard tasks; route hard queries up-tier</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Quant weights</strong> (AWQ/GPTQ/FP8)</td>
+                    <td>~2× throughput same GPU</td>
+                    <td>Eval regression on your prompts</td>
+                  </tr>
+                  <tr>
+                    <td><strong>min_replicas=1</strong>, cap max_replicas</td>
+                    <td>Linear in GPU-hours</td>
+                    <td>Peak queue during flash sales</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Spot / preemptible</strong> GPU nodes</td>
+                    <td>50–70% off on-demand</td>
+                    <td>Need checkpoint restart + ≥2 replicas for chat SLO</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Separate batch embed</strong> off peak hours</td>
+                    <td>Cheaper spot windows</td>
+                    <td>Stale index until job completes</td>
+                  </tr>
+                  <tr>
+                    <td><strong>API overflow</strong> for burst only</td>
+                    <td>Cap owned GPU count</td>
+                    <td>Data residency, $/M tokens at sustained load</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Unit economics: estimate <strong>$/1M output tokens</strong> = (GPU $/hr × replicas) / (tokens/s × 3600 × replicas).
+              Break-even vs OpenAI-class API often near <strong>steady 24/7</strong> load on one or more L40S/H100 — bursty support chat may stay hybrid.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Production checklist</span>
+            <ol>
+              <li>Pin vLLM + CUDA + model revision + quant recipe in registry (<a href="mlops-registry.html">registry</a>).</li>
+              <li>Set outer queue + <code>max-num-seqs</code> so worst-case KV fits VRAM (load test with max context agents).</li>
+              <li>Autoscale on <strong>ongoing requests</strong>, not CPU — GPU-bound workloads show low CPU until saturated.</li>
+              <li>Retry policy: bounded, jittered; never blind retry on 503 from saturated vLLM.</li>
+              <li>Runbooks: GPU OOM → lower max-num-seqs; NCCL hang → restart TP group; model download fail → init container.</li>
+            </ol>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
