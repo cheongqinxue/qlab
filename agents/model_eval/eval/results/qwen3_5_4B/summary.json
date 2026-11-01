@@ -1,0 +1,76 @@
+{
+  "model_dir": "qwen3_5_4B",
+  "model_name": "Qwen3.5-4B",
+  "params": "4B",
+  "ollama_tag": "qwen3.5:4b",
+  "quantization": "Q4_K_M",
+  "session_id": "eval-qwen3_5_4B-b871ab73",
+  "total_passed": 38,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 5,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 6,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 4,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 4,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 6,
+      "total": 6
+    },
+    "math": {
+      "passed": 7,
+      "total": 8
+    },
+    "coding": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "runtime": {
+    "wall_s": 1378.393,
+    "case_latency_s": {
+      "mean": 30.824,
+      "min": 1.756,
+      "max": 230.183,
+      "p50": 9.877,
+      "p95": 228.429,
+      "sum": 1356.264
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 5676,
+    "mean_peak_used_mib": 5667.7
+  },
+  "human_qualitative_review": true,
+  "infrastructure_failure_counts": {
+    "agent_step_limit_stub": 1,
+    "empty_final_answer": 4,
+    "thinking_budget_exhausted": 3
+  },
+  "token_stats": {
+    "completion_tokens": 197513,
+    "prompt_tokens": 19859,
+    "total_tokens": 217372,
+    "cases_with_usage": 44,
+    "denominator_s": 1378.393,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 143.29,
+    "total_tok_per_s": 157.7
+  },
+  "metrics_backfill": {
+    "at": "2026-11-01T05:19:15Z"
+  }
+}

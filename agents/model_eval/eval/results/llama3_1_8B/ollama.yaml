@@ -1,0 +1,14 @@
+# Llama 3.1 8B Instruct — 8B-tier candidate eval
+model_name: Llama 3.1 8B Instruct
+params: 8B
+modality: T->T
+
+ollama:
+  tag: llama3.1:8b
+  quantization: Q4_K_M
+
+  options:
+    temperature: 0.1
+    top_p: 0.95
+    num_ctx: 32768
+    num_predict: 32768

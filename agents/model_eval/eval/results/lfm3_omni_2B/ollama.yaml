@@ -1,0 +1,22 @@
+# LFM3-Omni-2B (~2.17B; text+vision+audio in, text/speech out)
+# Publisher: Liquid AI (https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF)
+# Max context: 32768 (32K). Non-reasoning per model card; text+tool eval via text path.
+
+model_name: LFM3-Omni-2B
+params: 2.2B
+modality: T+I+V+A->T
+thinking_model: false
+
+ollama:
+  tag: hf.co/LiquidAI/LFM3-Omni-2B-GGUF:Q4_K_M
+  int8_tag: hf.co/LiquidAI/LFM3-Omni-2B-GGUF:Q8_0
+  hf_gguf_repo: LiquidAI/LFM3-Omni-2B-GGUF
+  quantization: Q4_K_M
+
+  options:
+    temperature: 0.1
+    top_k: 50
+    top_p: 1.0
+    repeat_penalty: 1.1
+    num_ctx: 32768
+    num_predict: 32768

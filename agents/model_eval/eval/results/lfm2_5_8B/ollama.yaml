@@ -1,0 +1,14 @@
+# LFM2.5-8B-A1B — 8B-tier candidate eval
+model_name: LFM2.5-8B-A1B
+params: 8B MoE
+modality: T->T
+
+ollama:
+  tag: lfm2.5:8b
+  quantization: Q4_K_M
+
+  options:
+    temperature: 0.1
+    top_p: 0.95
+    num_ctx: 32768
+    num_predict: 32768

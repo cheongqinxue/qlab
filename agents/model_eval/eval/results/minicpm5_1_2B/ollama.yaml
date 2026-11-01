@@ -1,0 +1,28 @@
+# MiniCPM5-1B (1.2B dense in cheatsheet; 1.08B total / 680M non-embedding)
+# Publisher: OpenBMB (https://huggingface.co/openbmb/MiniCPM5-1B-GGUF)
+# Max context: 131072. Thinking mode enabled with high output budget.
+
+model_name: MiniCPM5-1B
+params: 1.2B
+modality: T->T
+thinking_model: true
+
+ollama:
+  tag: openbmb/minicpm5:q8_0
+  fallback_tag: openbmb/minicpm5:q4_K_M
+  hf_gguf_repo: openbmb/MiniCPM5-1B-GGUF
+  quantization: Q8_0
+
+  server_env:
+    OLLAMA_FLASH_ATTENTION: "1"
+    OLLAMA_KV_CACHE_TYPE: q8_0
+
+  options:
+    temperature: 0.9      # Think mode profile per OpenBMB
+    top_p: 0.95
+    num_ctx: 131072       # Max supported context
+    num_predict: 32768    # High output + thinking budget (-1 / 32k so thoughts never truncate)
+    stop:
+      - "<|im_end|>"
+      - "<|endoftext|>"
+      - "</s>"

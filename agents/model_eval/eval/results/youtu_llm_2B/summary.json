@@ -1,0 +1,83 @@
+{
+  "model_dir": "youtu_llm_2B",
+  "model_name": "Youtu-LLM-2B",
+  "params": "2B",
+  "ollama_tag": "MedAIBase/Tencent-Youtu-LLM:2b",
+  "quantization": "Q8_0",
+  "session_id": "eval-youtu_llm_2B-ca176378",
+  "total_passed": 25,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 3,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 4,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 6,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 5,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 0,
+      "total": 6
+    },
+    "math": {
+      "passed": 6,
+      "total": 8
+    },
+    "coding": {
+      "passed": 1,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "human_qualitative_review": true,
+  "runtime": {
+    "wall_s": 732.19,
+    "case_latency_s": {
+      "mean": 16.641,
+      "min": 3.501,
+      "max": 31.321,
+      "p50": 14.306,
+      "p95": 29.655,
+      "sum": 732.19
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 8848,
+    "mean_peak_used_mib": 8848.0,
+    "source": "vram_probe_2case",
+    "probe_cases": [
+      "tool-weather-calc-001",
+      "ifeval-repeat-title-003"
+    ]
+  },
+  "metrics_backfill": {
+    "runtime": "responses_jsonl_latency_sum",
+    "vram": "vram_probe_2case",
+    "at": "2026-11-01T05:19:15Z"
+  },
+  "infrastructure_failure_counts": {
+    "missing_expected_tool": 4,
+    "repetition_loop": 7,
+    "tool_required_but_not_called": 1
+  },
+  "token_stats": {
+    "completion_tokens": 100138,
+    "prompt_tokens": 9079,
+    "total_tokens": 109217,
+    "cases_with_usage": 44,
+    "denominator_s": 732.19,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 136.77,
+    "total_tok_per_s": 149.16
+  }
+}

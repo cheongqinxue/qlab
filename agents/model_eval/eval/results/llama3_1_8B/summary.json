@@ -1,0 +1,74 @@
+{
+  "model_dir": "llama3_1_8B",
+  "model_name": "Llama 3.1 8B Instruct",
+  "params": "8B",
+  "ollama_tag": "llama3.1:8b",
+  "quantization": "Q4_K_M",
+  "session_id": "eval-llama3_1_8B-aeb13de1",
+  "total_passed": 39,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 6,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 5,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 6,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 5,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 5,
+      "total": 6
+    },
+    "math": {
+      "passed": 6,
+      "total": 8
+    },
+    "coding": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "runtime": {
+    "wall_s": 419.275,
+    "case_latency_s": {
+      "mean": 9.034,
+      "min": 0.18,
+      "max": 306.206,
+      "p50": 2.015,
+      "p95": 4.47,
+      "sum": 397.501
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 9843,
+    "mean_peak_used_mib": 9835.5
+  },
+  "human_qualitative_review": true,
+  "infrastructure_failure_counts": {
+    "missing_expected_tool": 1
+  },
+  "token_stats": {
+    "completion_tokens": 11806,
+    "prompt_tokens": 9383,
+    "total_tokens": 21189,
+    "cases_with_usage": 44,
+    "denominator_s": 419.275,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 28.16,
+    "total_tok_per_s": 50.54
+  },
+  "metrics_backfill": {
+    "at": "2026-11-01T05:19:15Z"
+  }
+}

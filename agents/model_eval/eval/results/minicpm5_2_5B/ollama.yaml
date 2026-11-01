@@ -1,0 +1,27 @@
+# MiniCPM5-2B (~2.52B dense)
+# Publisher: OpenBMB (https://huggingface.co/openbmb/MiniCPM5-2B-GGUF)
+# Max context: 131072. Thinking mode; tools supported in Ollama.
+
+model_name: MiniCPM5-2B
+params: 2.5B
+modality: T->T
+thinking_model: true
+
+ollama:
+  tag: openbmb/minicpm5-2b:latest
+  hf_gguf_repo: openbmb/MiniCPM5-2B-GGUF
+  quantization: Q4_K_M
+
+  server_env:
+    OLLAMA_FLASH_ATTENTION: "1"
+    OLLAMA_KV_CACHE_TYPE: q8_0
+
+  options:
+    temperature: 0.9
+    top_p: 0.95
+    num_ctx: 131072
+    num_predict: 32768
+    stop:
+      - "<|im_end|>"
+      - "<|endoftext|>"
+      - "</s>"

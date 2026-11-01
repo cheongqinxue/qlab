@@ -1,0 +1,14 @@
+# Ternary Bonsai 2 4B — 8B-tier candidate eval
+model_name: Ternary Bonsai 2 4B
+params: 4B
+modality: T+I->T
+
+ollama:
+  tag: bonsai-2:4b-q2_0
+  quantization: Q2_0_ternary
+
+  options:
+    temperature: 0.1
+    top_p: 0.95
+    num_ctx: 32768
+    num_predict: 32768

@@ -1,0 +1,14 @@
+# Gemma 4 E4B — 8B-tier candidate eval
+model_name: Gemma 4 E4B
+params: ~4.5B eff.
+modality: T+I->T
+
+ollama:
+  tag: gemma4:e4b
+  quantization: Q4_K_M
+
+  options:
+    temperature: 0.1
+    top_p: 0.95
+    num_ctx: 32768
+    num_predict: 32768

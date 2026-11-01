@@ -1,0 +1,28 @@
+# Representative quantized models for fair comparison (Ollama tags or API names).
+# Copy to agents/tmp/models.local.yaml and edit — do not commit machine-specific lists.
+
+models:
+  - name: qwen3.5:4b
+    tier: edge
+    quant: q4
+    enabled: true
+  - name: granite4.2:3b
+    tier: edge
+    quant: q4
+    enabled: true
+  - name: lfm3:1.7b
+    tier: edge
+    quant: q4
+    enabled: true
+  - name: qwen3.5:9b
+    tier: mid
+    quant: q4
+    enabled: true
+  - name: gpt-oss:20b
+    tier: mid
+    quant: q4
+    enabled: true
+  - name: gemma4:12b
+    tier: mid
+    quant: q4
+    enabled: false

@@ -1,0 +1,75 @@
+{
+  "model_dir": "granite4_2_8B",
+  "model_name": "Granite 4.2-8B",
+  "params": "8B",
+  "ollama_tag": "granite4.2:8b",
+  "quantization": "Q4_K_M",
+  "session_id": "eval-granite4_2_8B-46abaf0d",
+  "total_passed": 36,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 6,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 6,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 6,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 4,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 1,
+      "total": 6
+    },
+    "math": {
+      "passed": 7,
+      "total": 8
+    },
+    "coding": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "runtime": {
+    "wall_s": 1312.377,
+    "case_latency_s": {
+      "mean": 29.277,
+      "min": 2.028,
+      "max": 372.973,
+      "p50": 10.948,
+      "p95": 84.344,
+      "sum": 1288.184
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 11376,
+    "mean_peak_used_mib": 11323.4
+  },
+  "human_qualitative_review": true,
+  "infrastructure_failure_counts": {
+    "empty_final_answer": 1,
+    "missing_expected_tool": 1
+  },
+  "token_stats": {
+    "completion_tokens": 108476,
+    "prompt_tokens": 20654,
+    "total_tokens": 129130,
+    "cases_with_usage": 44,
+    "denominator_s": 1312.377,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 82.66,
+    "total_tok_per_s": 98.39
+  },
+  "metrics_backfill": {
+    "at": "2026-11-01T05:19:15Z"
+  }
+}

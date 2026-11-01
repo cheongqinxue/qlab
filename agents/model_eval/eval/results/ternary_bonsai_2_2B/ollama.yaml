@@ -1,0 +1,25 @@
+# Ternary Bonsai 2 2B (2B native ternary weights + vision tower)
+# Publisher: Prism ML (https://docs.prismml.com/models/bonsai-2-2b)
+# Max context: 262144 (256K). Thinking model by default.
+
+model_name: Ternary Bonsai 2 2B
+params: 2B
+modality: T+I->T
+thinking_model: true
+
+ollama:
+  tag: bonsai-2:2b-q2_0
+  default_tag: bonsai-2:2b
+  hf_gguf_repo: prism-ml/Ternary-Bonsai-2-2B-gguf
+  quantization: Q2_0_ternary
+
+  options:
+    temperature: 1.0
+    top_p: 0.95
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.0
+    repeat_penalty: 1.0
+    repeat_last_n: 64
+    num_ctx: 131072       # High context window
+    num_predict: 32768    # High thinking + output budget (Prism notes >=8192 minimum for thinking)

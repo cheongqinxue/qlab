@@ -1,0 +1,21 @@
+# Youtu-LLM-2B (~1.96B dense MLA)
+# Publisher: Tencent (https://huggingface.co/tencent/Youtu-LLM-2B)
+# Official GGUF on HF `GGUF` branch; Ollama via community pack or local Modelfile.
+# Max context: 131072. Reasoning / CoT mode in upstream docs.
+
+model_name: Youtu-LLM-2B
+params: 2B
+modality: T->T
+thinking_model: true
+
+ollama:
+  tag: MedAIBase/Tencent-Youtu-LLM:2b
+  hf_gguf_repo: tencent/Youtu-LLM-2B
+  hf_gguf_revision: GGUF
+  hf_gguf_file: Youtu-LLM-2B-Q8_0.gguf
+  quantization: Q8_0
+
+  options:
+    temperature: 0.7
+    num_ctx: 131072
+    num_predict: 32768

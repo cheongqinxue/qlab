@@ -1,0 +1,72 @@
+{
+  "model_dir": "mimo_v2_6_distill_9B",
+  "model_name": "MiMo-V2.6-Distill-Qwen-9B",
+  "params": "9B",
+  "ollama_tag": "maternion/mimo-v2.6:9b-instruct",
+  "quantization": "Q4_K_M",
+  "session_id": "eval-mimo_v2_6_distill_9B-60736547",
+  "total_passed": 34,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 5,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 6,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 6,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 5,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 6,
+      "total": 6
+    },
+    "math": {
+      "passed": 6,
+      "total": 8
+    },
+    "coding": {
+      "passed": 0,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "runtime": {
+    "wall_s": 382.314,
+    "case_latency_s": {
+      "mean": 8.251,
+      "min": 0.806,
+      "max": 50.789,
+      "p50": 5.63,
+      "p95": 21.494,
+      "sum": 363.056
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 8470,
+    "mean_peak_used_mib": 8463.0
+  },
+  "infrastructure_failure_counts": {
+    "missing_expected_tool": 2,
+    "repetition_loop": 6
+  },
+  "token_stats": {
+    "completion_tokens": 38199,
+    "prompt_tokens": 10174,
+    "total_tokens": 48373,
+    "cases_with_usage": 44,
+    "denominator_s": 382.314,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 99.92,
+    "total_tok_per_s": 126.53
+  },
+  "human_qualitative_review": true
+}

@@ -1,0 +1,82 @@
+{
+  "model_dir": "lfm2_5_vl_450M",
+  "model_name": "LFM2.5-VL-450M",
+  "params": "450M",
+  "ollama_tag": "hf.co/LiquidAI/LFM2.5-VL-450M-GGUF:Q8_0",
+  "quantization": "Q8_0",
+  "session_id": "eval-lfm2_5_vl_450M-faec4255",
+  "total_passed": 17,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 0,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 3,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 4,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 2,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 1,
+      "total": 6
+    },
+    "math": {
+      "passed": 1,
+      "total": 8
+    },
+    "coding": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "tool_use_capable": false,
+  "human_qualitative_review": true,
+  "runtime": {
+    "wall_s": 44.012,
+    "case_latency_s": {
+      "mean": 1.0,
+      "min": 0.0,
+      "max": 6.948,
+      "p50": 0.554,
+      "p95": 3.786,
+      "sum": 44.012
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 2027,
+    "mean_peak_used_mib": 2027.0,
+    "source": "vram_probe_2case",
+    "probe_cases": [
+      "tool-weather-calc-001",
+      "ifeval-repeat-title-003"
+    ]
+  },
+  "metrics_backfill": {
+    "runtime": "responses_jsonl_latency_sum",
+    "vram": "vram_probe_2case",
+    "at": "2026-11-01T05:19:15Z"
+  },
+  "infrastructure_failure_counts": {
+    "ollama_tool_binding_unsupported": 7,
+    "repetition_loop": 4
+  },
+  "token_stats": {
+    "completion_tokens": 9475,
+    "prompt_tokens": 3008,
+    "total_tokens": 12483,
+    "cases_with_usage": 37,
+    "denominator_s": 44.012,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 215.28,
+    "total_tok_per_s": 283.63
+  }
+}

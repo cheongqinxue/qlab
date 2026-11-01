@@ -1,0 +1,84 @@
+{
+  "model_dir": "ternary_bonsai_2_2B",
+  "model_name": "Ternary Bonsai 2 2B",
+  "params": "2B",
+  "ollama_tag": "bonsai-2:2b-q2_0",
+  "quantization": "Q2_0_ternary",
+  "session_id": "eval-ternary_bonsai_2_2B-32461f19",
+  "total_passed": 33,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 7,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 4,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 5,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 4,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 3,
+      "total": 6
+    },
+    "math": {
+      "passed": 7,
+      "total": 8
+    },
+    "coding": {
+      "passed": 3,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "human_qualitative_review": true,
+  "coding_humaneval_rescored": true,
+  "runtime": {
+    "wall_s": 538.554,
+    "case_latency_s": {
+      "mean": 12.24,
+      "min": 0.478,
+      "max": 119.943,
+      "p50": 7.174,
+      "p95": 37.781,
+      "sum": 538.554
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 11432,
+    "mean_peak_used_mib": 11432.0,
+    "source": "vram_probe_2case",
+    "probe_cases": [
+      "tool-weather-calc-001",
+      "ifeval-repeat-title-003"
+    ]
+  },
+  "metrics_backfill": {
+    "runtime": "responses_jsonl_latency_sum",
+    "vram": "vram_probe_2case",
+    "at": "2026-11-01T05:19:15Z"
+  },
+  "infrastructure_failure_counts": {
+    "empty_final_answer": 1,
+    "repetition_loop": 3,
+    "thinking_budget_exhausted": 1
+  },
+  "token_stats": {
+    "completion_tokens": 152022,
+    "prompt_tokens": 25230,
+    "total_tokens": 177252,
+    "cases_with_usage": 44,
+    "denominator_s": 538.554,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 282.28,
+    "total_tok_per_s": 329.13
+  }
+}

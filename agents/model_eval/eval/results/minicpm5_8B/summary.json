@@ -1,0 +1,77 @@
+{
+  "model_dir": "minicpm5_8B",
+  "model_name": "MiniCPM-V 4.5 (8B)",
+  "params": "8B",
+  "ollama_tag": "openbmb/minicpm-v4.5:8b",
+  "quantization": "Q4_K_M",
+  "session_id": "eval-minicpm5_8B-a2c002c1",
+  "total_passed": 22,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 1,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 2,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 5,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 2,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 5,
+      "total": 6
+    },
+    "math": {
+      "passed": 5,
+      "total": 8
+    },
+    "coding": {
+      "passed": 2,
+      "total": 6
+    }
+  },
+  "tool_use_capable": true,
+  "runtime": {
+    "wall_s": 641.294,
+    "case_latency_s": {
+      "mean": 14.089,
+      "min": 0.651,
+      "max": 78.754,
+      "p50": 7.089,
+      "p95": 31.518,
+      "sum": 619.909
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 7221,
+    "mean_peak_used_mib": 7220.8
+  },
+  "human_qualitative_review": true,
+  "infrastructure_failure_counts": {
+    "empty_final_answer": 14,
+    "missing_expected_tool": 6,
+    "thinking_budget_exhausted": 5,
+    "tool_required_but_not_called": 2
+  },
+  "token_stats": {
+    "completion_tokens": 74697,
+    "prompt_tokens": 8076,
+    "total_tokens": 82773,
+    "cases_with_usage": 44,
+    "denominator_s": 641.294,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 116.48,
+    "total_tok_per_s": 129.07
+  },
+  "metrics_backfill": {
+    "at": "2026-11-01T05:19:15Z"
+  }
+}

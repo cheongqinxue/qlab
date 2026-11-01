@@ -1,0 +1,24 @@
+# LFM3-VL-2B (1.92B total: 1.73B LM + 164M vision encoder + 25M projector)
+# Publisher: Liquid AI (https://huggingface.co/LiquidAI/LFM3-VL-2B-GGUF)
+# Max context: 131072 (128K). Thinking model (step-by-step reasoning before answering).
+
+model_name: LFM3-VL-2B
+params: 2B
+modality: T+I->T
+thinking_model: true
+
+ollama:
+  tag: lfm3-vl:2b-qad-q4_0
+  int8_tag: lfm3-vl:2b-q8_0
+  default_tag: lfm3-vl:2b
+  hf_gguf_repo: LiquidAI/LFM3-VL-2B-GGUF
+  quantization: QAD-Q4_0
+
+  options:
+    temperature: 0.1
+    top_k: 50
+    top_p: 1.0
+    min_p: 0.0
+    repeat_penalty: 1.1
+    num_ctx: 131072       # Max 128K context
+    num_predict: 32768    # High thinking + answer token budget

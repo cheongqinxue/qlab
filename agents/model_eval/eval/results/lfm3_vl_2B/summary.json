@@ -1,0 +1,82 @@
+{
+  "model_dir": "lfm3_vl_2B",
+  "model_name": "LFM3-VL-2B",
+  "params": "2B",
+  "ollama_tag": "lfm3-vl:2b-qad-q4_0",
+  "quantization": "QAD-Q4_0",
+  "session_id": "eval-lfm3_vl_2B-53336c86",
+  "total_passed": 37,
+  "total_cases": 44,
+  "by_dimension": {
+    "tool_use": {
+      "passed": 6,
+      "total": 7
+    },
+    "instruction_following": {
+      "passed": 6,
+      "total": 6
+    },
+    "hallucination": {
+      "passed": 5,
+      "total": 6
+    },
+    "sycophancy": {
+      "passed": 5,
+      "total": 5
+    },
+    "reasoning": {
+      "passed": 2,
+      "total": 6
+    },
+    "math": {
+      "passed": 7,
+      "total": 8
+    },
+    "coding": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "human_qualitative_review": true,
+  "runtime": {
+    "wall_s": 498.618,
+    "case_latency_s": {
+      "mean": 11.332,
+      "min": 0.342,
+      "max": 104.041,
+      "p50": 4.426,
+      "p95": 38.815,
+      "sum": 498.618
+    }
+  },
+  "gpu_vram_mib": {
+    "gpu_index": 0,
+    "peak_used_mib": 8450,
+    "mean_peak_used_mib": 8450.0,
+    "source": "vram_probe_2case",
+    "probe_cases": [
+      "tool-weather-calc-001",
+      "ifeval-repeat-title-003"
+    ]
+  },
+  "metrics_backfill": {
+    "runtime": "responses_jsonl_latency_sum",
+    "vram": "vram_probe_2case",
+    "at": "2026-11-01T05:19:15Z"
+  },
+  "infrastructure_failure_counts": {
+    "empty_final_answer": 1,
+    "missing_expected_tool": 1,
+    "thinking_budget_exhausted": 1
+  },
+  "token_stats": {
+    "completion_tokens": 164107,
+    "prompt_tokens": 12978,
+    "total_tokens": 177085,
+    "cases_with_usage": 44,
+    "denominator_s": 498.618,
+    "denominator_source": "wall_s",
+    "completion_tok_per_s": 329.12,
+    "total_tok_per_s": 355.15
+  }
+}

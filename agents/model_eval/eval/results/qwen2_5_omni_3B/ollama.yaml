@@ -1,0 +1,20 @@
+# Qwen2.5-Omni-3B (~3B multimodal)
+# Publisher: Qwen / ggml-org GGUF (https://huggingface.co/ggml-org/Qwen2.5-Omni-3B-GGUF)
+# Text-first eval; full omni I/O may be limited under Ollama.
+
+model_name: Qwen2.5-Omni-3B
+params: 3B
+modality: T+I+A->T
+thinking_model: false
+
+ollama:
+  tag: hf.co/ggml-org/Qwen2.5-Omni-3B-GGUF:Q4_K_M
+  int8_tag: hf.co/ggml-org/Qwen2.5-Omni-3B-GGUF:Q8_0
+  hf_gguf_repo: ggml-org/Qwen2.5-Omni-3B-GGUF
+  quantization: Q4_K_M
+
+  options:
+    temperature: 0.1
+    top_p: 0.95
+    num_ctx: 32768
+    num_predict: 32768

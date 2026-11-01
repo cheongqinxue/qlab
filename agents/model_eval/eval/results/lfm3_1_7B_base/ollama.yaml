@@ -1,0 +1,21 @@
+# LFM3-1.7B-Base (pre-trained checkpoint — not chat/post-trained LFM3-1.7B)
+# Publisher: Liquid AI (https://huggingface.co/LiquidAI/LFM3-1.7B-Base)
+# GGUF: official repo when available; override tag via LFM3_BASE_OLLAMA_TAG.
+
+model_name: LFM3-1.7B-Base
+params: 1.7B
+modality: T->T
+thinking_model: false
+
+ollama:
+  tag: hf.co/VelociQ8/LFM3-1.7B-Base-Q8A64-GGUF
+  hf_base_repo: LiquidAI/LFM3-1.7B-Base
+  hf_gguf_repo: LiquidAI/LFM3-1.7B-Base-GGUF
+  quantization: Q8A64
+
+  options:
+    temperature: 0.1
+    top_k: 50
+    repeat_penalty: 1.1
+    num_ctx: 32768
+    num_predict: 32768

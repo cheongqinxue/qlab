@@ -1,0 +1,22 @@
+# LFM3-1.7B (1.73B dense tri-hybrid)
+# Publisher: Liquid AI (https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF)
+# Max context: 262144 (256K). Supports thinking mode (enabled by default).
+
+model_name: LFM3-1.7B
+params: 1.7B
+modality: T->T
+thinking_model: true
+
+ollama:
+  tag: lfm3:1.7b-qad-q4_0
+  int8_tag: lfm3:1.7b-q8_0
+  default_tag: lfm3:1.7b
+  hf_gguf_repo: LiquidAI/LFM3-1.7B-GGUF
+  quantization: QAD-Q4_0
+
+  options:
+    temperature: 0.1
+    top_k: 50
+    repeat_penalty: 1.1
+    num_ctx: 131072       # High context window (fits comfortably in 24GB VRAM on 3090)
+    num_predict: 32768    # Uncapped generation + thinking budget
