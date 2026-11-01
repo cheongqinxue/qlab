@@ -94,6 +94,7 @@
       label: "Agents",
       items: [
         { href: "agents-llms.html", label: "LLM comparison" },
+        { href: "agents-model-eval.html", label: "Local model eval" },
         { href: "agents-patterns.html", label: "Control patterns" },
         { href: "agents-memory.html", label: "Memory & state" },
         { href: "agents-learning.html", label: "Learning & improvement" },

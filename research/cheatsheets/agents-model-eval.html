@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agents — local model eval · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Model matrix → <a href="agents-llms.html">LLM comparison</a>.
+          Harness → <code>agents/model_eval/</code>.
+          Regenerate data:
+          <code>uv run python agents/model_eval/scripts/export_cheatsheet_data.py</code>
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Agents — local model eval</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <p>
+              Fair <strong>ReAct</strong> comparison on the same 44 curated prompts (7 dimensions).
+              Cells show <strong>pass / total</strong> per dimension; <strong>Total %</strong> is overall.
+              <strong>Runtime</strong> is suite time; <strong>Out tok/s</strong> is completion tokens ÷ suite wall (or latency sum if wall missing);
+              <strong>Max VRAM</strong> is peak GPU (GiB).
+              † = backfilled (runtime from JSONL latencies; VRAM from 2-case probe) — see
+              <code>scripts/backfill_metrics.py</code>.
+              Click a <strong>row</strong> (or focus + Enter) to open transcripts; use the sticky bar in the popup to switch dimension without scrolling the full run.
+            </p>
+            <p id="eval-meta" class="cell-caption"></p>
+          </section>
+
+          <section class="cell cell-span eval-pareto-section">
+            <h2 class="cell-title">Quality vs speed</h2>
+            <p>
+              Pass rate (Y) against suite <strong>runtime</strong> or <strong>throughput</strong> (X).
+              The dashed curve is the Pareto frontier for this harness — not dominated on both axes.
+              Y axis is <strong>total pass rate</strong> across all dimensions.
+            </p>
+            <div class="eval-pareto-toolbar" id="eval-pareto-x-mode" role="toolbar" aria-label="Horizontal axis">
+              <span class="eval-view-bar-label">X axis</span>
+              <button type="button" class="eval-view-btn" data-x-mode="runtime" aria-current="true">
+                Runtime
+              </button>
+              <button type="button" class="eval-view-btn" data-x-mode="throughput" aria-current="false">
+                Cases/min
+              </button>
+              <button type="button" class="eval-view-btn" data-x-mode="completion_tok_s" aria-current="false">
+                Out tok/s
+              </button>
+            </div>
+            <div class="eval-pareto-chart" id="eval-pareto-chart" aria-live="polite"></div>
+            <p id="eval-pareto-note" class="cell-caption"></p>
+          </section>
+
+          <section class="cell cell-span eval-matrix-section">
+            <div class="cell-table-wrap eval-table-wrap">
+              <table class="cell-table eval-matrix" id="eval-matrix">
+                <thead>
+                  <tr></tr>
+                </thead>
+                <tbody id="eval-matrix-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span eval-infra-section">
+            <h2 class="cell-title">Harness failure modes</h2>
+            <p>
+              How runs broke at the <strong>harness</strong> layer (Ollama tools, ReAct limits, thinking budget,
+              repetition)—not wrong answers on rubric dimensions. From saved JSONL;
+              backfill: <code>scripts/rescore_infrastructure.py</code>.
+              <strong>Tags Σ</strong> sums tag counts (one failed case can have several tags).
+            </p>
+            <div class="cell-table-wrap eval-table-wrap eval-infra-table-wrap">
+              <table class="cell-table eval-infra-matrix" id="eval-infra-matrix">
+                <thead>
+                  <tr></tr>
+                </thead>
+                <tbody id="eval-infra-matrix-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="eval-detail-dialog" class="eval-detail-dialog" aria-labelledby="eval-detail-title">
+      <header class="eval-dialog-header">
+        <h2 id="eval-detail-title">Model</h2>
+        <button type="button" class="eval-dialog-close" data-action="close-eval-dialog" aria-label="Close">
+          ×
+        </button>
+      </header>
+      <nav
+        class="eval-dialog-view-bar eval-view-bar"
+        id="eval-dialog-view-bar"
+        aria-label="Result type"
+        hidden
+      ></nav>
+      <div id="eval-detail-body" class="eval-dialog-body"></div>
+    </dialog>
+
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script src="js/agents-model-eval-data.js"></script>
+    <script src="js/agents-model-eval.js"></script>
+    <script src="js/agents-model-eval-chart.js"></script>
+    <script src="js/agents-model-eval-infra.js"></script>
+  </body>
+</html>

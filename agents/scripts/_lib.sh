@@ -45,6 +45,14 @@ langfuse_is_running() {
   docker_compose_langfuse ps --status running -q langfuse-web 2>/dev/null | grep -q .
 }
 
+ollama_models_dir() {
+  echo "${OLLAMA_MODELS:-${AGENTS_DIR}/.data/ollama-models}"
+}
+
+ensure_ollama_models_dir() {
+  mkdir -p "$(ollama_models_dir)"
+}
+
 ollama_api_url() {
   local host="${OLLAMA_HOST:-127.0.0.1}"
   local port="${OLLAMA_PORT:-11434}"

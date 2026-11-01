@@ -11,11 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from model_eval_core.coding_safety import validate_program_safety
+from model_eval_core.coding.safety import validate_program_safety
+from model_eval_core.data.io import read_json, read_jsonl, write_json, write_jsonl
+from model_eval_core.domain.dimensions import EvalDimension
 
 DEFAULT_TIMEOUT_S = float(os.environ.get("MODEL_EVAL_CODING_EXEC_TIMEOUT", "5"))
-_AGENTS_ROOT = Path(__file__).resolve().parents[2]
-_MODEL_EVAL_ROOT = Path(__file__).resolve().parents[1]
+_AGENTS_ROOT = Path(__file__).resolve().parents[3]
+_MODEL_EVAL_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -133,7 +135,7 @@ def run_humaneval_check(
     with tempfile.TemporaryDirectory(prefix="model_eval_humaneval_") as tmp:
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "model_eval_core.humaneval_runner"],
+                [sys.executable, "-m", "model_eval_core.coding.humaneval_runner"],
                 input=program.encode("utf-8"),
                 capture_output=True,
                 timeout=timeout_s,
@@ -199,3 +201,87 @@ def evaluate_coding_answer(
         test_code=str(test_code),
         timeout_s=timeout_s,
     )
+
+
+def rescore_coding_row(
+    row: dict[str, Any],
+    metadata: dict[str, Any],
+    *,
+    model_dir: str,
+) -> dict[str, Any]:
+    """Re-score one ``responses.jsonl`` coding row using saved ``final_answer``."""
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from model_eval_core.domain.scoring import case_passed
+    from model_eval_core.probes.case import probe_case
+
+    prompt = str(row.get("prompt") or metadata.get("_prompt") or "")
+    answer = str(row.get("final_answer") or "")
+    messages = [HumanMessage(content=prompt), AIMessage(content=answer)]
+    probe = probe_case(
+        dimension=EvalDimension.CODING,
+        prompt=prompt,
+        messages=messages,
+        metadata=metadata,
+        case_id=str(row.get("case_id", "")),
+    )
+    row["failure_modes"] = probe.failure_modes
+    prior = row.get("signals") if isinstance(row.get("signals"), dict) else {}
+    row["signals"] = {**prior, **probe.signals}
+    row["passed"] = case_passed(
+        probe,
+        dimension=EvalDimension.CODING,
+        model_dir=model_dir,
+        case_id=str(row.get("case_id", "")),
+    )
+    row["coding_rescored"] = True
+    return row
+
+
+def rescore_model_coding_dir(
+    model_dir: Path,
+    metadata_by_id: dict[str, dict[str, Any]],
+) -> tuple[int, int]:
+    """Re-score all coding rows in one model results folder."""
+    responses_path = model_dir / "responses.jsonl"
+    summary_path = model_dir / "summary.json"
+    if not responses_path.exists():
+        return 0, 0
+
+    updated = coding_pass = coding_total = total_pass = total_cases = 0
+    by_dim: dict[str, dict[str, int]] = {}
+    rows: list[dict[str, Any]] = []
+
+    for row in read_jsonl(responses_path):
+        total_cases += 1
+        if row.get("dimension") == EvalDimension.CODING.value:
+            meta = metadata_by_id.get(str(row.get("case_id", "")))
+            if meta is not None:
+                rescore_coding_row(row, meta, model_dir=model_dir.name)
+                updated += 1
+            coding_total += 1
+            if row.get("passed"):
+                coding_pass += 1
+        dim = str(row.get("dimension", ""))
+        block = by_dim.setdefault(dim, {"passed": 0, "total": 0})
+        block["total"] += 1
+        if row.get("passed"):
+            block["passed"] += 1
+            total_pass += 1
+        rows.append(row)
+
+    write_jsonl(responses_path, rows)
+
+    if summary_path.exists():
+        summary = read_json(summary_path)
+        summary.update(
+            {
+                "total_passed": total_pass,
+                "total_cases": total_cases,
+                "by_dimension": by_dim,
+                "coding_humaneval_rescored": True,
+            }
+        )
+        write_json(summary_path, summary)
+
+    return updated, coding_pass

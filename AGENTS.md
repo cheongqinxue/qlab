@@ -17,6 +17,7 @@ When in doubt, ask before changing the repo.
 - **New demo experiment workflow:** skill [`agents-demo-experiment`](.cursor/skills/agents-demo-experiment/SKILL.md) (paper + reuse audit, fixtures-first, run scripts).
 - **Agents coding norms:** skill [`agents-harness-conventions`](.cursor/skills/agents-harness-conventions/SKILL.md) (import wall, encoders, tests, git).
 - **Agents Python review:** skill [`agents-python-review`](.cursor/skills/agents-python-review/SKILL.md) → `agents/REPOINDEX.md`, `agents/CODEREVIEW.md`.
+- **Model eval post-run workflow:** rule [`.cursor/rules/model-eval-workflow.mdc`](.cursor/rules/model-eval-workflow.mdc) — run eval → coding in harness (or `rescore_coding` backfill) → assistant judges qualitative → `human_qualitative_review.jsonl` + `rescore_qualitative.py` (assistant runs sync; user does not).
 - **Pathology training + W&B logging:** `tutorials/pathologies/`
 - **BEV (local W&B viewer UI):** `tutorials/pathologies/bev/` — `backend/bev` (Python), `webui/`, `e2e/`, `sdk/`; see `bev/README.md` for build/run; roadmap in `bev/PLAN.md`; API + DB schema in `bev/docs/backend-reference.md`. Periodic carve-out/packaging audit: skill `bev-distribution-audit` (`.cursor/skills/bev-distribution-audit/`).
 

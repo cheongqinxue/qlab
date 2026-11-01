@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from model_eval_core.dimensions import EvalDimension
-from model_eval_core.human_review import load_human_review
-from model_eval_core.probes import ProbeResult
-from model_eval_core.qualitative import is_qualitative
+from model_eval_core.domain.dimensions import EvalDimension, is_qualitative
+from model_eval_core.probes.case import ProbeResult
+from model_eval_core.qualitative.review import load_human_review
 
 
 def case_passed(

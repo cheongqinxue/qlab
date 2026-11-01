@@ -12,19 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import AIMessage, BaseMessage
 
+from model_eval_core.domain.dimensions import INFRASTRUCTURE_MODE_IDS
+from model_eval_core.text import strip_thinking
+
 if TYPE_CHECKING:
-    from model_eval_core.probes import ProbeResult
-
-
-def _strip_thinking(text: str) -> str:
-    """Return user-visible text after optional chain-of-thought blocks."""
-    think_close = "</" + "redacted_thinking" + ">"
-    legacy_think_close = "</" + "think" + ">"
-    for close_tag in (legacy_think_close, think_close):
-        idx = text.lower().find(close_tag.lower())
-        if idx != -1:
-            return text[idx + len(close_tag) :].strip()
-    return text.strip()
+    from model_eval_core.probes.case import ProbeResult
 
 
 FAILURE_MODE_THINKING_BUDGET = "thinking_budget_exhausted"
@@ -113,7 +105,7 @@ def detect_thinking_budget_exhausted(
     messages: Sequence[BaseMessage | Mapping[str, Any]] | None,
 ) -> tuple[bool, int, int]:
     """Return (detected, max_completion_tokens, visible_answer_chars)."""
-    visible = _strip_thinking(final_answer_raw or "")
+    visible = strip_thinking(final_answer_raw or "")
     visible_chars = len(visible.strip())
     max_ct = max_completion_tokens(messages)
     threshold = thinking_token_threshold()
@@ -147,26 +139,13 @@ def append_infrastructure_probes(
         result.failure_modes.append(FAILURE_MODE_THINKING_BUDGET)
         infra["thinking_budget_exhausted"] = True
 
-    visible = _strip_thinking(final_answer_raw or "")
+    visible = strip_thinking(final_answer_raw or "")
     if detect_repetition_loop(visible, case_id=case_id, metadata=metadata):
         if FAILURE_MODE_REPETITION_LOOP not in result.failure_modes:
             result.failure_modes.append(FAILURE_MODE_REPETITION_LOOP)
         infra["repetition_loop"] = True
 
-    categories = [
-        mode
-        for mode in (
-            "ollama_tool_binding_unsupported",
-            "missing_expected_tool",
-            "tool_required_but_not_called",
-            "malformed_tool_call_syntax",
-            "agent_step_limit_stub",
-            FAILURE_MODE_THINKING_BUDGET,
-            FAILURE_MODE_REPETITION_LOOP,
-            "empty_final_answer",
-        )
-        if mode in result.failure_modes
-    ]
+    categories = [mode for mode in INFRASTRUCTURE_MODE_IDS if mode in result.failure_modes]
     infra["categories"] = categories
     result.signals["infrastructure"] = infra
 
@@ -178,15 +157,6 @@ def infrastructure_counts_from_rows(rows: Sequence[Mapping[str, Any]]) -> dict[s
         if row.get("passed"):
             continue
         for mode in row.get("failure_modes") or []:
-            if mode in {
-                "ollama_tool_binding_unsupported",
-                "missing_expected_tool",
-                "tool_required_but_not_called",
-                "malformed_tool_call_syntax",
-                "agent_step_limit_stub",
-                FAILURE_MODE_THINKING_BUDGET,
-                FAILURE_MODE_REPETITION_LOOP,
-                "empty_final_answer",
-            }:
+            if mode in INFRASTRUCTURE_MODE_IDS:
                 counts[mode] = counts.get(mode, 0) + 1
     return dict(sorted(counts.items()))

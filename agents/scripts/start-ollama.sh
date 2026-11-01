@@ -23,7 +23,10 @@ if ollama_is_running; then
 fi
 
 start_docker_ollama() {
-  echo "Starting Ollama via Docker…"
+  ensure_ollama_models_dir
+  OLLAMA_MODELS="$(ollama_models_dir)"
+  export OLLAMA_MODELS
+  echo "Starting Ollama via Docker (models: ${OLLAMA_MODELS})…"
   cd "${AGENTS_DIR}"
   docker_compose_ollama up -d
   wait_for_http "$(ollama_api_url)/api/tags" "Ollama" 60 2
@@ -33,8 +36,11 @@ start_host_ollama() {
   if ! command -v ollama >/dev/null 2>&1; then
     return 1
   fi
-  echo "Starting native ollama serve in background…"
-  nohup ollama serve >/dev/null 2>&1 &
+  ensure_ollama_models_dir
+  OLLAMA_MODELS="$(ollama_models_dir)"
+  export OLLAMA_MODELS
+  echo "Starting native ollama serve (models: ${OLLAMA_MODELS})…"
+  nohup env OLLAMA_MODELS="${OLLAMA_MODELS}" ollama serve >/dev/null 2>&1 &
   wait_for_http "$(ollama_api_url)/api/tags" "Ollama" 30 1
 }
 

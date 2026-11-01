@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from model_eval_core.ollama_tool_errors import (
+from model_eval_core.probes.case import (
     FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED,
     is_ollama_tool_binding_unsupported,
     probe_tool_binding_unsupported,

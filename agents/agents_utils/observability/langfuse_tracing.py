@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 from langfuse.langchain import CallbackHandler
 
@@ -77,7 +78,13 @@ def build_graph_invoke_config(task_id: str) -> dict[str, Any]:
 
 
 @contextmanager
-def langfuse_task_session(*, task_id: str, task_preview: str) -> Iterator[None]:
+def langfuse_task_session(
+    *,
+    task_id: str,
+    task_preview: str,
+    session_id: str | None = None,
+    extra_metadata: dict[str, str] | None = None,
+) -> Iterator[None]:
     """Attach session metadata to traces for one task instance."""
     if not langfuse_tracing_enabled():
         yield
@@ -85,12 +92,14 @@ def langfuse_task_session(*, task_id: str, task_preview: str) -> Iterator[None]:
     ensure_langfuse_client()
     from langfuse import propagate_attributes
 
-    preview = task_preview[:200]
-    metadata: dict[str, str] = {"task_preview": preview}
+    preview = task_preview[:180]
+    metadata: dict[str, str] = {"task_preview": preview, "task_id": task_id}
     if agent := os.environ.get("AGENT_NAME", "").strip():
         metadata["agent_name"] = agent
+    if extra_metadata:
+        metadata.update(extra_metadata)
     with propagate_attributes(
-        session_id=task_id,
+        session_id=session_id or task_id,
         tags=langfuse_trace_tags(),
         metadata=metadata,
     ):

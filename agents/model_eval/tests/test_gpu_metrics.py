@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from model_eval_core.gpu_metrics import RuntimeStats, query_gpu_vram_mib
+from model_eval_core.metrics import RuntimeStats, query_gpu_vram_mib
 
 
 class TestRuntimeStats:

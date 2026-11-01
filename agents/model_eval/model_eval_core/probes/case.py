@@ -8,10 +8,12 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-from model_eval_core.coding_exec import evaluate_coding_answer
-from model_eval_core.dimensions import EvalDimension
-from model_eval_core.infrastructure_probes import append_infrastructure_probes
-from model_eval_core.qualitative import is_qualitative
+from model_eval_core.coding.exec import evaluate_coding_answer
+from model_eval_core.domain.dimensions import EvalDimension, is_qualitative
+from model_eval_core.probes.infrastructure import append_infrastructure_probes
+from model_eval_core.text import strip_thinking
+
+FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED = "ollama_tool_binding_unsupported"
 
 
 @dataclass
@@ -72,17 +74,6 @@ def _normalize_math(expr: str) -> str:
     return cleaned
 
 
-def _strip_thinking(text: str) -> str:
-    """Return user-visible text after optional chain-of-thought blocks."""
-    think_close = "</" + "redacted_thinking" + ">"
-    legacy_think_close = "<" + "/" + "think" + ">"
-    for close_tag in (legacy_think_close, think_close):
-        idx = text.lower().find(close_tag.lower())
-        if idx != -1:
-            return text[idx + len(close_tag) :].strip()
-    return text.strip()
-
-
 def _math_matches(answer: str, target_raw: str) -> bool:
     """Return True when the normalized boxed target (or plain fraction equivalent) appears in answer."""
     boxed = _extract_boxed(target_raw)
@@ -119,7 +110,7 @@ def probe_case(
         ProbeResult with failure mode tags and diagnostic signals.
     """
     result = ProbeResult()
-    answer = _strip_thinking(_final_text(messages).strip())
+    answer = strip_thinking(_final_text(messages).strip())
     tools_used = _tool_names(messages)
     result.signals = {
         "tools_used": tools_used,
@@ -217,3 +208,77 @@ def probe_case(
 
     result.notes = "; ".join(result.failure_modes) if result.failure_modes else "no_probe_flags"
     return result
+
+
+class ToolBindingSkippedError(Exception):
+    """Internal signal when the suite skips ReAct after a prior tool-binding refusal."""
+
+
+_TOOL_BINDING_MESSAGE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"does not support tools", re.IGNORECASE),
+    re.compile(r"failed to parse grammar", re.IGNORECASE),
+)
+
+
+def _status_code(exc: BaseException) -> int | None:
+    code = getattr(exc, "status_code", None)
+    if isinstance(code, int):
+        return code
+    response = getattr(exc, "response", None)
+    if response is not None:
+        resp_code = getattr(response, "status_code", None)
+        if isinstance(resp_code, int):
+            return resp_code
+    return None
+
+
+def _collect_error_text(exc: BaseException) -> str:
+    chunks: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        chunks.append(str(current))
+        body = getattr(current, "body", None)
+        if isinstance(body, dict):
+            err = body.get("error")
+            if isinstance(err, dict) and err.get("message"):
+                chunks.append(str(err["message"]))
+            elif err:
+                chunks.append(str(err))
+        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+    return " ".join(chunks)
+
+
+def is_ollama_tool_binding_unsupported(exc: BaseException) -> bool:
+    """True when Ollama rejected tool binding for this model (HTTP 400 + known message)."""
+    status = _status_code(exc)
+    if status is not None and status != 400:
+        return False
+    text = _collect_error_text(exc)
+    return any(pattern.search(text) for pattern in _TOOL_BINDING_MESSAGE_PATTERNS)
+
+
+def probe_tool_binding_unsupported(
+    exc: BaseException,
+    *,
+    skipped_without_invoke: bool = False,
+) -> ProbeResult:
+    """Probe output for models that cannot run Ollama tool binding."""
+    signals: dict[str, Any] = {
+        "tools_used": [],
+        "answer_chars": 0,
+        "tool_call_count": 0,
+        "error_type": type(exc).__name__,
+        "error_message": _collect_error_text(exc)[:500],
+    }
+    if skipped_without_invoke:
+        signals["skipped_after_first_tool_binding_error"] = True
+    note = FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED
+    if skipped_without_invoke:
+        note = f"{note}; skipped_after_first_tool_binding_error"
+    return ProbeResult(
+        failure_modes=[FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED],
+        signals=signals,
+        notes=note,
+    )

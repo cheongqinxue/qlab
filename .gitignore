@@ -1,4 +1,5 @@
 .data/
+agents/tmp/
 
 # BEV frontend
 tutorials/pathologies/bev/static/

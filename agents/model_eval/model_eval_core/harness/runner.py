@@ -18,9 +18,11 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langchain_openai import ChatOpenAI
 from openai import BadRequestError
 
-from model_eval_core.benchmarks import CuratedPrompt
-from model_eval_core.execution_mode import uses_react_tools
-from model_eval_core.gpu_metrics import (
+from model_eval_core.data.prompts import CuratedPrompt
+from model_eval_core.domain.dimensions import uses_react_tools
+from model_eval_core.domain.scoring import case_passed, emit_langfuse_scores
+from model_eval_core.harness.react_agent import build_react_agent
+from model_eval_core.metrics.gpu import (
     CaseGpuMetrics,
     eval_gpu_index,
     ollama_api_base,
@@ -28,14 +30,13 @@ from model_eval_core.gpu_metrics import (
     query_ollama_loaded_vram_bytes,
     track_vram_peak,
 )
-from model_eval_core.ollama_tool_errors import (
+from model_eval_core.probes.case import (
+    ProbeResult,
     ToolBindingSkippedError,
     is_ollama_tool_binding_unsupported,
+    probe_case,
     probe_tool_binding_unsupported,
 )
-from model_eval_core.probes import ProbeResult, probe_case
-from model_eval_core.react_agent import build_react_agent
-from model_eval_core.scoring import case_passed, emit_langfuse_scores
 
 logger = logging.getLogger(__name__)
 

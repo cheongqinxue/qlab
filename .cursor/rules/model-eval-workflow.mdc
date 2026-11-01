@@ -1,0 +1,44 @@
+---
+description: Model eval post-run workflow — coding exec, qualitative LLM-as-judge (assistant), rescore sync
+globs: agents/model_eval/**
+alwaysApply: false
+---
+
+# Model eval workflow (qlab)
+
+When the user finishes or discusses **model_eval** runs, follow this pipeline. The user runs Ollama eval only; the assistant owns post-run scoring sync.
+
+## 1. Run eval
+
+- `./agents/model_eval/run_eval.sh --model-dir agents/model_eval/eval/results/<name>`
+- Artifacts: `responses.jsonl`, `summary.json`, optional Langfuse traces.
+
+## 2. Coding dimension
+
+- **Live runs:** HumanEval `check()` + AST safety run **inside the harness** (`model_eval_core/coding_exec.py` → probes).
+- **Backfill only:** `scripts/rescore_coding.py` on saved JSONL when exec was not in the original run — no LLM re-run.
+- Prefer coding checks **with** the suite; separate rescore is for old data only.
+
+## 3. Qualitative dimensions (instruction_following, hallucination, sycophancy)
+
+- Harness does **not** auto-judge these; non-empty answers default to pass until review.
+- **Hallucination:** auto **pass/fail** when TruthfulQA `correct_answers` / endorsed `incorrect_answers` match **verbatim**; if no verbatim hit, **assistant** judges paraphrases (write `eval/hallucination_assistant_review.json`, then `regenerate_qualitative_review.py`). No blunt “must contain reference string” for paraphrase cases.
+- **Instruction following / sycophancy:** structure and pushback rubrics in `qualitative_rubric.py`; assistant spot-checks as needed.
+- Write decisions to `agents/model_eval/eval/human_qualitative_review.jsonl` (`reviewer: cursor_agent`).
+- After updating review, run `scripts/rescore_qualitative.py` so `responses.jsonl` and `summary.json` match (user does **not** need to run this — assistant does).
+
+## 4. No “merge” scripts for multiple humans
+
+- There is a single reviewer (the assistant). `rescore_*.py` files **apply** scores to JSONL/summaries, not merge conflicting reviewers.
+- Do not ask the user to run rescore scripts; apply review + rescore as part of the judge pass.
+
+## 5. Cheatsheet
+
+- After scores are synced: `uv run python agents/model_eval/scripts/export_cheatsheet_data.py` when matrix should update.
+
+## When the user says eval is done
+
+1. Confirm batch completeness (44 cases, summaries).
+2. Run or confirm coding exec (rescore_coding if needed on legacy JSONL).
+3. Review qualitative rows → update `human_qualitative_review.jsonl` → `rescore_qualitative.py`.
+4. Export cheatsheet if requested or implied for the matrix.

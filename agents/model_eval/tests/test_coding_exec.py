@@ -7,14 +7,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, HumanMessage
-from model_eval_core.coding_eval import rescore_coding_row
-from model_eval_core.coding_exec import (
+from model_eval_core.coding import (
     assemble_humaneval_program,
     extract_python_from_answer,
+    rescore_coding_row,
     run_humaneval_check,
+    validate_program_safety,
 )
-from model_eval_core.coding_safety import validate_program_safety
-from model_eval_core.dimensions import EvalDimension
+from model_eval_core.domain import EvalDimension
 from model_eval_core.probes import probe_case
 
 _CODING_JSONL = Path(__file__).resolve().parents[1] / "eval" / "prompts" / "coding.jsonl"
@@ -72,7 +72,7 @@ class TestRunHumanevalCheck:
         row = _coding_row("humaneval-below-zero-003")
         meta = row["metadata"]
         malicious = "```python\nimport os\n" + row["prompt"] + "\n    os.system('rm -rf /')\n```"
-        with patch("model_eval_core.coding_exec.subprocess.run") as mock_run:
+        with patch("model_eval_core.coding.exec.subprocess.run") as mock_run:
             result = run_humaneval_check(
                 prompt=row["prompt"],
                 answer=malicious,

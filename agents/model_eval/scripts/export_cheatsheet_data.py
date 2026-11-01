@@ -4,67 +4,30 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_EVAL = _REPO_ROOT / "agents" / "model_eval"
-if str(_EVAL) not in sys.path:
-    sys.path.insert(0, str(_EVAL))
+from model_eval_core.data.paths import EVAL_ROOT, RESULTS_DIR, install_import_path
 
-from model_eval_core.token_stats import aggregate_suite_tokens_from_jsonl  # noqa: E402
+install_import_path()
 
-RESULTS_DIR = _EVAL / "eval" / "results"
-OUT_JS = _REPO_ROOT / "research" / "cheatsheets" / "js" / "agents-model-eval-data.js"
+from model_eval_core.data import read_json, read_jsonl  # noqa: E402
+from model_eval_core.domain import CHEATSHEET_DIMENSIONS, INFRASTRUCTURE_FAILURE_MODES  # noqa: E402
+from model_eval_core.metrics import aggregate_suite_tokens_from_jsonl  # noqa: E402
 
-DIMENSIONS = [
-    ("tool_use", "Tool use"),
-    ("instruction_following", "Instruction following"),
-    ("hallucination", "Hallucination"),
-    ("sycophancy", "Sycophancy"),
-    ("reasoning", "Reasoning"),
-    ("math", "Math"),
-    ("coding", "Coding"),
-]
+OUT_JS = EVAL_ROOT.parents[1] / "research" / "cheatsheets" / "js" / "agents-model-eval-data.js"
 
-INFRASTRUCTURE_FAILURE_MODES = [
-    ("ollama_tool_binding_unsupported", "No tool API"),
-    ("missing_expected_tool", "Missing tool"),
-    ("tool_required_but_not_called", "Tool not called"),
-    ("malformed_tool_call_syntax", "Bad tool syntax"),
-    ("agent_step_limit_stub", "Step limit"),
-    ("thinking_budget_exhausted", "Think budget"),
-    ("repetition_loop", "Repetition"),
-    ("empty_final_answer", "Empty answer"),
-]
-
-
-def _load_responses(path: Path) -> list[dict]:
-    rows: list[dict] = []
-    if not path.exists():
-        return rows
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            rows.append(
-                {
-                    "case_id": row.get("case_id"),
-                    "dimension": row.get("dimension"),
-                    "prompt": row.get("prompt", ""),
-                    "final_answer": row.get("final_answer", ""),
-                    "passed": bool(row.get("passed")),
-                    "failure_modes": row.get("failure_modes") or [],
-                    "signals": row.get("signals") or {},
-                    "latency_s": row.get("latency_s"),
-                    "runtime": row.get("runtime"),
-                    "gpu": row.get("gpu"),
-                }
-            )
-    return rows
+_CASE_FIELDS = (
+    "case_id",
+    "dimension",
+    "prompt",
+    "final_answer",
+    "passed",
+    "failure_modes",
+    "signals",
+    "latency_s",
+    "runtime",
+    "gpu",
+)
 
 
 def build_payload() -> dict:
@@ -76,14 +39,23 @@ def build_payload() -> dict:
         summary_path = model_dir / "summary.json"
         if not summary_path.exists():
             continue
-        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        summary = read_json(summary_path)
         jsonl_path = model_dir / "responses.jsonl"
-        cases = _load_responses(jsonl_path)
         wall_s = (summary.get("runtime") or {}).get("wall_s")
         token_stats = summary.get("token_stats") or aggregate_suite_tokens_from_jsonl(
             jsonl_path,
             wall_s=wall_s,
         )
+        cases = [
+            {
+                key: row.get(key) if key != "passed" else bool(row.get("passed"))
+                for key in _CASE_FIELDS
+            }
+            for row in read_jsonl(jsonl_path)
+        ]
+        for case in cases:
+            case.setdefault("failure_modes", [])
+            case.setdefault("signals", {})
         models.append(
             {
                 "id": summary.get("model_dir", model_dir.name),
@@ -106,7 +78,7 @@ def build_payload() -> dict:
     return {
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "suite_note": "ReAct harness, 44 curated cases (7 dimensions); pass = probe heuristics.",
-        "dimensions": [{"id": d, "label": label} for d, label in DIMENSIONS],
+        "dimensions": [{"id": d, "label": label} for d, label in CHEATSHEET_DIMENSIONS],
         "infrastructure_failure_modes": [
             {"id": mode_id, "label": label} for mode_id, label in INFRASTRUCTURE_FAILURE_MODES
         ],

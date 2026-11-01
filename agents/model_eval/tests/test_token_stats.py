@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from model_eval_core.token_stats import aggregate_suite_tokens, tokens_from_messages
+from model_eval_core.metrics import aggregate_suite_tokens, tokens_from_messages
 
 
 class TestTokenStats:

@@ -80,7 +80,8 @@ quote-style = "double"
 markers = [
     "slow: long-running ingest or scale tests",
 ]
-addopts = "-rA -v"
+# Duplicate test basenames (bev vs memgraphrag test_config.py) need importlib mode.
+addopts = "-rA -v --import-mode=importlib"
 log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(levelname)s] %(message)s (%(filename)s:%(lineno)s"

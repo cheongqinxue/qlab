@@ -19,7 +19,7 @@ A single monolithic compose file would restart Langfuse/Ollama every time you to
 | [`build-image.sh`](build-image.sh) | Build `agents-runtime:latest` (occasional). |
 | [`start-langfuse.sh`](start-langfuse.sh) | Langfuse stack + `agents_shared` network (idempotent). |
 | [`stop-langfuse.sh`](stop-langfuse.sh) | Tear down Langfuse compose. |
-| [`start-ollama.sh`](start-ollama.sh) | Ensure Ollama API on `127.0.0.1:11434` (host or Docker). |
+| [`start-ollama.sh`](start-ollama.sh) | Ensure Ollama API on `127.0.0.1:11434` (host or Docker). Optional `OLLAMA_MODELS` in `agents/.env` for model storage path. |
 | [`stop-ollama.sh`](stop-ollama.sh) | Stop **Docker** Ollama only. |
 | [`e2e-llm-all.sh`](e2e-llm-all.sh) | Docker LLM smoke for all five harnesses (`agents/.env`, `OPENAI_MODEL`). |
 

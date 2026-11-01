@@ -8,12 +8,15 @@
 
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.40.13}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    environment:
+      OLLAMA_MODELS: /root/.ollama/models
     volumes:
-      - ./.data/ollama:/root/.ollama
+      # Set OLLAMA_MODELS in agents/.env for a host path (e.g. large local disk).
+      - ${OLLAMA_MODELS:-./.data/ollama-models}:/root/.ollama/models
     networks:
       - ollama_local
 

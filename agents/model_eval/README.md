@@ -7,6 +7,21 @@ Fair **React/direct** comparison across quantized models, plus **failure-mode pr
 1. **Performance comparison** — **tool_use** cases use the shared LangGraph ReAct agent with eval tools; all other dimensions use a **single-turn chat invoke** (user prompt only, no tool schemas). Same curated prompts per dimension.
 2. **Failure probing** — deterministic probes for **tool_use**, **math**, **coding**, and **reasoning** (e.g. `missing_expected_tool`, answer key mismatch). **coding** runs HumanEval `check()` in a subprocess after AST safety validation (no destructive imports/calls). **instruction_following**, **hallucination**, and **sycophancy** are scored from committed human review (`eval/human_qualitative_review.jsonl`); probes only flag empty answers and runtime errors.
 
+## `model_eval_core` layout
+
+| Package | Role |
+|---------|------|
+| `domain/` | `EvalDimension`, pass/fail (`scoring`), cheatsheet labels |
+| `data/` | Repo paths, JSON/JSONL I/O, curated `prompts` |
+| `harness/` | `run_case`, ReAct agent, eval tools |
+| `probes/` | Case failure modes + infrastructure tags |
+| `coding/` | HumanEval extract/exec, AST safety, rescoring |
+| `qualitative/` | Human review lookup + offline rubrics |
+| `metrics/` | GPU/VRAM runtime + token throughput |
+| `text/` | Strip chain-of-thought wrappers (`strip_thinking`) |
+
+Import from the package you need, e.g. `from model_eval_core.harness import run_case`.
+
 ## Prompts
 
 Curated JSONL only — see **[CURATION.md](CURATION.md)**. HF streaming and selection live under **`agents/tmp/model_eval_curation/`** (agent scratch, gitignored). Promote stable sets into **`eval/prompts/`**.

@@ -5,9 +5,6 @@
         "${workspaceFolder}/tutorials"
     ],
     "ty.disableLanguageServices": true,
-    "python.testing.pytestArgs": [
-        "tutorials"
-    ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "ruff.lint.run": "onSave",

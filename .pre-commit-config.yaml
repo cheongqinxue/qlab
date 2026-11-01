@@ -13,6 +13,7 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: [--maxkb=2048]
+        exclude: ^research/cheatsheets/js/agents-model-eval-data\.js$
       - id: check-merge-conflict
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

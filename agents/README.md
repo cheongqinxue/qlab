@@ -151,6 +151,16 @@ curl -s -X POST http://localhost:8084/ask -H 'Content-Type: application/json' -d
 
 Default port **8084** (`HMEM_AGENT_PORT`). Fixture mode: `HMEM_AGENTS=fixture`.
 
+### Model eval (quant ReAct harness)
+
+Curated JSONL prompts, shared LangGraph **ReAct** agent, Langfuse traces + failure-mode probes. HF browse/curation is **agent scratch** under `agents/tmp/model_eval_curation/` ([CURATION.md](model_eval/CURATION.md)).
+
+```bash
+./agents/model_eval/run_eval.sh --prompts agents/model_eval/eval/prompts/fixture.jsonl --model qwen3.5:4b
+```
+
+Set **`AGENT_NAME=model_eval`** (or use `run_eval.sh`) for Langfuse filtering.
+
 ---
 
 Future harness experiments should add a row here and their own `README.md`, reuse **`build-image.sh`** and **`agents/.env`**, and join **`agents_shared`** when using Langfuse. See skill [`.cursor/skills/agents-demo-experiment/`](../.cursor/skills/agents-demo-experiment/SKILL.md).

@@ -4,27 +4,29 @@
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
-_REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(_REPO / "agents"))
-sys.path.insert(0, str(_REPO / "agents" / "model_eval"))
+from model_eval_core.data.paths import (
+    EVAL_ROOT,
+    HUMAN_REVIEW_PATH,
+    PROMPTS_DIR,
+    RESULTS_DIR,
+    install_import_path,
+)
 
-from model_eval_core.prompts import read_curated_jsonl
-from model_eval_core.qualitative_rubric import (
+install_import_path()
+
+from model_eval_core.data import read_curated_jsonl  # noqa: E402
+from model_eval_core.qualitative import (  # noqa: E402
     assistant_judge_hallucination,
     hallucination_auto_grade,
     score_instruction_following,
     score_sycophancy,
 )
 
-RESULTS = _REPO / "agents" / "model_eval" / "eval" / "results"
-PROMPTS = _REPO / "agents" / "model_eval" / "eval" / "prompts"
-OUT = _REPO / "agents" / "model_eval" / "eval" / "human_qualitative_review.jsonl"
-ASSISTANT_OVERRIDES = (
-    _REPO / "agents" / "model_eval" / "eval" / "hallucination_assistant_review.json"
-)
+OUT = HUMAN_REVIEW_PATH
+RESULTS = RESULTS_DIR
+PROMPTS = PROMPTS_DIR
+ASSISTANT_OVERRIDES = EVAL_ROOT / "eval" / "hallucination_assistant_review.json"
 QUAL = frozenset({"instruction_following", "hallucination", "sycophancy"})
 
 

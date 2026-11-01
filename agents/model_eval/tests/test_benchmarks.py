@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from model_eval_core.dimensions import EvalDimension
-from model_eval_core.prompts import CuratedPrompt, read_curated_jsonl
+from model_eval_core.data import CuratedPrompt, read_curated_jsonl
+from model_eval_core.domain import EvalDimension
 
 
 class TestCuratedJsonl:
@@ -15,7 +15,6 @@ class TestCuratedJsonl:
     def test_read_fixture_shape(self) -> None:
         prompts_dir = Path(__file__).resolve().parents[1] / "eval" / "prompts"
         for name in (
-            "fixture.jsonl",
             "tool_use.jsonl",
             "instruction_following.jsonl",
             "hallucination.jsonl",

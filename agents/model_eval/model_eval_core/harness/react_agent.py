@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langgraph.prebuilt import create_react_agent
 
-from model_eval_core.tools import default_eval_tools
+from model_eval_core.harness.tools import default_eval_tools
 
 REACT_SYSTEM_PROMPT = """You are a careful assistant in an evaluation harness.
 Use tools when they help answer precisely. Follow user instructions exactly.

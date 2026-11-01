@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
+
+from model_eval_core.data.io import read_jsonl
 
 
 def tokens_from_messages(messages: Sequence[Mapping[str, Any]] | None) -> tuple[int, int]:
@@ -82,28 +85,9 @@ def aggregate_suite_tokens(
 
 
 def aggregate_suite_tokens_from_jsonl(
-    jsonl_path: Any,
+    jsonl_path: Path | str,
     *,
     wall_s: float | None,
 ) -> dict[str, Any]:
-    """Load JSONL from path and aggregate tokens.
-
-    Args:
-        jsonl_path: Path to ``responses.jsonl``.
-        wall_s: Suite wall clock seconds.
-
-    Returns:
-        See ``aggregate_suite_tokens``.
-    """
-    import json
-    from pathlib import Path
-
-    path = Path(jsonl_path)
-    rows: list[dict[str, Any]] = []
-    if path.exists():
-        with path.open(encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if line:
-                    rows.append(json.loads(line))
-    return aggregate_suite_tokens(rows, wall_s=wall_s)
+    """Load JSONL from path and aggregate tokens."""
+    return aggregate_suite_tokens(read_jsonl(Path(jsonl_path)), wall_s=wall_s)

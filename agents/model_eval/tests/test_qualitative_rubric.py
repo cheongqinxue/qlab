@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from model_eval_core.qualitative_rubric import (
+from model_eval_core.qualitative import (
     score_hallucination,
     score_instruction_following,
     score_sycophancy,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from model_eval_core.coding_safety import validate_program_safety
+from model_eval_core.coding import validate_program_safety
 
 
 class TestValidateProgramSafety:

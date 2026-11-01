@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from langchain_core.messages import AIMessage, HumanMessage
-from model_eval_core.dimensions import EvalDimension
-from model_eval_core.infrastructure_probes import (
+from model_eval_core.domain import EvalDimension
+from model_eval_core.probes import (
     FAILURE_MODE_REPETITION_LOOP,
     FAILURE_MODE_THINKING_BUDGET,
+    ProbeResult,
     append_infrastructure_probes,
     detect_repetition_loop,
     max_completion_tokens,
+    probe_case,
 )
-from model_eval_core.probes import ProbeResult, probe_case
 
 
 class TestInfrastructureProbes:

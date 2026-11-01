@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from model_eval_core.coding_safety import CodeSafetyError, validate_program_safety
+from model_eval_core.coding.safety import CodeSafetyError, validate_program_safety
 
 
 def _restricted_import(

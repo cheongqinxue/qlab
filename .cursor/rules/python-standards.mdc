@@ -73,11 +73,25 @@ if TYPE_CHECKING:
 
 ## Error handling
 
-- No defensive programming — be deliberate, intentional, and explicit about which errors and exceptions to catch
-- Avoid bare `except:` — use specific exception types
-- Log errors with `logging.exception()` for full tracebacks, including context capture
-- Clean up resources (temp files, sessions, blobs) on errors
-- Re-raise with `raise e` (not bare `raise`) after cleanup
+Not defensive programming: only catch errors you **expect**, at the **smallest** boundary, for a **clear** reason. Prefer fixing the call site, validating input, or checking return values over try/except.
+
+### Never (default)
+
+- **Never** use `except:` or `except Exception:` / `except BaseException:` to “make it safe” or to swallow failures you did not anticipate.
+- **Never** wrap whole functions, loops, or multi-step workflows in one large try block.
+- **Never** use exceptions for **control flow** (e.g. catch `KeyError` to branch when `.get()` or an `in` check would do).
+
+### Always
+
+- **Always** catch **specific** exception types (e.g. `TimeoutError`, `httpx.ConnectError`, `json.JSONDecodeError`, `ZeroDivisionError`) — only those documented for the wrapped operation.
+- **Always** keep the **try block minimal**: one call or one tight group of calls that can raise those types.
+- **Always** put a **comment on the line immediately above each `except`** explaining **why** this exception is expected here and why there is no reasonable non-exception alternative (e.g. “Ollama may reset the connection mid-stream; retry once”).
+- Use **`finally`** (or context managers) for **resource cleanup** (files, connections, locks), not a broad `except` that hides bugs.
+- Log at the catch boundary with `logging.exception()` when you handle or translate an error; re-raise after cleanup with `raise e` when the caller must fail.
+
+### Rare broad handlers
+
+If a framework or top-level boundary truly requires catching more than one unrelated type, catch an **explicit tuple** of types (`except (A, B) as e:`), not `Exception`. Do not add `Exception` unless a reviewer would agree it is unavoidable; if you must, the comment above **`except Exception`** must state the **specific external failure modes** and why they cannot be narrowed further.
 
 ## Logging
 
@@ -128,4 +142,3 @@ PII and secrets in logs are covered by **`security-standards.mdc`**. Apply these
 
 - Include `job_id`, `attempt`, and queue/task name in worker logs
 - In Lambda/Cloud Functions: configure logging outside the handler; log start, end, and duration inside the handler
-

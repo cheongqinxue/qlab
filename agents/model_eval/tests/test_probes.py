@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from langchain_core.messages import AIMessage, HumanMessage
-from model_eval_core.dimensions import EvalDimension
+from model_eval_core.domain import EvalDimension, uses_react_tools
 from model_eval_core.probes import probe_case
 
 
@@ -36,3 +36,9 @@ class TestProbeCase:
         )
         assert "missing_entry_point_in_answer" in probe.failure_modes
         assert "agent_step_limit_stub" in probe.failure_modes
+
+    def test_only_tool_use_uses_react(self) -> None:
+        assert uses_react_tools(EvalDimension.TOOL_USE) is True
+        for dim in EvalDimension:
+            if dim != EvalDimension.TOOL_USE:
+                assert uses_react_tools(dim) is False

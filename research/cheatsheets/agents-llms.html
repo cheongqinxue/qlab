@@ -14,6 +14,7 @@
         <p class="nav-footer">
           Pick models for agents — patterns → <a href="agents-patterns.html">control patterns</a>.
           Eval harness → <a href="testing-ml.html">ML testing</a>.
+          Local ReAct results → <a href="agents-model-eval.html">model eval matrix</a>.
           Serving → <a href="transformers-serving.html">transformers serving</a>.
         </p>
       </nav>
@@ -653,7 +654,7 @@
           <section class="cell cell-span">
             <p>
               Sweet spot for <strong>local agents</strong>, laptop GPUs, and high fan-out tool loops.
-              Includes extreme quant (Ternary Bonsai 2), <strong>OpenBMB MiniCPM</strong> (edge VLM + sub-8B chat), <strong>Nemotron Lightning</strong> on one 80 GB GPU, <strong>Muse Glimmer</strong> on 24 GB, and <strong>LFM3/LFM2.5</strong> sub-3B–8B edge models.
+              Includes extreme quant (Ternary Bonsai 2), <strong>OpenBMB MiniCPM</strong> (edge VLM + sub-8B chat), <strong>Nemotron Lightning</strong> on one 80 GB GPU, <strong>Muse Glimmer</strong> on 24 GB, and <strong>LFM3/LFM2.5</strong> sub-3B–8B edge models (text, VL, <strong>omni</strong>, audio).
             </p>
             <div class="cell-table-wrap">
               <table class="cell-table">
@@ -1035,6 +1036,21 @@
                     <td>Basic‡</td>
                     <td>—</td>
                   </tr>
+                  <tr>
+                    <td>LFM3-Omni-2B</td>
+                    <td>32k</td>
+                    <td>T+I+V+A→T+S</td>
+                    <td>2.17B dense</td>
+                    <td>~4–5 GB Q4 GGUF</td>
+                    <td>~4–6 GB Q4</td>
+                    <td>&lt;0.3</td>
+                    <td>Very high</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>Spoken VQA; AV video</td>
+                    <td>Multimodal tools‡</td>
+                    <td>On-device omni</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -1045,6 +1061,7 @@
               <strong>Ornith</strong> (not “Omith”) — Ornith-1.5 family from Ornith AI; Bonsai 2 needs PrismML llama.cpp/MLX builds for PTQ1_0/PQ2_0.
               Qwen numbering: treat <strong>3.8</strong> as current flagship open line; 3.5 fills compact dense slots.
               <strong>Muse:</strong> Glimmer = 30B local agent distill; Spark Open = 816B MoE datacenter tier. <strong>Nemotron 3 Nano Omni</strong> = text+image+video+audio in, text out (C-RADIO v4-H + Parakeet audio); English-only; checkpoints <code>Nemotron-3-Nano-Omni-30B-A3B-Reasoning-*</code>. <strong>Nemotron 3.5 Bolt-E4B</strong> is a Nemotron post-train on Gemma 4 E4B, not NVIDIA-native arch.
+              <strong>LFM3 omni/audio:</strong> <code>LiquidAI/LFM3-Omni-2B</code> = text+image+video+audio in, text and/or 24 kHz speech out; non-reasoning; multimodal tool calling in Liquid docs. <code>LFM3-Audio-2B</code> = speech-only workloads (ASR/TTS/voice chat); use omni when vision/video is in the loop.
             </p>
           </section>
 
@@ -1076,7 +1093,7 @@
               <strong>Multimodal agents</strong> (PDF, audio, video in one thread) — Gemini 3.1 Pro or 3.8 Flash native multimodal I/O.
               <strong>On-prem frontier</strong> — <strong>Qwen3.8-27B</strong> or <strong>Gemma 4 31B</strong> Q4 on a 24–48 GB GPU; MoE at scale: Qwen3.8-Flash-Next, GPT-OSS-120B, DeepSeek V4.1-Flash.
               <strong>On-prem laptop / edge agent</strong> — <strong>Muse Glimmer-30B</strong> (24 GB), <strong>Nemotron 3.5 Lightning</strong> (80 GB BF16 or NVFP4 on Spark), <strong>LFM3-1.7B</strong> / <strong>LFM2.5-8B-A1B</strong>, Bonsai 2 9B, ZAYA1-8B, Granite 4.2-8B, <strong>MiniCPM5-8B</strong>.
-              <strong>Multimodal local agent</strong> — <strong>Nemotron 3 Nano Omni</strong> (doc/video/audio agents on 32–80 GB), Muse Glimmer, Nemotron Super-VL or Bolt, LFM3-VL-2B, <strong>MiniCPM-V 4.6</strong> (screenshots/PDFs on ~8–12 GB); budget VRAM for encoders and long multimodal context.
+              <strong>Multimodal local agent</strong> — <strong>Nemotron 3 Nano Omni</strong> (doc/video/audio agents on 32–80 GB), Muse Glimmer, Nemotron Super-VL or Bolt, <strong>LFM3-Omni-2B</strong> (hands-free / spoken VQA on ~4–6 GB), LFM3-VL-2B, <strong>MiniCPM-V 4.6</strong> (screenshots/PDFs on ~8–12 GB); budget VRAM for encoders and long multimodal context.
               Always run <a href="testing-ml.html">your golden agent eval</a> — public benchmarks do not include your tools, data, or policies.
             </p>
           </section>

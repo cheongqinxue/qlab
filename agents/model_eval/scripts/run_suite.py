@@ -6,26 +6,26 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
-_REPO_AGENTS = Path(__file__).resolve().parents[2]
-for _p in (_REPO_AGENTS, _REPO_AGENTS / "model_eval"):
-    if str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
+from model_eval_core.data.paths import EVAL_ROOT, PROMPTS_DIR, install_import_path
+
+install_import_path()
 
 import yaml
 from agents_utils.env import load_agents_env
-from model_eval_core.dimensions import EvalDimension
-from model_eval_core.gpu_metrics import RuntimeStats, eval_gpu_index
-from model_eval_core.infrastructure_probes import infrastructure_counts_from_rows
-from model_eval_core.ollama_tool_errors import FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED
-from model_eval_core.prompts import CuratedPrompt, read_curated_jsonl
-from model_eval_core.runner import run_case
-from model_eval_core.token_stats import aggregate_suite_tokens
+from model_eval_core.data import read_jsonl  # noqa: E402
+from model_eval_core.data.prompts import CuratedPrompt, read_curated_jsonl  # noqa: E402
+from model_eval_core.domain import EvalDimension  # noqa: E402
+from model_eval_core.harness import run_case  # noqa: E402
+from model_eval_core.metrics import RuntimeStats, aggregate_suite_tokens, eval_gpu_index  # noqa: E402
+from model_eval_core.probes import FAILURE_MODE_OLLAMA_TOOL_BINDING_UNSUPPORTED  # noqa: E402
+from model_eval_core.probes.infrastructure import infrastructure_counts_from_rows  # noqa: E402
+
+_REPO_AGENTS = EVAL_ROOT.parent
 
 
 def _load_all_curated_prompts(
@@ -131,18 +131,9 @@ async def run_model_folder(
         gpu_summary["peak_used_mib"] = max(vram_peaks_mib)
         gpu_summary["mean_peak_used_mib"] = round(sum(vram_peaks_mib) / len(vram_peaks_mib), 1)
 
-    saved_rows: list[dict] = []
-    if responses_path.exists():
-        saved_rows = [
-            json.loads(line)
-            for line in responses_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+    saved_rows = read_jsonl(responses_path)
     infra_counts = infrastructure_counts_from_rows(saved_rows)
-    token_stats = aggregate_suite_tokens(
-        saved_rows,
-        wall_s=runtime_stats.wall_s,
-    )
+    token_stats = aggregate_suite_tokens(saved_rows, wall_s=runtime_stats.wall_s)
 
     summary = {
         "model_dir": model_dir.name,
@@ -176,7 +167,7 @@ def main() -> None:
     parser.add_argument(
         "--prompts-dir",
         type=Path,
-        default=_REPO_AGENTS / "model_eval" / "eval" / "prompts",
+        default=PROMPTS_DIR,
         help="Directory with <dimension>.jsonl files.",
     )
     parser.add_argument(

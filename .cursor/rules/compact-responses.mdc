@@ -1,0 +1,17 @@
+---
+description: Keep chat answers short and scannable — minimal vertical space
+alwaysApply: true
+---
+
+# Compact responses
+
+When replying in chat (not when writing committed docs, cheatsheets, or PR bodies unless asked):
+
+- **Stay above the fold:** Prefer answers that fit one screen without scrolling on a typical laptop. Cut filler; one pass of substance beats padded structure.
+- **Tight prose:** Fewer blank lines between paragraphs. At most one blank line between blocks. No triple spacing or decorative section breaks.
+- **Lists over tables:** Use bullet or numbered lists for comparisons and options. Use tables only when alignment is essential (many columns or strict side-by-side diffs).
+- **Short sections:** Avoid long hierarchical outlines. Skip redundant summaries and “in conclusion” restatements.
+- **Proportional length:** Simple questions → a few sentences or a short list. Deep topics → still compact; link or point to repo docs instead of reproducing them.
+- **Code and links:** Include what’s needed to act; omit optional follow-up menus unless the user asked for options.
+
+Cheatsheets, README, and formal writeups in the repo may stay dense and structured; this rule targets **assistant chat tone and layout**.
