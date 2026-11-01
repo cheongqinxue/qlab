@@ -78,7 +78,7 @@ Writes `failure_modes` / `signals.infrastructure` on each row and `infrastructur
 
 **Throughput (tok/s):** `summary.json` → `token_stats` sums `usage` on AI messages in `responses.jsonl`. **Out tok/s** = completion tokens ÷ suite `runtime.wall_s` (else sum of case `latency_s`). New runs populate this via `run_suite`; backfill existing folders with `backfill_metrics.py` (tokens only, no VRAM probe) then re-export.
 
-**View matrix:** [`research/cheatsheets/agents-model-eval.html`](../../research/cheatsheets/agents-model-eval.html) — sortable dimension table; row click for prompts/outputs. Serve locally from `research/cheatsheets/` (`python -m http.server`) so JS/data load correctly (GitHub’s file view is not enough).
+**View matrix:** [cheongqinxue.github.io/qlab/agents-model-eval.html](https://cheongqinxue.github.io/qlab/agents-model-eval.html) — sortable dimension table; row click for prompts/outputs (GitHub Pages; redeploys when `research/cheatsheets/**` changes on `master`).
 
 Export writes `research/cheatsheets/js/agents-model-eval-data.js`.
 

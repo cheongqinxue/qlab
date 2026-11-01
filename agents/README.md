@@ -161,7 +161,7 @@ Curated JSONL prompts, shared LangGraph **ReAct** agent, Langfuse traces + failu
 
 Set **`AGENT_NAME=model_eval`** (or use `run_eval.sh`) for Langfuse filtering.
 
-**Results matrix:** [`research/cheatsheets/agents-model-eval.html`](../research/cheatsheets/agents-model-eval.html) — open via `python -m http.server` from `research/cheatsheets/` ([`model_eval/README.md`](model_eval/README.md) for export/rescore).
+**Results matrix:** [GitHub Pages](https://cheongqinxue.github.io/qlab/agents-model-eval.html) ([`model_eval/README.md`](model_eval/README.md) for export/rescore).
 
 ---
 

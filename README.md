@@ -8,10 +8,10 @@ This is my personal collection of mini projects based on what I'm interested in 
 
 ## Cheatsheets
 
-Static HTML reference pages under [`research/cheatsheets/`](research/cheatsheets/). Open in a browser via local HTTP (from that folder: `python -m http.server`); GitHub file preview does not run the JS bundles.
+Hosted on **GitHub Pages** ([`research/cheatsheets/`](research/cheatsheets/) in repo; deploy workflow on push to `master`).
 
-- **[Local model eval matrix](research/cheatsheets/agents-model-eval.html)** — Ollama quant comparison from [`agents/model_eval/`](agents/model_eval/) (`export_cheatsheet_data.py` to refresh).
-- **[Cheatsheet index](research/cheatsheets/index.html)** — all tracks (training, agents, MLOps, …).
+- **[Local model eval matrix](https://cheongqinxue.github.io/qlab/agents-model-eval.html)** — Ollama quant comparison from [`agents/model_eval/`](agents/model_eval/) (`export_cheatsheet_data.py` to refresh).
+- **[Cheatsheet index](https://cheongqinxue.github.io/qlab/index.html)** — all tracks (training, agents, MLOps, …).
 
 ## Contents
 
