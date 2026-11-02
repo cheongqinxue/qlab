@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security — GenAI rate limits &amp; layers · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Layered limits for chat and agent APIs. Threats →
+          <a href="security-genai-threats.html">GenAI attack vectors</a>. Harness retries →
+          <a href="agents-reliability.html#harness">harness hardening</a>. GPU queues →
+          <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">GenAI rate limits &amp; traffic layers</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Why layers matter</span>
+            <p>
+              A logged-in support chatbot can be abused by scripts, by retry storms, or by one user opening many streams that exhaust GPU and
+              tools. A single global rate limit is not enough: the <strong>edge</strong> must protect login and static assets, the
+              <strong>BFF</strong> must enforce per-user fairness and agent policy, the <strong>model tier</strong> must cap tokens and
+              concurrency, and <strong>tools</strong> must limit irreversible actions. Each layer uses cheap signals before the next layer pays
+              for LLM inference.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">The four layers</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Layer</th>
+                    <th scope="col">What hits it first</th>
+                    <th scope="col">Typical controls</th>
+                    <th scope="col">Identity key</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Edge</strong> (CDN, LB, API gateway)</td>
+                    <td>Browser loading UI, TLS, unauthenticated probes</td>
+                    <td>Conn rate per IP, WAF, geo rules, TLS-only, bot scores</td>
+                    <td>IP, optional device fingerprint</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Auth</strong> (IdP or login API)</td>
+                    <td>Password, OTP, SSO callbacks</td>
+                    <td>Fixed retries per account per 24h; lockout; CAPTCHA after N fails</td>
+                    <td>Account id + IP</td>
+                  </tr>
+                  <tr>
+                    <td><strong>BFF</strong> (app + agent harness)</td>
+                    <td>Chat SSE/WebSocket, agent turns after login</td>
+                    <td>Per-user short + long windows; max concurrent streams; coalesce bursts; step/token caps</td>
+                    <td>User id from verified JWT</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Model serve</strong> (Ray/vLLM/API)</td>
+                    <td>LLM inference requests from BFF</td>
+                    <td>Tenant token/min; max batch queue; 429 when saturated</td>
+                    <td>Service account + tenant id</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Tools</strong> (email, refund, search)</td>
+                    <td>Side-effecting HTTP from harness</td>
+                    <td>Per-tool rate; mutating stricter than read; HITL on money paths</td>
+                    <td>User id + tool name</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>Edge</strong> is the first infrastructure hop (Cloudflare, nginx, Kong, ALB)—not your LangGraph process. After login,
+              chat limits belong on the <strong>BFF</strong>, not only on IP, or one NAT office shares one bucket.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Limit types (combine several)</span>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Short vs long windows</span>
+            <p>
+              A <strong>short window</strong> (e.g. per minute) allows legitimate bursts—user pastes order history—while blocking machine-gun
+              clicks. A <strong>long window</strong> (e.g. per day) stops sustained abuse even if each minute stays under the short cap. Set
+              short loose enough for UX; set long tight enough that repeated bursts cannot continue indefinitely.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Concurrency caps</span>
+            <p>
+              Limit <strong>open chat streams per user</strong> (often 1–2) so one account cannot hold many GPU-backed sessions. Concurrency
+              limits beat request-per-minute alone for agent workloads where one “request” runs fifty LLM steps.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Token and cost budgets</span>
+            <p>
+              Per session or per day <strong>input+output token</strong> ceilings stop runaway agent loops from draining budget. Enforce in the
+              harness before calling the model; decrement on each completion; hard-stop with a user-visible message when exhausted.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Burst coalescing</span>
+            <p>
+              UI debounce and BFF <strong>single-flight per thread</strong> (or merge rapid messages into one agent run) prevent one paste from
+              becoming ten parallel agent jobs. That is a product/control choice, not only a higher rate limit.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Responses: 429, queue, degrade</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              <strong>429 Too Many Requests</strong> with <code>Retry-After</code> is appropriate at edge and BFF when you want clients to stop
+              immediately—pair with harness rules that do not retry aggressively on 429. A <strong>small bounded queue</strong> at BFF can smooth
+              spikes; an unbounded queue before GPU causes tail latency and retry storms. Under extreme load, <strong>feature-flag degrade</strong>
+              (FAQ-only, no agent, human queue) protects the model tier — see
+              <a href="transformers-serving-ray-vllm.html">failure runbooks</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Metrics and alerts</span>
+          </section>
+
+          <section class="cell cell-span">
+            <ul>
+              <li><strong>429 rate</strong> by layer (edge vs BFF vs vLLM) — identifies where pressure appears.</li>
+              <li><strong>Auth failures</strong> per account and IP — brute-force signal.</li>
+              <li><strong>Concurrent streams</strong> per user — abuse or client bug.</li>
+              <li><strong>Tokens per user per day</strong> — cost and agent-loop abuse.</li>
+              <li><strong>Tool calls</strong> per user per tool — especially mutating tools.</li>
+              <li><strong>LLM QPS ÷ active sessions</strong> — retry storm multiplier (<a href="agents-reliability.html#harness">harness</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Example policy sketch (support chat, logged-in)</span>
+            <p>
+              Edge: connection rate per IP for anonymous routes. Auth: 7 failed logins per account per 24h. BFF: max 2 concurrent streams per
+              user; 30 agent turns per minute (short); 500 per day (long); coalesce messages within 300ms on same thread; 100k tokens per day per
+              user. Tools: 10 read calls/min; 3 refund-related calls/hour with HITL above $0. Model: tenant-wide token/min cap with 429 when Ray/vLLM
+              queue exceeds bound. Tune numbers from load test and cost model—this block is a template, not universal constants.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Related sheets</span>
+            <p>
+              App AuthN/AuthZ patterns → <a href="security-implementation.html">security — implement &amp; deploy</a>.
+              Injection and poisoning → <a href="security-genai-threats.html">GenAI threats</a>.
+              Agent step caps and circuit breakers → <a href="agents-reliability.html">agents — reliability</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

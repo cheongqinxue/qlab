@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — evaluation · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Measuring retrieval and answers before ship. Metric formulas →
+          <a href="metrics.html">metrics</a>. When answers look wrong →
+          <a href="hallucination-diagnosis.html">hallucination diagnosis</a>. Pipeline →
+          <a href="rag-systems.html">RAG systems</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">RAG evaluation</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Evaluate in three layers</span>
+            <p>
+              <strong>Retrieval</strong> asks whether the right evidence appears in the candidate list (recall@k, nDCG, MRR) — independent of the LLM.
+              <strong>Generation</strong> asks whether the answer is supported by the evidence actually placed in the prompt (faithfulness, citation
+              precision) and optionally whether it matches human gold text (exact match, F1) or real-world truth (correctness).
+              <strong>End-to-end</strong> runs the full pipeline on realistic queries and scores task success, user satisfaction, or business outcomes.
+              A high recall@5 with low faithfulness means fix ranking or generation; high faithfulness with angry users means fix sources or correctness —
+              see <a href="hallucination-diagnosis.html">hallucination diagnosis</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Golden sets and qrels</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Building labeled data</span>
+            <p>
+              A <strong>golden query set</strong> is a fixed list of questions with known expectations. <strong>Qrels</strong> (query relevance
+              judgments) map each query to relevant <strong>chunk or document ids</strong> — binary or graded. Sources: human annotators on real
+              support questions; expert-written FAQ pairs; or <strong>synthetic</strong> questions generated from held-out chunks with the positive id
+              known by construction (<a href="rag-representations.html">embedder eval</a>). Hold out entire documents from any training or tuning that
+              touches retrieval. Refresh the set when the corpus or product domain shifts; version the file in git like a model artifact.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Slices and regression gates</span>
+            <p>
+              Report metrics on the full set and on <strong>slices</strong>: locale, product line, queries with order IDs or error codes, long vs short
+              questions, and permission-sensitive queries. CI should fail a release when <strong>any critical slice</strong> drops more than a tolerance
+              on recall@k or faithfulness compared to the previous index or prompt version. Keep a small “must never break” set (50–200 queries) for
+              every deploy of embed model, chunk policy, reranker, or LLM prompt.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Retrieval metrics (offline)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What to compute and when</span>
+            <p>
+              <strong>Recall@k</strong> measures whether any gold relevant chunk appears in the top k returned — use the same k as production (often
+              5–10 after rerank, 50–100 before rerank). <strong>Recall@1 vs recall@5</strong> gap diagnoses wrong ranking when gold is in the list.
+              <strong>Precision@k</strong> matters when context window is tight or reranker cost is high. <strong>MRR</strong> suits one gold chunk per
+              query; <strong>nDCG</strong> suits graded relevance. <strong>Hit rate@k</strong> is the per-query “any relevant in top k” rate — easy for
+              dashboards. Formulas and definitions live on <a href="metrics.html">metrics</a>. ANN tuning uses the same qrels —
+              <a href="rag-ann.html">ANN sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Retriever-only vs full pipeline</span>
+            <p>
+              Run retrieval metrics with the production hybrid + fusion + rerank stack but <strong>without</strong> calling the LLM — fast iteration on
+              chunking and embed changes. Optionally report an <strong>oracle reader</strong> score: give the gold chunk to the LLM and measure answer
+              quality — upper bound showing how much retrieval alone limits end-to-end quality.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Generation and grounding metrics</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Faithfulness, correctness, citations</span>
+            <p>
+              <strong>Faithfulness</strong> (groundedness): each atomic claim in the answer is entailed by the retrieved context shown to the model —
+              typically NLI cross-encoder, RAGAS-style decompose-then-verify, or calibrated LLM-as-judge. <strong>Answer correctness</strong>: matches
+              authoritative gold (human label or policy doc), independent of whether the model quoted the right chunk. <strong>Citation precision</strong>:
+              cited chunk ids exist and contain the cited span; <strong>citation recall</strong>: claims that need support have a citation.
+              High faithfulness with low correctness means stale or wrong KB — not a generation-only fix.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Abstention and empty retrieval</span>
+            <p>
+              Track the rate at which retrieval scores fall below threshold and the model <strong>should</strong> refuse. Score <strong>proper abstention</strong>
+              on queries with no relevant docs in the index (should not invent). Score <strong>false refusal</strong> when gold exists but the pipeline
+              said “I don’t know.” Both belong in the golden set explicitly.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">LLM-as-judge and automation</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">When judges help and when they lie</span>
+            <p>
+              LLM judges scale cheaply for faithfulness and helpfulness on hundreds of pairs. Calibrate against a <strong>human-labeled subset</strong>
+              (50+ per domain); report judge–human agreement. Judges favor verbose, confident answers and can share the same biases as the generator —
+              do not use them as the only gate for regulated content. Prefer <strong>deterministic checks</strong> where possible: citation id in allowlist,
+              numeric answers match tool JSON, regex on required policy phrases. Tools such as RAGAS, ARES, and DeepEval implement common patterns;
+              treat them as starting pipelines, not black-box pass/fail without domain calibration.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Release workflow</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Offline gates before production</span>
+            <p>
+              Typical order for an index or prompt change: (1) retrieval recall@k / nDCG on golden qrels; (2) faithfulness and citation metrics on
+              full pipeline with frozen LLM; (3) end-to-end answer correctness on human gold; (4) security slice (ACL: forbidden cross-tenant retrieval
+              in tests). Block merge if any gate regresses beyond tolerance. Store retrieved chunk ids in eval logs so failures are debuggable without
+              re-running blind — aligns with <a href="hallucination-diagnosis.html">diagnosis workflow</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Online and A/B evaluation</span>
+            <p>
+              Offline sets lag real query drift. In production, sample traces for human review or LLM judge; track <strong>escalation rate</strong>,
+              <strong>thumbs down</strong>, <strong>time to resolution</strong>, and task-specific KPIs (deflection, CSAT). Run <strong>shadow</strong>
+              retrieval (new index returns candidates but does not affect answers) before cutover. A/B new reranker or model on a fraction of traffic
+              with pre-registered primary metric and guardrails (latency, abstention rate). Log faithfulness on a small daily sample even when offline
+              CI passed.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What to re-eval when something changes</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Change</th>
+                    <th scope="col">Minimum offline eval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Chunk size / parser</td>
+                    <td>Retrieval recall@k; sample faithfulness</td>
+                  </tr>
+                  <tr>
+                    <td>Embedding model</td>
+                    <td>Full re-embed + recall@k; ANN recall vs flat sample</td>
+                  </tr>
+                  <tr>
+                    <td>Hybrid / RRF / reranker</td>
+                    <td>Retrieval nDCG; rank of gold id; latency</td>
+                  </tr>
+                  <tr>
+                    <td>System prompt / LLM</td>
+                    <td>Faithfulness, abstention, correctness; not retrieval alone</td>
+                  </tr>
+                  <tr>
+                    <td>Ingest ACL or source</td>
+                    <td>ACL leak tests + slice recall</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Common mistakes</span>
+            <p>
+              Optimizing BLEU/ROUGE on paraphrased answers while users need factual grounding. Reporting recall@k on k much larger than production
+              context. Leaking golden queries into embed fine-tuning. Single aggregate faithfulness score hiding slice collapse (e.g. ID-heavy queries).
+              Shipping when only the LLM changed without re-running faithfulness on the same retrieved contexts.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Mitigation after eval fails</span>
+            <p>
+              Retrieval failures → <a href="rag-chunking.html">chunking</a>, <a href="rag-fusion-ranking.html">fusion</a>,
+              <a href="rag-representations.html">embedders</a>. Faithfulness failures → <a href="agents-grounding.html">grounding mitigations</a>.
+              Wrong facts with high faithfulness → <a href="rag-ingest-pipeline.html">ingest freshness</a> and source of truth.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

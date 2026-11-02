@@ -59,6 +59,27 @@
             </ul>
           </section>
 
+          <section class="cell cell-span" id="roc-auc-vs-precision">
+            <span class="cell-title">High ROC-AUC, low precision at your production threshold</span>
+            <p>
+              <strong>ROC-AUC</strong> summarizes ranking quality over <em>all</em> thresholds: positives tend to score higher than negatives.
+              <strong>Precision at one threshold</strong> is what you live with in production: among rows you flagged positive, how many are truly positive?
+              Both can be true at once — good separation in scores, bad precision because the operating point is wrong or the positive class is rare.
+            </p>
+            <p>
+              <strong>Reason 1 — threshold misfit.</strong> Validation picked a cutoff for high recall (or default 0.5) while the product needs high precision.
+              <em>Check:</em> precision–recall curve on a held-out set; sweep threshold by cost matrix ($ of FP vs FN); report F1 only at the chosen operating point, not as a substitute for the sweep.
+            </p>
+            <p>
+              <strong>Reason 2 — class imbalance and base rate.</strong> When positives are rare, many false positives among predicted positives can drive precision down even with decent AUC.
+              <em>Check:</em> class proportions in train vs production; <strong>PR-AUC</strong> (often more informative than ROC-AUC here); confusion matrix counts at the deployed threshold, not percentages alone.
+            </p>
+            <p>
+              <strong>Reason 3 — base rate / calibration shift.</strong> Scores rank well offline but the live population has fewer positives (or miscalibrated probabilities), so the same threshold fires too often.
+              <em>Check:</em> reliability diagram / expected calibration error (ECE); compare predicted positive rate to observed positive rate on recent data.
+            </p>
+          </section>
+
           <section class="cell">
             <span class="cell-title">Regression</span>
             <ul>
@@ -225,7 +246,7 @@
               <li><strong>BERTScore / embedding sim</strong> — semantic similarity; better correlation sometimes, model-dependent.</li>
               <li><strong>LLM-as-judge</strong> — pairwise or scalar; useful for drafts; calibrate against human subset.</li>
             </ul>
-            <p class="cell-caption">For factual RAG answers, add faithfulness metrics on <a href="agents-grounding.html">grounding</a> — overlap metrics do not catch hallucination.</p>
+            <p class="cell-caption">RAG eval workflow and release gates → <a href="rag-evaluation.html">RAG evaluation</a>. Mitigations → <a href="agents-grounding.html">grounding</a>.</p>
           </section>
 
           <section class="cell cell-band cell-span">

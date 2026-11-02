@@ -12,10 +12,10 @@
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
         <p class="nav-footer">
-          Agent <strong>issue</strong>: unfaithful or invented content. Policy limits →
+          Agent <strong>issue</strong>: unfaithful or invented content. Causes &amp; diagnosis →
+          <a href="hallucination-diagnosis.html">hallucination (diagnosis)</a>. Policy limits →
           <a href="agents-trust-policy.html">trust &amp; use policy</a>. Tool safety →
-          <a href="agents-system-security.html">system &amp; security</a>. RAG pipeline →
-          <a href="rag-systems.html">RAG systems</a>.
+          <a href="agents-system-security.html">system &amp; security</a>.
         </p>
       </nav>
 
@@ -36,11 +36,13 @@
               The <strong>issue</strong> is <strong>hallucination</strong> — confident claims not supported by allowed evidence: wrong facts, fake citations,
               invented tool arguments, or fluent answers when retrieval was empty. <strong>Grounding</strong> means tying statements to sources, tool JSON, or explicit uncertainty.
               <strong>Guardrails</strong> here are tools: citation checks, score thresholds, CoVe, schema validation — applied to this issue, not a separate product category.
+              For a structured list of <strong>causes</strong> and <strong>how to diagnose</strong> which layer failed, see
+              <a href="hallucination-diagnosis.html">hallucination — causes &amp; diagnosis</a>; this page focuses on mitigations.
             </p>
           </section>
 
           <section class="cell cell-band cell-span">
-            <span class="cell-title">Failure modes</span>
+            <span class="cell-title">Failure modes (short)</span>
           </section>
 
           <section class="cell">

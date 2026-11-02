@@ -111,7 +111,7 @@
                     <td>Client harness</td>
                     <td>Deadline per turn, max retries=2, jitter</td>
                     <td>Stop hammering hot GPU</td>
-                    <td>Duplicate tool side effects if retrying whole agent turn</td>
+                    <td>Duplicate tool side effects if retrying whole agent turn — <a href="agents-reliability.html#harness">harness policy</a></td>
                   </tr>
                 </tbody>
               </table>
@@ -270,7 +270,194 @@ class VLLMDeployment:
             </div>
             <p class="cell-caption">
               Ray UI is for diagnosis (Serve → replica states). Live capacity changes are almost always <strong>serve deploy</strong> on Git-managed YAML plus <strong>BFF flags</strong> and <strong>kubectl</strong>/cloud console for GPUs.
-              See <a href="failure-modes.html">failure modes</a> and <a href="troubleshooting.html">troubleshooting</a>.
+              Metric meanings and symptom patterns → <a href="#metrics-reference">metrics reference</a> below. See also
+              <a href="failure-modes.html">failure modes</a> and <a href="troubleshooting.html">troubleshooting</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="metrics-reference">
+            <span class="cell-title">Production metrics (vLLM &amp; Ray Serve)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Where to scrape (two layers)</span>
+            <p>
+              <strong>vLLM</strong> exposes Prometheus text on its HTTP server (commonly <code>/metrics</code> on the worker port, e.g. 8000).
+              That is where KV block-pool and scheduler counters live. <strong>Ray Serve</strong> exposes deployment-level queue and replica metrics
+              (Ray metrics agent / Grafana dashboards); it does not show PagedAttention block usage unless you forward vLLM metrics from each replica.
+              In production, scrape <strong>every vLLM pod</strong> plus the Serve control plane, and join in Grafana on <code>model</code>, <code>replica</code>,
+              and <code>deployment</code> labels. Exact metric names shift between vLLM releases — run
+              <code>curl -s http://&lt;vllm-host&gt;:8000/metrics | rg -i 'cache|preempt|waiting|running'</code> once per upgrade and pin aliases in your dashboard.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">KV “pool” — what you can and cannot see</span>
+            <p>
+              vLLM stores past keys and values in a <strong>fixed pool of GPU blocks</strong> (PagedAttention), not as one growable buffer per request.
+              There is no standard UI that lists “block 412 of 500.” The engine publishes <strong>aggregate fill level</strong> (cache usage percentage)
+              and <strong>preemption count</strong>, which are the operational view of pool stress. <code>nvidia-smi</code> shows total VRAM used
+              (weights + KV + activations) but cannot separate block-pool saturation from weight footprint; do not use GPU util alone as a health signal.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">vLLM metrics — what they measure</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric (typical name)</th>
+                    <th scope="col">What it measures</th>
+                    <th scope="col">Symptoms when bad</th>
+                    <th scope="col">What it usually means</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>gpu_cache_usage_perc</code> (or <code>vllm:gpu_cache_usage_perc</code>)</td>
+                    <td>Fraction of the KV <strong>block pool</strong> currently allocated to active sequences (0–100%).</td>
+                    <td>Sustained high 90s+; TTFT p99 up; new streams slow to first token.</td>
+                    <td>Too many concurrent or long contexts for <code>max-num-seqs</code>, <code>gpu-memory-utilization</code>, and model size. Pool is full or near full; scheduler will preempt or reject.</td>
+                  </tr>
+                  <tr>
+                    <td><code>num_preemptions_total</code> (counter, use rate)</td>
+                    <td>How often the scheduler <strong>evicted</strong> a sequence’s KV blocks to free space for others.</td>
+                    <td>Counter slope spikes; users see long pauses then slow resume; TTFT variance widens.</td>
+                    <td>KV capacity mismatch with load — not “caching broken,” but <strong>not enough blocks</strong> for everyone at once. Victims pay re-prefill cost later.</td>
+                  </tr>
+                  <tr>
+                    <td><code>num_requests_running</code></td>
+                    <td>Sequences actively executing on GPU (prefill or decode), holding KV blocks.</td>
+                    <td>Pinned near <code>max-num-seqs</code>; latency climbs for everyone.</td>
+                    <td>Engine at concurrency ceiling; admission or more replicas needed, or lower caps / shorter context.</td>
+                  </tr>
+                  <tr>
+                    <td><code>num_requests_waiting</code></td>
+                    <td>Requests accepted by vLLM but <strong>not yet scheduled</strong> on GPU (internal scheduler queue).</td>
+                    <td>Waiting &gt; 0 for long periods; TTFT includes long queue wait; TPOT may still look normal for lucky running requests.</td>
+                    <td>GPU-side backlog — distinct from Ray Serve queue. Fix with fewer arrivals (429 at BFF/Serve), more healthy replicas, or lower per-request work.</td>
+                  </tr>
+                  <tr>
+                    <td><code>prompt_tokens_total</code> / <code>generation_tokens_total</code></td>
+                    <td>Throughput counters for prefill vs decode tokens.</td>
+                    <td>Prompt tokens spike without generation growth.</td>
+                    <td>Prefill-heavy traffic (long system prompts, RAG dumps) — head-of-line for TTFT; tune chunked prefill / token budgets.</td>
+                  </tr>
+                  <tr>
+                    <td>Request latency histograms (if enabled)</td>
+                    <td>Engine-reported e2e or stage latency per request class.</td>
+                    <td>TTFT bucket shifts right while decode buckets stable.</td>
+                    <td>Confirms bottleneck is <strong>before steady decode</strong> (queue + prefill + preemption), not inter-token generation.</td>
+                  </tr>
+                  <tr>
+                    <td>CUDA OOM / restart (logs + kube <code>restartCount</code>)</td>
+                    <td>Process-level failure when allocation exceeds VRAM.</td>
+                    <td>Intermittent 500s; pod restarts; one bad prompt correlates with crash.</td>
+                    <td>Hard limit hit — lower <code>max-model-len</code>, <code>max-num-seqs</code>, or memory fraction; distinct from soft preemption but same family (KV pressure).</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>Preemption</strong> in vLLM means the scheduler freed another sequence’s KV blocks to admit work; that sequence may later
+              <strong>recompute prefill</strong> to rebuild KV. It is not Kubernetes preempting a pod unless you use spot instances separately.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Ray Serve metrics — what they measure</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric (typical name)</th>
+                    <th scope="col">What it measures</th>
+                    <th scope="col">Symptoms when bad</th>
+                    <th scope="col">What it usually means</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>serve_deployment_queued_queries</code> (or queue depth per deployment)</td>
+                    <td>HTTP requests waiting at Serve because replicas are at <code>max_ongoing_requests</code>.</td>
+                    <td>Queue grows without bound (if uncapped); TTFT rises before vLLM even sees traffic.</td>
+                    <td>Python-layer backlog — scale replicas, raise caps cautiously, or 429 at ingress. Check replica count vs GPU quota.</td>
+                  </tr>
+                  <tr>
+                    <td>Ongoing / in-flight requests per replica</td>
+                    <td>Active calls into the deployment actor (streaming counts until response completes).</td>
+                    <td>Every replica at <code>max_ongoing_requests</code>; autoscale not adding ready replicas.</td>
+                    <td>All replicas busy — pair with vLLM waiting/running. If Serve low but vLLM high, bottleneck is inside worker; if Serve high and vLLM low, routing or cold workers.</td>
+                  </tr>
+                  <tr>
+                    <td>Replica count (desired vs running vs healthy)</td>
+                    <td>How many Serve replicas exist and pass health checks.</td>
+                    <td>Desired &gt; running; Ray UI shows STARTING/PENDING; latency up without vLLM preemption spike.</td>
+                    <td>Pending replica storm or slow model load — not fixable by vLLM tuning alone. See failure table rows for no GPU / pending storm.</td>
+                  </tr>
+                  <tr>
+                    <td>Actor restarts / deployment errors</td>
+                    <td>Crash loops in Serve wrapper or failed init connecting to vLLM.</td>
+                    <td>Error rate spikes; partial availability.</td>
+                    <td>Config, OOM in sidecar, or bad deploy — distinct from KV preemption but similar user symptom (503/500).</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Symptom patterns (maps metrics to meaning)</span>
+            <p>
+              Use this with the failure-modes table above: failures describe <em>actions</em>; here is <em>which signals confirm the story</em>.
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">What users / SLOs show</th>
+                    <th scope="col">Metrics to check (order)</th>
+                    <th scope="col">Likely meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>TTFT p99 up</strong>, inter-token latency roughly OK</td>
+                    <td>Serve queue → vLLM <code>waiting</code> → <code>gpu_cache_usage_perc</code> + preemption rate → cold replica / load time</td>
+                    <td>Wait in outer queues, prefill backlog, or KV preemption/re-prefill — not decode batching.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Both TTFT and TPOT</strong> bad</td>
+                    <td><code>running</code> at cap + high cache % + high GPU util</td>
+                    <td>Fully saturated engine — need admission shed, caps, or more replicas.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GPU util “healthy” (~70%)</strong> but TTFT bad</td>
+                    <td>High cache %, preemptions, or Serve/vLLM waiting with low running</td>
+                    <td>Memory/scheduling bound or queueing — util averages hide KV pool full or requests stuck waiting.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Retry storm</strong> after timeouts</td>
+                    <td>Gateway QPS ≫ sessions; vLLM waiting pegged; cache % high</td>
+                    <td>Clients amplify load — fix BFF/harness retries before scaling GPUs.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>After deploy</strong> only</td>
+                    <td>Replica count low; no prefix-cache hit; TTFT up on all prompts</td>
+                    <td>Cold start, thundering herd, or lost prefix KV affinity — warm replicas before traffic shift.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Application metrics (BFF / harness)</span>
+            <p>
+              Complement engine metrics with harness spans: <strong>time in queue</strong> (Serve), <strong>time to first token</strong> (client-visible),
+              <strong>tool latency</strong>, and retry count per session. Engine metrics explain the GPU; harness metrics explain whether TTFT grew because
+              of Ray queue, vLLM wait, prefill, or preemption. Align with <a href="agents-reliability.html#harness">harness hardening</a> for retry counters.
             </p>
           </section>
 
@@ -279,12 +466,12 @@ class VLLMDeployment:
           </section>
 
           <section class="cell">
-            <span class="cell-title">Metrics to chart</span>
+            <span class="cell-title">Metrics to chart (minimum dashboard)</span>
             <ul>
-              <li><strong>TTFT</strong>, <strong>inter-token latency</strong>, <strong>total generation time</strong> — per model revision.</li>
-              <li><strong>GPU</strong> — util %, KV cache usage %, <code>num_requests_running/waiting</code> (vLLM exposes Prometheus).</li>
-              <li><strong>Ray</strong> — queue length, replica count, ongoing requests, actor restarts.</li>
-              <li><strong>Business</strong> — tool error rate, escalation rate, WF conversion (from Langfuse/LangSmith traces).</li>
+              <li><strong>Latency</strong> — TTFT, inter-token latency, total generation time (per model revision).</li>
+              <li><strong>vLLM</strong> — <code>gpu_cache_usage_perc</code>, preemption rate, <code>num_requests_running/waiting</code>.</li>
+              <li><strong>Ray Serve</strong> — queue depth, replica count (desired vs ready), ongoing requests per deployment.</li>
+              <li><strong>Business</strong> — tool error rate, escalation rate (Langfuse/LangSmith or OTel).</li>
             </ul>
           </section>
 

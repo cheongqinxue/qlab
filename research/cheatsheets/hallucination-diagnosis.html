@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hallucination — causes &amp; diagnosis · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Why models invent details and how to tell which layer failed. Mitigations →
+          <a href="agents-grounding.html">grounding &amp; hallucination</a>. RAG pipeline →
+          <a href="rag-systems.html">RAG systems</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Hallucination — causes &amp; diagnosis</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Three terms people conflate</span>
+            <p>
+              <strong>Hallucination</strong> (in product language) usually means the model stated something confidently that is not supported by
+              the evidence you allowed it to use (retrieved chunks, tool JSON, policy docs). <strong>Faithfulness</strong> (or groundedness) is
+              the metric flip side: each claim in the answer should be entailed by or quoted from that evidence. <strong>Answer correctness</strong>
+              is whether the statement is true in the real world — you can be faithful to a wrong or outdated document and still harm users.
+              Diagnosis always asks: was the right evidence present, did the model use it, and was that evidence itself true?
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cause taxonomy (by layer)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Retrieval layer — evidence never reached the model</span>
+            <p>
+              <strong>Retrieval miss.</strong> The gold passage was not in top‑k, so the model answered from parametric memory.
+              <strong>Empty or weak retrieve.</strong> Scores below threshold but the pipeline still called the LLM.
+              <strong>Over-filtering.</strong> ACL or metadata filters removed the only relevant chunk.
+              <strong>Stale index.</strong> Embeddings or text reflect an old policy; retrieval “succeeds” on the wrong version.
+              These look like generation hallucinations in the UI but fix is ingest, chunking, hybrid search, or filters — see
+              <a href="rag-ingest-pipeline.html">ingest pipeline</a>, <a href="rag-retrieval.html">retrieval</a>, and
+              <a href="rag-fusion-ranking.html">fusion</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Retrieval layer — evidence present but wrong or incomplete</span>
+            <p>
+              <strong>Wrong chunk selected.</strong> Recall@k is high (gold somewhere in top five) but the prompt or reranker emphasized a
+              similar but incorrect passage — wrong SKU, wrong policy section, adjacent paragraph without the number the user needs.
+              <strong>Chunk boundary split.</strong> The fact spans two chunks; neither alone supports the answer the model synthesized.
+              <strong>Conflicting chunks.</strong> Two retrieved snippets disagree; the model merges them into a fluent detail that appears in
+              neither source. <strong>Prompt injection in sources.</strong> Indexed HTML or tickets contain adversarial “ignore policy” text;
+              the model treats it as instructions or facts.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Generation layer — context in prompt, model still invents</span>
+            <p>
+              <strong>Parametric override.</strong> Strong priors (common misconceptions, training memorization) outweigh provided context —
+              typical when recall is good but faithfulness is low. <strong>Detail fabrication.</strong> Correct gist, invented specifics (dates,
+              amounts, names) not in any chunk. <strong>Fake or sloppy citations.</strong> Citation ids that were never retrieved, or quotes
+              that are not substrings of the cited chunk. <strong>Empty-context habit.</strong> Prompt or fine-tune encourages always answering;
+              model does not abstain when context is thin.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Agent and tool paths</span>
+            <p>
+              <strong>Tool hallucination.</strong> Model emits a function name or JSON args that do not match the schema or reality — harness
+              issue as much as model issue. <strong>Observation distortion.</strong> Agent summarizes tool output in natural language and adds
+              facts; downstream steps trust the summary. <strong>Stale tool vs fresh RAG.</strong> Numbers from an old tool call conflict with
+              retrieved policy; the model picks one inconsistently. <strong>Long-context drift.</strong> “Lost in the middle” — evidence was in
+              the prompt but attention-weighting effectively ignored it (hard to measure on API models; claim-level NLI is the practical test).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">User and product effects (not random model noise)</span>
+            <p>
+              <strong>Leading or sycophantic steering.</strong> User phrasing pushes the model to agree and invent supporting detail.
+              <strong>Reasoning-model rationalization.</strong> Long internal chains that sound plausible but diverge from retrieved evidence —
+              evaluate final answer against context, not chain eloquence. <strong>Creative mode on factual tasks.</strong> Temperature and
+              instructions tuned for marketing copy on a support bot.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Diagnostic workflow</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Step 1 — Split retrieval from generation</span>
+            <p>
+              On a labeled or sampled query set, compute <strong>recall@k</strong> (is the gold chunk in the retrieved list?) separately from
+              <strong>faithfulness</strong> (are answer claims supported by the retrieved text actually placed in the prompt?). If recall is
+              low, stop tuning prompts and fix retrieval. If recall is high and faithfulness is low, the bug is chunk choice, prompt assembly,
+              or generation. If faithfulness is high and users still complain, check correctness (stale docs, wrong tenant data).
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Step 2 — Inspect traces (production or replay)</span>
+            <p>
+              Log for every answer: query, <strong>retrieved chunk ids and scores</strong>, rerank order, model id, prompt version, and final
+              text. For a bad answer, ask: (1) Was the gold chunk retrieved? (2) Was it in the prompt? (3) Which citation ids did the model
+              cite? (4) Does each cited span contain the claimed sentence? Manual review of ten failures often beats a new embedding model.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Step 3 — Claim-level checks (automated)</span>
+            <p>
+              Split the answer into atomic claims (rules or LLM extractor). For each claim, run <strong>NLI entailment</strong> or a
+              cross-encoder against the union of retrieved passages (not against the whole internet). Count
+              <strong>unsupported-claim rate</strong>. Optionally require every claim to link a character span in a chunk; that is stricter than
+              citation ids alone. Tools in the RAGAS / ARES family implement variants of this; calibrate judges on human labels for your domain.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Symptom → likely cause → metric</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Symptom</th>
+                    <th scope="col">Likely cause</th>
+                    <th scope="col">Metric or test</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Wrong topic, confident answer</td>
+                    <td>Retrieval miss or empty context</td>
+                    <td>Recall@k on golden set; rate of answers when max score &lt; τ</td>
+                  </tr>
+                  <tr>
+                    <td>Right topic, wrong number or code</td>
+                    <td>Wrong chunk / partial chunk / stale doc</td>
+                    <td>Recall@1 vs recall@5; citation precision; doc version in metadata</td>
+                  </tr>
+                  <tr>
+                    <td>Plausible blend of two policies</td>
+                    <td>Conflicting chunks</td>
+                    <td>Contradiction detection among top‑k; unsupported-claim rate</td>
+                  </tr>
+                  <tr>
+                    <td>High recall@5, low faithfulness</td>
+                    <td>Parametric override or wrong chunk in prompt</td>
+                    <td>Claim entailment vs prompt context; which chunk ids were injected</td>
+                  </tr>
+                  <tr>
+                    <td>Citation present, user says false</td>
+                    <td>Correctness / stale source, not faithfulness</td>
+                    <td>Human correctness label; index freshness lag</td>
+                  </tr>
+                  <tr>
+                    <td>Agrees with leading user framing</td>
+                    <td>Sycophancy / steering</td>
+                    <td>Neutral vs leading prompt A/B; answer divergence (NLI or claim diff)</td>
+                  </tr>
+                  <tr>
+                    <td>SQL/tool number ≠ prose</td>
+                    <td>Observation distortion or ignored tool</td>
+                    <td>Exact match prose numerics to tool JSON</td>
+                  </tr>
+                  <tr>
+                    <td>Bad after long chat</td>
+                    <td>Summary drift or context truncation</td>
+                    <td>Compare full thread replay vs truncated; faithfulness before/after compaction</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What usually does not help first</span>
+            <p>
+              Swapping to a larger LLM before measuring recall and faithfulness. Lowering temperature alone when retrieval is empty or wrong.
+              Attention visualization on closed API models as a primary diagnostic. Adding more chunks to context without reranking — often
+              increases conflict and fabrication surface.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Mitigation (elsewhere)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">After you know the cause</span>
+            <p>
+              Thresholds and abstention, required citations, CoVe, NLI gates, tool-as-source-of-truth, structured output validation, and
+              human escalation are documented on <a href="agents-grounding.html">agents — grounding &amp; hallucination</a>. Retrieval-side
+              fixes (chunking, hybrid, rerank) live under <a href="rag-chunking.html">chunking</a>,
+              <a href="rag-fusion-ranking.html">fusion &amp; ranking</a>, and <a href="rag-retrieval.html">retrieval</a>.
+              Eval design and release gates → <a href="rag-evaluation.html">RAG evaluation</a>. Formulas → <a href="metrics.html">metrics</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

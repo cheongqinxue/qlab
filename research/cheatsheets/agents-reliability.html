@@ -17,6 +17,7 @@
           <a href="agents-grounding.html">grounding</a>,
           <a href="agents-system-security.html">system &amp; security</a>.
           Inference efficiency → <a href="transformers-efficiency.html">transformers efficiency</a>.
+          Harness hardening (retries, tools, checkpoints) → <a href="#harness">below</a>.
         </p>
       </nav>
 
@@ -56,7 +57,8 @@
           <section class="cell">
             <span class="cell-title">Rate limiting &amp; fairness</span>
             <p>
-              Per user, tenant, and global limits on LLM and expensive tools so one customer cannot exhaust shared capacity.
+              Per user, tenant, and global limits on LLM and expensive tools so one customer cannot exhaust shared capacity. Layered edge → BFF →
+              model → tool policy → <a href="security-genai-limits.html">GenAI rate limits</a>.
             </p>
           </section>
 
@@ -70,7 +72,7 @@
               <li>Fallback model or cached FAQ when primary fails.</li>
               <li>Feature flag: disable agent mode, keep simple RAG+LLM.</li>
               <li>Partial success (show retrieval if generation fails).</li>
-              <li>Idempotent retries on read tools; idempotency keys on writes.</li>
+              <li>Read vs write retry policy — detailed in <a href="#harness">harness hardening</a>.</li>
             </ul>
           </section>
 
@@ -78,6 +80,123 @@
             <span class="cell-title">Circuit breakers</span>
             <p>
               Fail fast when a dependency error rate spikes; probe with canaries before full restore.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="harness">
+            <span class="cell-title">Harness hardening (orchestration layer)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">What the harness is responsible for</span>
+            <p>
+              The <strong>harness</strong> is your application code around the model: the HTTP or WebSocket handler, the agent graph runner, tool
+              dispatch, auth token forwarding, deadlines, and persistence. It is not the LLM server (vLLM/Ray) and not the payments database.
+              When an interview asks how you prevent duplicate refunds, the harness answer is about <em>when</em> you call tools, <em>what</em> you
+              retry, and <em>what identifiers</em> you attach — assuming downstream APIs and databases also enforce invariants.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Tool taxonomy: read, write, compensate</span>
+            <p>
+              Register every tool with a <strong>class</strong> so retry and approval policy is data-driven, not implied by the model prompt.
+              <strong>Read</strong> tools (search, <code>get_order</code>, list policies) may be retried on timeout or 503 if they do not mutate state.
+              <strong>Write</strong> tools (create ticket, <code>issue_refund</code>, cancel shipment) must not be blindly retried; they require an
+              idempotency key and often human confirmation in the graph. <strong>Compensate</strong> tools undo or adjust a prior write (reverse
+              refund, release hold); treat them like writes with their own keys and audit trail.
+            </p>
+            <p>
+              The model never sees raw HTTP retry configuration. The harness intercepts each tool invocation, looks up the class, and applies the
+              matrix below before the HTTP client runs.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Retry matrix (harness policy)</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tool class</th>
+                    <th scope="col">On timeout / 503</th>
+                    <th scope="col">On 409 / conflict</th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Read</td>
+                    <td>Retry with backoff + jitter (bounded total wait)</td>
+                    <td>Return observation to model; do not retry blindly</td>
+                    <td>Total wait must stay under user-facing deadline</td>
+                  </tr>
+                  <tr>
+                    <td>Write</td>
+                    <td>Do not retry same payload; call status/read tool or GET by idempotency key</td>
+                    <td>Treat as success if idempotency replay; else surface to user</td>
+                    <td>Never “retry whole agent turn” because LLM call failed after write</td>
+                  </tr>
+                  <tr>
+                    <td>LLM step</td>
+                    <td>Retry generation only if no write ran in same step</td>
+                    <td>N/A</td>
+                    <td>Re-entrant graph nodes must be safe on replay — see checkpoints</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              A common production bug is configuring <code>tenacity</code> or a global HTTP retry on the tool client. That duplicates writes when the
+              server actually processed the request but the response was lost. Writes get at most one automatic follow-up: a <strong>status read</strong>
+              using the same idempotency key or resource id.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Trace id vs idempotency key</span>
+            <p>
+              A <strong>trace id</strong> (OpenTelemetry, Langfuse) correlates logs and spans for one user request; every retry may share it.
+              An <strong>idempotency key</strong> identifies one logical business action (“refund for order X after user confirm at T”) and must be
+              stable across retries of that action. Generate the idempotency key in the harness when the user confirms or when the graph enters an
+              approved write node — store it in graph state and the checkpointer <em>before</em> calling the write tool. Send it as
+              <code>Idempotency-Key</code> (or your API’s equivalent) on every attempt for that action. Do not reuse one key across different user
+              intents or different orders.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Checkpoints, resume, and graph replay</span>
+            <p>
+              LangGraph-style checkpointers and Temporal-style workflows persist thread state so a process crash can resume. On resume, framework
+              code may <strong>re-execute</strong> nodes from the last checkpoint forward. Any node that calls a write tool must either be
+              idempotent (same key → no double effect) or split into “plan” (pure) and “execute write” (guarded by key + DB). Human-in-the-loop
+              interrupts should persist pending action + idempotency key; after approval, only the execute node runs.
+            </p>
+            <p>
+              Pattern for money paths: <code>propose_refund</code> (read-only preview) → <code>interrupt</code> for approval →
+              <code>execute_refund</code> (single write with key from state). If <code>execute_refund</code> times out, the harness runs
+              <code>get_refund_status(order_id, idempotency_key)</code> before trying again.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Deadlines, cancellation, and partial failure</span>
+            <p>
+              Set a <strong>wall-clock deadline</strong> on the outer user request and a shorter per-tool timeout so the harness can return a
+              controlled message before the client disconnects. When the user closes the tab, propagate cancellation to in-flight tool HTTP calls
+              where the client library supports it so work does not continue unnoticed. If retrieval succeeded but generation failed, prefer
+              partial UX (show sources, offer human handoff) over silently retrying the entire pipeline including any write steps.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Layering with queues and databases</span>
+            <p>
+              Duplicate work can arrive because the harness retried, because two API replicas both handled the same message, or because a queue
+              delivered twice. The harness must not assume exactly-once messaging. It should attach idempotency keys to writes; message consumers
+              should dedupe by message id; databases should enforce unique constraints on keys — three separate topics. Queue semantics and
+              transactional idempotency patterns are not expanded on this page.
             </p>
           </section>
 
@@ -222,8 +341,12 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Tool timeout</td>
-                    <td>Retry once; skip step with warning</td>
+                    <td>Tool timeout (read)</td>
+                    <td>Bounded retry; then skip with warning to model</td>
+                  </tr>
+                  <tr>
+                    <td>Tool timeout (write)</td>
+                    <td>Status read by idempotency key; no blind retry — <a href="#harness">harness</a></td>
                   </tr>
                   <tr>
                     <td>Malformed tool JSON</td>

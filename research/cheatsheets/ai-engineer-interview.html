@@ -22,7 +22,7 @@
       <nav class="sheet-nav" aria-label="Cheatsheet topics">
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
-        <p class="nav-footer">Hypothetical AI Engineer prompts → concise bullet answers.</p>
+        <p class="nav-footer">Common AI / LLM engineer prompts (2024–2026) → bullet answers. Cross-link topic sheets before the loop.</p>
       </nav>
 
       <header class="sheet-header">
@@ -36,6 +36,17 @@
 
       <main class="sheet-main">
         <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Interview loop map</span>
+            <ul>
+              <li><strong>ML fundamentals:</strong> transformers, optimizers, generalization — often 20–30 min</li>
+              <li><strong>GenAI / RAG / agents:</strong> pipeline, eval, security — conceptual + mini design</li>
+              <li><strong>System design (45–60 min):</strong> requirements, scale, data, eval, cost, failure modes</li>
+              <li><strong>Serving:</strong> batching, KV cache, autoscaling, observability — senior / infra-leaning loops</li>
+              <li><strong>Behavioral + coding:</strong> STAR stories; training-loop bugs; metrics by hand</li>
+            </ul>
+          </section>
+
           <section class="cell cell-band">
             <span class="cell-title">Deep learning &amp; transformers</span>
           </section>
@@ -184,6 +195,16 @@
           </section>
 
           <section class="cell cell-q">
+            <span class="cell-title">ROC-AUC is 0.92 but precision at your production threshold is 0.40. How can both be true?</span>
+            <ul>
+              <li>AUC = ranking; precision = one cutoff — threshold may be too aggressive</li>
+              <li>Rare positive class → many FPs among predicted positives; check PR-AUC and base rates</li>
+              <li>Production base rate or calibration drift vs training</li>
+              <li>See <a href="metrics.html#roc-auc-vs-precision">metrics — ROC-AUC vs precision</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
             <span class="cell-title">Stakeholders ask why you used a neural net instead of logistic regression.</span>
             <ul>
               <li>Nonlinear interactions / representation learning justified by val + business metric</li>
@@ -246,6 +267,391 @@
               <li>Security cases: injection, authz, malformed input</li>
               <li>SCA on deps — verify packages exist (hallucinated names)</li>
               <li>Sandbox deploy; stricter gate on auth, payments, PII paths</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">RAG, vectors &amp; retrieval</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Walk through the end-to-end RAG pipeline (ingestion → answer).</span>
+            <ul>
+              <li>Offline: parse → structure-aware chunk + metadata → embed → upsert vector + optional BM25 index</li>
+              <li>Online: embed query (same model) → hybrid retrieve ~50 → rerank → prompt with numbered sources</li>
+              <li>Post: citations, abstain rule, faithfulness check, trace log for eval</li>
+              <li>See <a href="rag-systems.html">rag-systems</a>, <a href="rag-chunking.html">chunking</a>, <a href="rag-retrieval.html">retrieval</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Why hybrid search (dense + BM25) instead of vectors alone?</span>
+            <ul>
+              <li>Dense: paraphrase and semantic match; weak on SKUs, error codes, rare acronyms, exact numbers</li>
+              <li>BM25: keyword/exact token recall; misses meaning across wording</li>
+              <li>Fuse with Reciprocal Rank Fusion (k ≈ 60) — rank-only, no score normalization</li>
+              <li>Cross-encoder rerank top ~50 → keep ~5; optional MMR for duplicate chunks — <a href="rag-fusion-ranking.html">fusion &amp; ranking</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Bi-encoder vs cross-encoder — where does each sit?</span>
+            <ul>
+              <li>Bi-encoder: embed query and doc once → cheap ANN over millions</li>
+              <li>Cross-encoder: joint query+doc forward → accurate, too slow for full corpus</li>
+              <li>Pattern: retrieve-then-rerank; ColBERT / late interaction as middle ground</li>
+              <li>See <a href="rag-representations.html">representations</a> embedder catalog</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How do you tune HNSW (M, ef_construction, ef_search)?</span>
+            <ul>
+              <li>Trade-off: recall@k vs latency vs RAM (graph edges + layers)</li>
+              <li>Higher ef_search → better recall, slower queries; tune on a golden query set</li>
+              <li>ACL / tenant filters: prefer payload pre-filter + indexed fields — not one collection per user at B2C scale</li>
+              <li>Sizing: raw float32 ≈ N×D×4 bytes; add HNSW overhead — see <a href="rag-ann.html">rag-ann</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">pgvector vs Qdrant vs Pinecone for production RAG?</span>
+            <ul>
+              <li>pgvector: small/medium scale, team already on Postgres, simpler ops — watch ANN perf at high QPS</li>
+              <li>Qdrant: filters, on-prem/cloud, dev-friendly; multitenancy via payload + <code>is_tenant</code> pre-filter</li>
+              <li>Pinecone: managed scale; watch namespace/collection economics and caps at many tenants</li>
+              <li>Decision: QPS, filter complexity, ops headcount, reindex/version strategy — <a href="rag-ann.html">rag-ann</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Enforce ACLs on retrieval — zero cross-tenant leakage.</span>
+            <ul>
+              <li>Store tenant/user/role on every chunk; filter in the vector DB before top-k (not “hope the LLM ignores”)</li>
+              <li>Identity from server session — never trust client-supplied tenant_id alone</li>
+              <li>Audit retrieval IDs; regression tests with forbidden cross-user queries</li>
+              <li>Cache keys include principal; sync ACL deletes to index — <a href="security-access-control.html">access control</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Evaluate RAG: separate retrieval from generation.</span>
+            <ul>
+              <li>Retrieval: recall@k, nDCG, hit rate on labeled (query, relevant_chunk_ids)</li>
+              <li>Generation: faithfulness/groundedness (claims ⊆ context), answer correctness vs world</li>
+              <li>End-to-end: task success, citation precision, abstention when context weak</li>
+              <li>Release gates on golden set + slice by locale/doc type — <a href="agents-model-eval.html">agents-model-eval</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">RAG answers are bad — debug in what order?</span>
+            <ul>
+              <li>Classify: retrieval miss vs wrong rank vs stale doc vs generation vs prompt injection in HTML</li>
+              <li>Log retrieved chunk IDs + scores; inspect “right doc at rank 17” cases</li>
+              <li>A/B chunk size, hybrid on/off, reranker; re-embed only after retrieval metrics move</li>
+              <li>Do not jump straight to “bigger LLM” — <a href="rag-systems.html">rag-systems</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How do you choose chunk size, overlap, and boundaries?</span>
+            <ul>
+              <li>Structure-aware splits (headings, paragraphs) beat blind fixed windows for policies and docs</li>
+              <li>Typical band ~300–800 tokens with ~10–20% overlap; tune on golden recall@k</li>
+              <li>Parent–child: retrieve small chunk, return larger parent for LLM context</li>
+              <li>Tables/code in PDFs need specialized parsers — <a href="rag-chunking.html">chunking</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Vector DB returns scores — why add a cross-encoder reranker?</span>
+            <ul>
+              <li>Bi-encoder similarity is fast but misorders hard pairs (“rank 17” problem)</li>
+              <li>Rerank top ~50 fused candidates → keep ~5; joint query+doc encoding</li>
+              <li>Cutoff when max score below threshold → abstain or ask clarifying question</li>
+              <li>See <a href="rag-retrieval.html">retrieval</a>, <a href="rag-representations.html">representations</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Faithfulness vs answer correctness — how are they different?</span>
+            <ul>
+              <li>Faithfulness: every claim supported by retrieved context (groundedness)</li>
+              <li>Correctness: answer true in the real world — context may be wrong or stale</li>
+              <li>High faithfulness + angry users → fix retrieval/index, not only the LLM</li>
+              <li>Citation precision: cited span actually supports the sentence</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How do you pick an embedding model (and when fine-tune)?</span>
+            <ul>
+              <li>Language/domain, context length, cosine-normalized vs dot product, license and cost</li>
+              <li>Matryoshka dims for storage; same model + version for ingest and query</li>
+              <li>Fine-tune with contrastive pairs when domain vocabulary dominates (SKUs, internal jargon)</li>
+              <li>Embedder catalog — <a href="rag-representations.html">rag-representations</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">LLM agents, tools &amp; safety</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">ReAct vs plan-and-execute — when do you pick each?</span>
+            <ul>
+              <li>ReAct: interleaved thought → tool → observation; good for exploratory, short horizons</li>
+              <li>Plan-and-execute: plan once, batch tools; better when steps are known and tools expensive</li>
+              <li>Long horizons: replanning, step caps, human gates on irreversible actions</li>
+              <li>See <a href="agents-patterns.html">agents-patterns</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Design a production-safe tool loop (max steps, loops, bad args).</span>
+            <ul>
+              <li>Hard caps: max steps, max wall time, max spend/tokens per session</li>
+              <li>Detect duplicate tool+args; block or require confirmation on destructive ops</li>
+              <li>Validate JSON/schema before execute; timeouts; user-visible fallback message</li>
+              <li>Idempotent reads vs transactional writes — <a href="agents-reliability.html">reliability</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">LangGraph-style orchestration in one answer.</span>
+            <ul>
+              <li>State object + nodes (functions) + edges (fixed or conditional on state)</li>
+              <li>Checkpointer (e.g. Postgres) for thread resume; interrupt before side effects</li>
+              <li>Prefer explicit graph when branches, retries, HITL — not a single while-loop script</li>
+              <li>See <a href="agents-patterns.html">agents-patterns</a>, <a href="agents-memory.html">memory</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Short-term vs long-term memory for a support agent.</span>
+            <ul>
+              <li>Short: checkpointed messages + rolling summary + “open task” fields in state</li>
+              <li>Long: per-user vector index of past threads; retrieve snippets, never raw dump of all history</li>
+              <li>Pre-login summary at session start; tools for exact order/PII fields on demand</li>
+              <li>Tenant isolation on every long-term retrieve — <a href="agents-memory.html">agents-memory</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Prompt injection via retrieved docs or tool output — defend how?</span>
+            <ul>
+              <li>Untrusted data never overrides system policy; delimit context; ignore “new instructions” in chunks</li>
+              <li>Least-privilege tools; no broad SQL; output filters; human approval for money/refunds</li>
+              <li>OWASP LLM01: direct (user) vs indirect (document) injection — both in threat model</li>
+              <li>See <a href="agents-trust-policy.html">trust-policy</a>, <a href="agents-system-security.html">system-security</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Evaluate agents beyond final-answer exact match.</span>
+            <ul>
+              <li>Trajectory: required tools called, step budget, no infinite loops</li>
+              <li>Grounding when RAG involved; task success on replayed tickets</li>
+              <li>LLM-as-judge + human calibration set; production failure mining into CI</li>
+              <li>See <a href="agents-model-eval.html">agents-model-eval</a>, <a href="agents-grounding.html">grounding</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Guardrails vs offline eval — why do you need both?</span>
+            <ul>
+              <li>Guardrails: runtime block/modify on policy violations (latency-sensitive)</li>
+              <li>Offline eval: regression gates before ship; golden set + slice metrics</li>
+              <li>Novel jailbreaks slip eval → online sampling, human review queue, update gates</li>
+              <li>Balance false refusal vs safety on high-stakes intents — <a href="agents-trust-policy.html">trust-policy</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Human-in-the-loop before irreversible actions (refund, cancel, ship).</span>
+            <ul>
+              <li>Graph interrupt after intent clear, before tool side effect; durable thread ID</li>
+              <li>User approve / edit / reject; timeout → escalate, do not auto-run</li>
+              <li>Idempotent tool design — resume after interrupt may re-run prior nodes</li>
+              <li>Auto-approve only under hard caps enforced in code, not prompt — <a href="agents-patterns.html">patterns</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">Production LLM serving</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Where does vLLM end and Ray Serve begin?</span>
+            <ul>
+              <li>K8s: schedules GPU nodes/pods; Ray: places actors; Serve: deployment graph, routing, replica autoscale</li>
+              <li>vLLM: continuous batching, PagedAttention, KV cache on GPU</li>
+              <li>Skip Ray when one model + simple Deployment + ingress is enough</li>
+              <li>Queues: BFF limits → Serve <code>max_queued_requests</code> → vLLM <code>max-num-seqs</code> — <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Explain PagedAttention and why KV cache limits concurrency.</span>
+            <ul>
+              <li>KV stored in fixed blocks with block table — less fragmentation than one contiguous buffer per seq</li>
+              <li>Memory ~ layers × heads × head_dim × seq × dtype × 2 (K and V)</li>
+              <li>Often hits KV cap before compute-bound; prefix caching shares blocks across prompts</li>
+              <li>See <a href="transformers-efficiency.html">efficiency</a>, <a href="transformers-serving.html">serving</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">TTFT vs TPOT — what breaks when each degrades?</span>
+            <ul>
+              <li>TTFT: queue + prefill; up with saturation or long prompts</li>
+              <li>TPOT / inter-token latency: decode batching and KV pressure</li>
+              <li>Instrument per stage; SLO on p95/p99 — not mean latency</li>
+              <li>See <a href="devops-observability.html">observability</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">P99 TTFT spikes but TPOT is fine — debug in what order?</span>
+            <ul>
+              <li>Queue depth and admission control; cold start / new replicas not ready</li>
+              <li>Prefill head-of-line: long prompts, chunked prefill settings</li>
+              <li>KV occupancy and preemption rate — not visible on GPU-util-only dashboards</li>
+              <li>Post-deploy: warm replicas before traffic; cap queue → 429 — <a href="transformers-serving-ray-vllm.html">runbooks</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">K8s autoscaling for LLMs — why not GPU utilization alone?</span>
+            <ul>
+              <li>GPU util lags and hides queue buildup; scale on waiting requests, batch depth, TTFT p95</li>
+              <li>Scale-down stabilization — avoid flapping; minReplicas / warm pool for cold start</li>
+              <li>Pending replica storm: GPUs unavailable → cap replicas, shed load, drain non-critical deployments</li>
+              <li>Feature flags at BFF to stop retry storms — <a href="transformers-serving-ray-vllm.html">failure runbooks</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Design an LLM inference API (streaming, multi-tenant, SLOs).</span>
+            <ul>
+              <li>Gateway: auth, quotas, validation, SSE streaming, cancellation propagates to free KV</li>
+              <li>Admission control + bounded queues; 429 vs unbounded wait</li>
+              <li>Model registry, canary, shadow traffic, rollback artifact pinned</li>
+              <li>Separate interactive vs batch priority classes — common 45–60 min senior prompt</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">Training, PEFT &amp; ML depth (common coding / whiteboard)</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Find the bugs in this PyTorch training loop.</span>
+            <ul>
+              <li>Missing <code>optimizer.zero_grad()</code>; logging <code>loss</code> tensor vs <code>loss.item()</code></li>
+              <li><code>model.train()</code> / <code>eval()</code> + <code>torch.no_grad()</code> for validation</li>
+              <li>Wrong accuracy denominator; logits vs softmax for CE</li>
+              <li>See <a href="training-loop.html">training-loop</a>, <a href="failure-modes.html">failure modes</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">LoRA — formula, init, rank, when to merge for serving.</span>
+            <ul>
+              <li>ΔW = BA, rank r; A random, B zero → start at base weights</li>
+              <li>Scale α/r; target q_proj/v_proj typical; QLoRA when VRAM-bound</li>
+              <li>Merge adapters into base for lowest latency unless base is quantized in a way that forbids it</li>
+              <li>See <a href="transformers-peft.html">PEFT</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Define prediction time and give two leakage examples.</span>
+            <ul>
+              <li>Only features known at decision time T; label must not appear in features</li>
+              <li>Obvious: target column in X; subtle: aggregates including events after T</li>
+              <li>Fit preprocessors inside CV folds; group splits by user/entity</li>
+              <li>See <a href="generalization.html">generalization</a>, <a href="testing-ml.html">testing-ml</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">How is ML CI/CD different from normal software CI/CD?</span>
+            <ul>
+              <li>Three moving parts: code, data, model — any can change behavior independently</li>
+              <li>Non-deterministic training; need data/schema tests and reproducible artifacts</li>
+              <li>Gates: offline metrics → register → canary/shadow → promote; prediction contract tests</li>
+              <li>See <a href="mlops-pipelines.html">pipelines</a>, <a href="devops-cicd.html">devops-cicd</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band">
+            <span class="cell-title">System design prompts (practice — 45–60 min)</span>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Agentic e-commerce support (~100k contacts/day, refunds via tools).</span>
+            <ul>
+              <li>Score: identity before account actions, refund caps in code, audit trail, eval on ticket replay</li>
+              <li>Probe: walk one refund with latency budget; injection via order notes; 10× traffic plan</li>
+              <li>Aligns with <a href="agents-system-security.html">agents-security</a> + order APIs</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Enterprise doc RAG (millions of docs, ACL per user, &lt;3s p95 chat).</span>
+            <ul>
+              <li>Hybrid + rerank; mandatory metadata filter on every query; legal hold / deletion propagation</li>
+              <li>Probe: sharding index; hallucination metrics; block release if ACL-leak tests fail</li>
+              <li>See <a href="rag-systems.html">rag-systems</a>, <a href="security-access-control.html">access control</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">IDE code completion (p95 ghost text &lt;800ms, 100k+ devs).</span>
+            <ul>
+              <li>Prefix cache / KV affinity routing; small model for completion, large for chat</li>
+              <li>Client secret redaction; acceptance rate + retention as online metrics</li>
+              <li>Fail silent on timeout — user keeps typing</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Real-time fraud scoring (p99 ≤50ms, 10k RPS, delayed labels).</span>
+            <ul>
+              <li>Streaming features (Redis); GBDT + rules; shadow deploy; fail-open vs fail-closed by tier</li>
+              <li>Not LLM-first — tests classical ML + infra depth</li>
+              <li>See <a href="mlops-monitoring.html">monitoring</a>, <a href="metrics.html">metrics</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Conversational product discovery (“gift under $40, arrives Friday”).</span>
+            <ul>
+              <li>NL → structured filters + semantic retrieval over large SKU index; grounded product cards</li>
+              <li>Never promise delivery the catalog cannot support; show stock/shipping freshness</li>
+              <li>Probe: hybrid search latency budget; hallucinated product attributes</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Developer docs assistant (versioned APIs, 500 QPS, cite or refuse).</span>
+            <ul>
+              <li>Chunk by version + endpoint; refuse when retrieval score low; mandatory citations</li>
+              <li>CI eval on every doc publish webhook; route simple queries to smaller model</li>
+              <li>Multi-hop “v2 vs v3 migration” needs planner or decomposed sub-queries</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-q">
+            <span class="cell-title">Five probes interviewers reuse on any design.</span>
+            <ul>
+              <li>End-to-end latency budget per hop</li>
+              <li>Retrieval failed — metric and fix order</li>
+              <li>Prompt injection trust boundary</li>
+              <li>10× traffic — first bottleneck</li>
+              <li>Ship v2 — shadow/canary gates and rollback trigger</li>
             </ul>
           </section>
 
@@ -314,11 +720,13 @@
           </section>
 
           <section class="cell cell-q">
-            <span class="cell-title">Related cheatsheets</span>
+            <span class="cell-title">Related cheatsheets (study by loop type)</span>
             <ul>
-              <li><a href="transformers-core.html">Transformers</a>, <a href="transformers-efficiency.html">efficiency</a>, <a href="security-access-control.html">access control</a></li>
-              <li><a href="optimizers.html">Optimizers</a>, <a href="loss-functions.html">losses</a>, <a href="index.html">activations</a></li>
-              <li>Tailor stories to the job description before the loop</li>
+              <li>RAG: <a href="rag-systems.html">systems</a>, <a href="rag-evaluation.html">evaluation</a>, <a href="hallucination-diagnosis.html">hallucination diagnosis</a>, <a href="rag-fusion-ranking.html">fusion</a>, <a href="rag-ann.html">ANN</a>, <a href="rag-representations.html">representations</a>, <a href="rag-retrieval.html">retrieval</a>, <a href="rag-chunking.html">chunking</a>, <a href="rag-ingest-pipeline.html">ingest</a></li>
+              <li>Agents: <a href="agents-patterns.html">patterns</a>, <a href="agents-memory.html">memory</a>, <a href="agents-reliability.html">reliability</a>, <a href="agents-model-eval.html">eval</a>, <a href="agents-trust-policy.html">trust</a></li>
+              <li>Serving: <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>, <a href="transformers-serving.html">serving</a>, <a href="transformers-efficiency.html">efficiency</a>, <a href="devops-observability.html">observability</a></li>
+              <li>ML core: <a href="transformers-core.html">transformers</a>, <a href="optimizers.html">optimizers</a>, <a href="mlops-lifecycle.html">MLOps</a>, <a href="testing-ml.html">testing-ml</a></li>
+              <li>Tailor STAR stories to the job description; rehearse one full system design out loud timed to 45 min</li>
             </ul>
           </section>
         </div>

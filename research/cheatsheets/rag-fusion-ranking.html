@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — fusion &amp; ranking · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Combining ranked lists and choosing diverse context. Pipeline context:
+          <a href="rag-retrieval.html">retrieval</a>,
+          <a href="rag-systems.html">RAG systems</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Fusion, diversity &amp; ranking</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Where this fits in the stack</span>
+            <p>
+              First-stage retrieval returns hundreds of candidate chunks from one or more sources (dense vectors, BM25, metadata filters,
+              multiple rewritten queries). <strong>Fusion</strong> merges those lists into a single ordering without assuming scores are
+              comparable. <strong>Diversity</strong> reduces near-duplicate passages so the language model sees varied evidence. A
+              <strong>cross-encoder reranker</strong> (or ColBERT rescore) then re-orders a short list using a slower, more accurate scorer.
+              Fusion and diversity are cheap; reranking is expensive and runs only on tens of candidates.
+            </p>
+            <p>
+              Structured lookups (order ID, primary key) should bypass this stack entirely and call an API or SQL with authorization.
+              Fusion optimizes <em>unstructured</em> knowledge bases where the user mentions prose, partial codes, or paraphrases.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Reciprocal Rank Fusion (RRF)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Why rank fusion instead of mixing raw scores</span>
+            <p>
+              Dense cosine similarity and BM25 scores live on different scales and distributions. A weighted sum
+              <code>α·dense + (1−α)·sparse</code> looks simple but requires tuning α on every corpus and breaks when you add a third list
+              (for example a second dense model or a multi-query run). Reciprocal Rank Fusion ignores magnitudes and uses only each
+              document’s rank in each list, which makes it the default way to merge hybrid retrieval in production RAG.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">RRF formula and tuning</span>
+            <p>
+              For each document <em>d</em>, sum contributions from every ranked list in which <em>d</em> appears:
+            </p>
+            <div class="formula">$$\mathrm{RRF}(d) = \sum_{i \in \text{lists}} \frac{1}{k + \mathrm{rank}_i(d)}$$</div>
+            <p>
+              Here <em>rank</em><sub><em>i</em></sub>(<em>d</em>) is the 1-based rank of <em>d</em> in list <em>i</em> (missing documents
+              contribute nothing). The constant <em>k</em> dampens the advantage of top-1 over top-20; values around <strong>60</strong> are
+              common in literature and engines. Lower <em>k</em> puts more weight on top ranks; higher <em>k</em> flattens differences.
+            </p>
+            <p>
+              Typical pattern: retrieve 50–100 from dense ANN and 50–100 from BM25, fuse with RRF, take the top 50 fused IDs, then
+              cross-encode down to 5–10 chunks for the prompt. Evaluate recall@k on a golden set when changing <em>k</em> or list depths;
+              small shifts rarely matter if reranking is strong, but ID-heavy slices often need deeper BM25 lists.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Multi-query fusion</span>
+            <p>
+              A single user question can be expanded into several search queries (LLM rewrite, sub-questions, or HyDE-style hypothetical
+              text). Each query produces its own ranked list; RRF merges them so a chunk that appears high under multiple phrasings rises
+              in the fused list. This helps vague questions without replacing hybrid lexical search: you still want BM25 in at least one list
+              when error codes and product SKUs must match literally.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Maximal Marginal Relevance (MMR)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Purpose and formula</span>
+            <p>
+              Top-k vector search often returns five chunks that say the same thing with slightly different wording. That wastes context
+              window and can bias the model toward one narrow source. Maximal Marginal Relevance selects documents that stay relevant to
+              the query while penalizing similarity to documents already chosen.
+            </p>
+            <p>
+              Greedy selection: start with the highest query similarity, then repeatedly pick the candidate that maximizes
+            </p>
+            <div class="formula">
+              $$\mathrm{MMR} = \arg\max_{d \in C \setminus S}\ \lambda\,\mathrm{Sim}(d,q) - (1-\lambda)\,\max_{s \in S} \mathrm{Sim}(d,s)$$
+            </div>
+            <p>
+              <em>C</em> is the candidate pool (often 50–100 after fusion), <em>S</em> is the set already selected, and Sim is usually
+              cosine similarity between embeddings. <em>λ</em> near 1 favors relevance; lower <em>λ</em> pushes diversity. MMR runs on
+              embeddings already computed for search, so it is inexpensive compared with a cross-encoder.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">MMR vs reranking vs deduplication</span>
+            <p>
+              Use <strong>deduplication</strong> (hash or SimHash on normalized text) to drop exact and near-exact duplicates before the
+              prompt. Use <strong>MMR</strong> when duplicates are paraphrases or overlapping chunks from the same manual. Use a
+              <strong>cross-encoder reranker</strong> when the problem is wrong ordering among genuinely different passages, not redundancy.
+              Many pipelines run RRF → optional MMR on the fused top 30 → cross-encoder on 20 → final 5. Skipping MMR is fine when chunks
+              are small and non-overlapping by construction.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Query-side techniques (before fusion)</span>
+          </section>
+
+          <section class="cell cell-span" id="hyde">
+            <span class="cell-title">HyDE — Hypothetical Document Embeddings</span>
+            <p>
+              <strong>HyDE</strong> is a query-time trick from the retrieval literature (Gao et al., “Precise Zero-Shot Dense Retrieval
+              without Relevance Labels”). Embedding models are trained so that a <em>passage</em> that would answer a question is similar
+              to other answer-like passages in the corpus. A bare <em>question</em> is often short and phrased differently from how your
+              policies and runbooks are written, so its vector can land far from the right chunks even when the knowledge exists in the
+              index.
+            </p>
+            <p>
+              HyDE closes that gap by asking a language model to write a <strong>hypothetical document</strong>: a few sentences that look
+              like an excerpt from a real KB article, not a chat reply to the user. You embed that hypothetical text with the same bi-encoder
+              you use for indexed chunks, run approximate nearest neighbor search with that vector, and treat the retrieved passages as
+              normal RAG context for the final answer. The final answer should still be generated from <em>retrieved</em> text with
+              citations; the hypothetical paragraph is thrown away after search and must not be shown to the user as fact.
+            </p>
+            <p>
+              <strong>Step-by-step at query time:</strong> (1) user question arrives; (2) LLM prompt such as “Write a short passage that
+              would answer this question using typical internal documentation tone” (no tools, no browsing); (3) embed the hypothetical
+              passage; (4) retrieve top‑k from the vector index; (5) optionally also retrieve with the embedded original question and fuse
+              both lists with RRF so you do not rely on the hallucinated text alone; (6) rerank and pass real chunks to the answer model.
+            </p>
+            <p>
+              <strong>When it helps:</strong> vague or conversational queries (“how do I fix the payment thing?”), zero-shot search with no
+              in-domain fine-tuning on the embedder, and corpora written in expository prose rather than question form.
+              <strong>When it hurts:</strong> questions that hinge on exact identifiers (order IDs, error codes, legal citations), because
+              the hypothetical passage may invent wrong codes and pull irrelevant chunks; high-stakes domains where a wrong retrieve is
+              worse than empty retrieval; and latency-sensitive paths where an extra LLM call per query is unacceptable.
+            </p>
+            <p>
+              <strong>HyDE is not</strong> the same as query rewriting (still a question-shaped string), step-back prompting (a broader
+              question), or generating the final user-facing answer. It is only a synthetic <em>search query document</em>. Guard it with
+              low-temperature generation, length limits, and a fallback to plain question embedding when first-pass retrieval confidence is
+              already high.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Query rewriting and decomposition</span>
+            <p>
+              <strong>Rewriting</strong> expands acronyms, fixes typos, or adds domain synonyms before search. <strong>Decomposition</strong>
+              splits multi-part questions (“compare plan A and plan B refunds”) into sub-queries, each retrieved and fused with RRF. Both
+              increase recall when a single embedding of the raw user message is a poor match to indexed prose.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Step-back and metadata-aware routing</span>
+            <p>
+              <strong>Step-back prompting</strong> asks the model for a broader question first (“what is our refund policy in general?”) and
+              retrieves for that plus the specific user question, then fuses lists. Separately, a lightweight <strong>router</strong> can
+              send queries with extracted order IDs, account numbers, or ticket IDs to transactional APIs while sending everything else to
+              hybrid RAG. That router is not fusion; it prevents treating structured identifiers as semantic search terms.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Stronger lexical and late-interaction options</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Learned sparse retrieval (SPLADE and similar)</span>
+            <p>
+              Classical BM25 uses hand-crafted term weights. <strong>Learned sparse</strong> models (SPLADE is the common example) produce
+              a sparse high-dimensional vector per query and document so expansion terms are learned rather than fixed. Engines that support
+              sparse vectors (or hybrid sparse+dense in one index) can replace or complement BM25 in the same RRF merge. The trade-off is
+              another model to serve at index and query time versus better recall on keyword-heavy enterprise text.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Native hybrid in the database</span>
+            <p>
+              Some vector databases fuse dense and sparse inside the engine (Weaviate hybrid, Qdrant sparse vectors, OpenSearch neural
+              hybrid). You may still apply RRF externally when combining <em>more than two</em> lists (multi-query, ColBERT rescore path,
+              separate title vs body indexes). Treat engine hybrid as one input list into your wider fusion layer when the pipeline grows.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">ColBERT and cross-encoder (after fusion)</span>
+            <p>
+              RRF and MMR operate on candidate IDs and cheap scores. <strong>ColBERT</strong> MaxSim rescores with token-level interaction;
+              a <strong>cross-encoder</strong> scores each query–passage pair jointly. These fix ordering among fused candidates but do not
+              replace hybrid first stage for literal codes. Details and model choice:
+              <a href="rag-representations.html">representations</a>,
+              <a href="rag-retrieval.html">retrieval stages</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Index-time techniques that affect ranking</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Contextual retrieval (document context prepended to chunks)</span>
+            <p>
+              Before embedding, prepend a short situating context to each chunk (for example title, section, and summary generated once per
+              document). Chunks then embed with their place in the document explicit, which reduces false positives where the same sentence
+              appears in unrelated policies. This is an indexing change, not a fusion formula, but it pairs well with RRF because both
+              dense and sparse lists benefit from clearer chunk text.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">Parent–child and hierarchical indexes</span>
+            <p>
+              Store small chunks for retrieval but return a larger <strong>parent</strong> span to the language model (or retrieve summaries
+              at one level and leaf chunks at another, then fuse with RRF). This improves ranking when the answer needs surrounding
+              sentences that would not fit a tiny chunk boundary. See <a href="rag-chunking.html">chunking</a> for layout patterns.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Choosing and measuring a stack</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Practical default and when to add complexity</span>
+            <p>
+              Start with bi-encoder ANN plus BM25, merged with RRF, cross-encoder rerank top 50 to top 5, and metadata filters for ACLs.
+              Add MMR if eval shows redundant chunks in context. Add multi-query or HyDE when recall@50 is low on paraphrase-heavy questions
+              but lexical slices are already strong. Add SPLADE or ColBERT when recall@10 plateaus after chunking and hybrid tuning. Always
+              slice metrics by query type (IDs and codes vs prose) so optimizations do not average away regressions.
+            </p>
+            <p>
+              Offline metrics: recall@k and nDCG on labeled chunks per query; online: citation coverage, abstention rate, and task success
+              on replayed support tickets. Formulas for rank metrics live on the <a href="metrics.html">metrics sheet</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Linear score fusion (when it still appears)</span>
+            <p>
+              Some teams normalize dense and sparse scores to zero mean and unit variance on a dev sample, then use a weighted sum. This
+              can work for a frozen two-list hybrid inside one vendor API but does not generalize cleanly when lists change length or when
+              a third retriever is added. Prefer RRF for multi-list merges unless the platform documents a single calibrated hybrid score
+              you cannot bypass.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script defer src="js/katex-render.js"></script>
+  </body>
+</html>

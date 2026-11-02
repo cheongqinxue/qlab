@@ -11,7 +11,7 @@
       <nav class="sheet-nav" aria-label="Cheatsheet topics">
         <div class="nav-brand">qlab cheatsheets</div>
         <div class="nav-groups" data-cheatsheet-nav></div>
-        <p class="nav-footer">Ingest → retrieve → generate. IR basics → <a href="rag-retrieval.html">retrieval sheet</a>.</p>
+        <p class="nav-footer">Ingest → retrieve → generate. ETL → <a href="rag-ingest-pipeline.html">ingest pipeline</a>. IR → <a href="rag-retrieval.html">retrieval</a>.</p>
       </nav>
 
       <header class="sheet-header">
@@ -77,20 +77,22 @@
           <section class="cell">
             <span class="cell-title">Query-side tricks</span>
             <ul>
-              <li><strong>HyDE</strong> — LLM drafts a hypothetical answer; embed that for search (can help vague queries)</li>
+              <li>
+                <strong>HyDE</strong> — embed an LLM-written hypothetical KB passage for search, not the raw question; full walkthrough in
+                <a href="rag-fusion-ranking.html#hyde">fusion &amp; ranking</a>
+              </li>
               <li><strong>Query rewrite</strong> — LLM expands acronyms or sub-queries</li>
-              <li><strong>Multi-query</strong> — several retrievals merged (RRF fusion)</li>
+              <li><strong>Multi-query</strong> — several retrievals merged (RRF fusion; <a href="rag-fusion-ranking.html">fusion &amp; ranking</a>)</li>
             </ul>
           </section>
 
           <section class="cell cell-span">
             <span class="cell-title">Evaluation (what to measure)</span>
-            <ul>
-              <li><strong>Retrieval</strong> — recall@k on a labeled set (see <a href="rag-retrieval.html">retrieval sheet</a>)</li>
-              <li><strong>Faithfulness / groundedness</strong> — are claims supported by retrieved text?</li>
-              <li><strong>Answer correctness</strong> — human or LLM-as-judge vs gold answer</li>
-              <li><strong>Citation accuracy</strong> — does the cited chunk actually contain the claim?</li>
-            </ul>
+            <p>
+              Split retrieval metrics from generation metrics; gate releases on golden sets and slices. Full workflow →
+              <a href="rag-evaluation.html">RAG evaluation</a>. Formulas → <a href="metrics.html">metrics</a>. Debug bad answers →
+              <a href="hallucination-diagnosis.html">hallucination diagnosis</a>.
+            </p>
           </section>
 
           <section class="cell">

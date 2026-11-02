@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG — ingest pipeline · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Stages, stack, metrics, and ETL runbooks → <a href="#pipeline-stages">pipeline</a>,
+          <a href="#etl-ops">ops</a>. Query-time RAG → <a href="rag-systems.html">RAG systems</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">RAG ingest pipeline (ETL)</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What this pipeline does</span>
+            <p>
+              <strong>Ingest</strong> is offline ETL: sources become searchable chunks in the vector index (and usually a lexical index for hybrid
+              RAG). It runs on webhooks, schedules, or backfill jobs — not on the user query path. When ingest lags or corrupts data, chat answers
+              are stale, empty, or poisoned regardless of query-time tuning —
+              <a href="rag-retrieval.html">retrieval</a>, <a href="rag-fusion-ranking.html">fusion</a>,
+              <a href="rag-evaluation.html">evaluation</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="pipeline-stages">
+            <span class="cell-title">Normal pipeline — stages and typical stack</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">End-to-end flow</span>
+            <p>
+              A document change triggers a <strong>work item</strong> (source id, version, operation: upsert or delete). Workers move it through
+              parse → chunk → embed → index write. An <strong>orchestrator</strong> coordinates scheduled full reindexes and “delete old version after
+              new version succeeds.” Raw files stay in object storage; the index stores chunks + vectors + metadata only.
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Stage</th>
+                    <th scope="col">Purpose</th>
+                    <th scope="col">Typical technology</th>
+                    <th scope="col">Output / handoff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1. Discover &amp; trigger</td>
+                    <td>Learn that a doc changed or schedule a batch</td>
+                    <td>CMS webhook, Drive/SharePoint delta API, S3 Event Notification, cron scanner</td>
+                    <td>Message: <code>{source_id, version, op}</code> to queue or orchestrator</td>
+                  </tr>
+                  <tr>
+                    <td>2. Raw store</td>
+                    <td>Durable copy for re-parse and audit</td>
+                    <td>S3, GCS, Azure Blob; versioned keys per source</td>
+                    <td>URI in work item; content hash for idempotency</td>
+                  </tr>
+                  <tr>
+                    <td>3. Queue / buffer</td>
+                    <td>Decouple producers from slow workers; absorb spikes</td>
+                    <td>SQS, RabbitMQ, Redis (Celery/ARQ), Kafka, Google Pub/Sub</td>
+                    <td>At-least-once delivery; visibility timeout / ack</td>
+                  </tr>
+                  <tr>
+                    <td>4. Orchestration (optional per doc)</td>
+                    <td>Backfills, DAG dependencies, human approval gates</td>
+                    <td>Airflow, Dagster, Temporal, Inngest, Step Functions</td>
+                    <td>Job rows in Postgres; retry policy; DLQ routing</td>
+                  </tr>
+                  <tr>
+                    <td>5. Fetch &amp; parse</td>
+                    <td>Binary → clean text + structure (headings, pages)</td>
+                    <td>Unstructured, Apache Tika, PyMuPDF, python-docx, custom HTML</td>
+                    <td>Normalized text + parse metadata; quarantine on failure</td>
+                  </tr>
+                  <tr>
+                    <td>6. Normalize &amp; security scan</td>
+                    <td>Strip hidden content; injection/malware signals</td>
+                    <td>Custom cleaners, regex, classifiers, DLP</td>
+                    <td>Approved text or quarantine bucket — <a href="security-genai-threats.html">threats</a></td>
+                  </tr>
+                  <tr>
+                    <td>7. Chunk</td>
+                    <td>Split for embedding limits and retrieval granularity</td>
+                    <td>LangChain/LlamaIndex splitters, structure-aware custom — <a href="rag-chunking.html">chunking</a></td>
+                    <td>Chunk records with stable <code>chunk_id</code></td>
+                  </tr>
+                  <tr>
+                    <td>8. Enrich metadata</td>
+                    <td>ACL, tenant, title, section, embed model version, optional summary prefix</td>
+                    <td>Postgres job table, LLM call for contextual retrieval headers</td>
+                    <td>Payload for vector DB + lexical index</td>
+                  </tr>
+                  <tr>
+                    <td>9. Embed</td>
+                    <td>Dense vectors per chunk</td>
+                    <td>OpenAI/Cohere APIs, TEI, Infinity, Ray Serve embed deployment, local ST</td>
+                    <td>Float vector + model id; batch for throughput</td>
+                  </tr>
+                  <tr>
+                    <td>10. Lexical index (hybrid)</td>
+                    <td>BM25 / keyword path</td>
+                    <td>OpenSearch, Elasticsearch, Postgres tsvector, Vespa, Qdrant sparse</td>
+                    <td>Same <code>chunk_id</code> as vector row</td>
+                  </tr>
+                  <tr>
+                    <td>11. Vector upsert</td>
+                    <td>ANN index + payload filters</td>
+                    <td>Qdrant, Milvus, pgvector, Pinecone, Weaviate</td>
+                    <td>Searchable point; upsert by <code>chunk_id</code></td>
+                  </tr>
+                  <tr>
+                    <td>12. Publish / cutover</td>
+                    <td>Make new version visible; remove old</td>
+                    <td>Alias swap, delete-by-<code>source_id</code>+old version, cache purge</td>
+                    <td>Query path sees consistent corpus</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>Small team shortcut:</strong> S3 event → Lambda or Celery worker runs stages 5–11 in one process; nightly Airflow DAG reconciles
+              counts. <strong>Scale-out:</strong> Kafka topic per source type, worker pools per stage (parse-heavy vs embed-heavy), embed service behind
+              a GPU or API autoscale group.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Job state and idempotency</span>
+            <p>
+              Persist <strong>per-document or per-batch state</strong> in Postgres (or equivalent): pending, parsing, embedding, indexed, failed,
+              quarantined. Queues are at-least-once — workers use deterministic <code>chunk_id = hash(source_id, version, index)</code> and upsert
+              semantics so duplicate messages do not create duplicate search results. Track <strong>content hash</strong> to skip re-embed when text
+              unchanged. On embed model upgrade, run a versioned collection or full re-embed before alias swap —
+              <a href="rag-ann.html">ANN</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">ETL security best practices</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Trust and provenance</span>
+            <p>
+              Every chunk carries <strong>source id, publisher, ingest time, content hash, and ACL fields</strong> used at query time. Only
+              authenticated connectors may write; map corporate identity to allowed collections. Treat all parsed body text as
+              <strong>untrusted</strong> until reviewed for high-trust tiers (employee wiki vs public upload). Version documents so legal hold
+              and deletion propagate: tombstone in index when source is removed, not only delete from object storage.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Parsing and normalization</span>
+            <p>
+              Strip scripts, hidden HTML, and comments that hide injection strings. Normalize Unicode and whitespace so detection rules are stable.
+              Reject or quarantine files that fail size limits, encrypted PDFs you cannot scan, or formats that execute code on parse. Run
+              <strong>prompt-injection and malware classifiers</strong> on extracted text before embed; quarantine queue for human or second model
+              review on scores above threshold — do not rely on a single pass. See attack patterns on
+              <a href="security-genai-threats.html">GenAI attack vectors</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Embedding and index writes</span>
+            <p>
+              Use deterministic <strong>chunk ids</strong> derived from (source_id, version, chunk_index) so re-ingest is idempotent upsert, not
+              duplicate vectors. Pin embedding model version in metadata; full re-embed when the model changes. Separate collections or namespaces
+              per tenant where the product requires isolation; enforce write ACL on the ingest API so one tenant cannot upsert into another’s index.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Secrets and downstream LLM calls</span>
+            <p>
+              Ingest may call LLMs for contextual retrieval headers or enrichment. Never send raw secrets from source files to external APIs without
+              redaction; use the same DLP as production chat. API keys for embedders live in workers, not in job payloads logged to queues.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="etl-ops">
+            <span class="cell-title">Failure modes, metrics, diagnosis, troubleshooting</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Metrics to observe</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric</th>
+                    <th scope="col">What it measures</th>
+                    <th scope="col">Symptom when bad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Queue age p95</strong> (oldest unacked message)</td>
+                    <td>Backlog duration waiting for workers</td>
+                    <td>Searchable lag grows; CMS published but KB not updated</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Queue depth</strong> / consumer lag (Kafka)</td>
+                    <td>Volume of pending work</td>
+                    <td>Sustained climb → under-provisioned workers or stuck stage</td>
+                  </tr>
+                  <tr>
+                    <td><strong>DLQ depth / poison rate</strong></td>
+                    <td>Messages failed max retries</td>
+                    <td>Specific docs never index; silent gaps in corpus</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Docs succeeded / failed per hour</strong> by source</td>
+                    <td>Throughput and error mix</td>
+                    <td>One source flatlines; spike in failures after parser deploy</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Searchable lag</strong> (publish time → chunk queryable)</td>
+                    <td>End-to-end ingest SLA</td>
+                    <td>User-facing “policy not updated” tickets</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Parse duration p95</strong> per mime type</td>
+                    <td>Stage 5 cost</td>
+                    <td>OOM restarts; large-PDF queue dominates</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Embed latency &amp; 429 rate</strong></td>
+                    <td>Stage 9 API health</td>
+                    <td>Backlog with low parse errors; embed quota exceeded</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Upsert error rate</strong> (vector + lexical)</td>
+                    <td>Stage 10–11 writes</td>
+                    <td>Partial index; hybrid mismatch (BM25 hit, vector miss)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Chunk count vs expected</strong> per source_id</td>
+                    <td>Reconciliation</td>
+                    <td>Drift after failed delete or duplicate ids</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Embed model version mix</strong> in collection</td>
+                    <td>Consistency</td>
+                    <td>Retrieval quality cliff mid-backfill</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Quarantine queue size</strong></td>
+                    <td>Security scanner backlog</td>
+                    <td>Legit docs delayed; or attack volume ↑</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Worker CPU / memory; OOM kills</strong></td>
+                    <td>Capacity</td>
+                    <td>Pod restart loops on large files</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Failure modes — diagnose and troubleshoot</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Failure</th>
+                    <th scope="col">Symptoms</th>
+                    <th scope="col">How to diagnose</th>
+                    <th scope="col">Troubleshoot (live)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Parser crash on one file</td>
+                    <td>Single doc missing; DLQ entry; batch continues</td>
+                    <td>DLQ message body → source_id; worker logs stack trace; reproduce locally with raw blob</td>
+                    <td>Fix parser or quarantine file; replay DLQ; per-doc try/catch so one bad PDF does not block queue</td>
+                  </tr>
+                  <tr>
+                    <td>Worker OOM (huge PDF)</td>
+                    <td>Pod restart; same message re-delivered</td>
+                    <td>Kube OOMKilled; memory spike on parse metric; file size in raw store</td>
+                    <td>Lower concurrency on large-doc queue; stream pages; cap max pages; split job</td>
+                  </tr>
+                  <tr>
+                    <td>Embed API 429 / outage</td>
+                    <td>Queue age ↑; parse stage idle; embed errors in logs</td>
+                    <td>429 rate metric; provider status; compare backlog start to quota change</td>
+                    <td>Backoff + jitter; scale embed replicas; pause low-priority sources; temporary second provider only if eval allows</td>
+                  </tr>
+                  <tr>
+                    <td>Vector upsert timeout / 5xx</td>
+                    <td>Job marked indexed but search misses chunk</td>
+                    <td>Compare Postgres job state to vector count by source_id; spot-check chunk_id in Qdrant/OpenSearch</td>
+                    <td>Retry upsert with same id; run reconciliation DAG; check index disk and shard health</td>
+                  </tr>
+                  <tr>
+                    <td>Lexical / vector out of sync</td>
+                    <td>Hybrid RAG: keyword finds doc, vector does not (or reverse)</td>
+                    <td>Same chunk_id in both stores? Dual-write failure logs</td>
+                    <td>Replay embed+upsert for affected source; single transactional outbox pattern for both indexes</td>
+                  </tr>
+                  <tr>
+                    <td>Duplicate queue delivery</td>
+                    <td>2× embed cost; duplicate points if ids non-deterministic</td>
+                    <td>Same chunk_id twice in index; message idempotency key logs</td>
+                    <td>Upsert by chunk_id; content-hash skip; fix id formula</td>
+                  </tr>
+                  <tr>
+                    <td>Stuck consumer ( poison message )</td>
+                    <td>Queue depth flat high; no progress</td>
+                    <td>One message visibility timeout cycling; age of head message</td>
+                    <td>Move to DLQ after N attempts; fix or skip; drain with script</td>
+                  </tr>
+                  <tr>
+                    <td>Partial version cutover</td>
+                    <td>Mix of old and new policy text in answers</td>
+                    <td>Metadata version field on retrieved chunks; count by version</td>
+                    <td>Finish backfill; delete old version vectors; alias swap only when 100% new version</td>
+                  </tr>
+                  <tr>
+                    <td>Delete not propagated</td>
+                    <td>Retrieval returns removed doc</td>
+                    <td>Tombstone job failed? chunk_ids still in ANN</td>
+                    <td>Run delete-by-source_id; verify webhook; audit <a href="rag-evaluation.html">eval</a> ACL tests</td>
+                  </tr>
+                  <tr>
+                    <td>Orchestrator DAG failure</td>
+                    <td>Nightly reconcile red; lag metric ↑</td>
+                    <td>Airflow/Dagster task logs; which stage red</td>
+                    <td>Retry task; fix upstream; run manual backfill for date range</td>
+                  </tr>
+                  <tr>
+                    <td>Runaway ingest / poison flood</td>
+                    <td>Cost spike; quarantine full</td>
+                    <td>Messages per source_id; new publisher ACL</td>
+                    <td>Rate limit source; disable connector; roll back index slice</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Diagnostic order (when “KB is stale or wrong”)</span>
+            <ol>
+              <li><strong>Searchable lag</strong> — is the pipeline slow globally or one source?</li>
+              <li><strong>Queue age + DLQ</strong> — backlog vs poison docs?</li>
+              <li><strong>Stage timings</strong> — parse vs embed vs upsert bottleneck?</li>
+              <li><strong>Spot check</strong> — pick failing <code>source_id</code>: raw blob → parsed text → chunk in vector DB?</li>
+              <li><strong>Reconciliation</strong> — chunk count vs CMS; version field mix?</li>
+              <li><strong>Query path</strong> — if ingest healthy, switch to <a href="hallucination-diagnosis.html">hallucination diagnosis</a> (retrieval/generation).</li>
+            </ol>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Break-glass</span>
+            <p>
+              Full re-embed into a new collection + alias swap when incremental repair is slower than SLA. Freeze writes during swap or use dual-write
+              with read from old alias until verification passes. Run retrieval smoke tests from
+              <a href="rag-evaluation.html">RAG evaluation</a> golden set before cutting traffic.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

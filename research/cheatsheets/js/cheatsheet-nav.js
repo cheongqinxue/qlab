@@ -79,16 +79,22 @@
       items: [
         { href: "security-access-control.html", label: "Concepts" },
         { href: "security-implementation.html", label: "Implement & deploy" },
+        { href: "security-genai-threats.html", label: "GenAI threats" },
+        { href: "security-genai-limits.html", label: "GenAI rate limits" },
       ],
     },
     {
       label: "RAG",
       items: [
         { href: "rag-retrieval.html", label: "Retrieval overview" },
+        { href: "rag-fusion-ranking.html", label: "Fusion & ranking" },
         { href: "rag-representations.html", label: "Representations" },
         { href: "rag-ann.html", label: "ANN indexes" },
         { href: "rag-chunking.html", label: "Chunking" },
+        { href: "rag-ingest-pipeline.html", label: "Ingest (ETL)" },
         { href: "rag-systems.html", label: "RAG systems" },
+        { href: "hallucination-diagnosis.html", label: "Hallucination (diagnosis)" },
+        { href: "rag-evaluation.html", label: "Evaluation" },
       ],
     },
     {

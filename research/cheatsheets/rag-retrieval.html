@@ -39,7 +39,7 @@
             <ul>
               <li><strong>Lexical</strong> — match words (BM25, TF-IDF). Strong on exact terms, SKUs, names; weak on paraphrase.</li>
               <li><strong>Semantic (dense)</strong> — embed query and documents into vectors; rank by cosine similarity. Strong on meaning; can miss rare tokens.</li>
-              <li><strong>Hybrid</strong> — combine both scores (common in production).</li>
+              <li><strong>Hybrid</strong> — combine both lists (RRF is the usual merge; see <a href="rag-fusion-ranking.html">fusion &amp; ranking</a>).</li>
             </ul>
           </section>
 
@@ -165,7 +165,7 @@
               <li><strong>MRR / nDCG</strong> — ranking quality when multiple relevant docs exist</li>
               <li><strong>Hit rate</strong> — % queries with any score above a threshold</li>
             </ul>
-            <p class="cell-caption">Formulas and RAG vs retriever-only eval → <a href="metrics.html">metrics sheet</a>.</p>
+            <p class="cell-caption">Golden sets, gates, faithfulness workflow → <a href="rag-evaluation.html">RAG evaluation</a>. Formulas → <a href="metrics.html">metrics</a>.</p>
           </section>
 
           <section class="cell">

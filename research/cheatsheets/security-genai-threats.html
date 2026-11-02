@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security — GenAI attack vectors · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Threats to LLM/RAG/agent systems and how to detect them. Agent controls →
+          <a href="agents-system-security.html">agents — system security</a>. Ingest hardening →
+          <a href="rag-ingest-pipeline.html">RAG ingest pipeline</a>. Rate limits →
+          <a href="security-genai-limits.html">GenAI rate limits</a>. App security →
+          <a href="security-implementation.html">implement &amp; deploy</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">GenAI — attack vectors &amp; detection</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">Scope</span>
+            <p>
+              These threats sit on top of normal application security (broken AuthZ, SQL injection, leaked API keys). GenAI adds paths where
+              <strong>untrusted text becomes instructions or indexed knowledge</strong>, and where <strong>model outputs drive side effects</strong>.
+              Detection mixes security monitoring (signals, takedowns) with product eval (red teams, regression sets). Mitigations for agents
+              and tools live on <a href="agents-system-security.html">agents — system security</a>; ingest and index controls on
+              <a href="rag-ingest-pipeline.html">RAG ingest pipeline</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Prompt injection</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Direct injection</span>
+            <p>
+              The user tries to override system policy in the chat input (“ignore previous rules”, role-play as admin, exfiltrate secrets).
+              <strong>Detect:</strong> rule-based and ML classifiers on input; canary system strings that must never appear in model output;
+              alert on spikes in jailbreak keyword rate per tenant; sample traces for human review. <strong>Signal:</strong> sudden increase in
+              tool calls to sensitive endpoints after long user preambles; refusal bypass rate vs baseline.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Indirect injection (RAG, email, web, tools)</span>
+            <p>
+              Adversarial instructions live in documents, tickets, web pages, or tool responses that later enter context. The user question may
+              be innocent. <strong>Detect:</strong> scan at ingest and again on retrieved chunks (see ingest sheet); log retrieved chunk ids
+              when model proposes high-impact actions; compare action intent to user query (embedding or classifier mismatch); honey-documents
+              that alarm when retrieved and cited. <strong>Signal:</strong> email or export tools invoked after KB retrieval from a single new
+              or low-trust source.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Data poisoning &amp; knowledge-base abuse</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Index poisoning</span>
+            <p>
+              Attacker publishes or edits content so retrieval surfaces malicious or false passages (policy text, injection paragraphs, SEO-style
+              spam). Works even when the chat model is aligned if the app trusts retrieved text.
+              <strong>Detect:</strong> new-source volume alerts; classifier scores on ingest; retrieval of docs from untrusted tiers spiking;
+              user reports + faithfulness drops on queries that cite affected doc ids; periodic diff of high-traffic chunks vs prior version.
+              <strong>Respond:</strong> ACL block source, quarantine collection, re-embed after purge; see ingest pipeline for quarantine workflow.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Training / fine-tuning poisoning</span>
+            <p>
+              Malicious or biased examples in SFT/RLHF data teach harmful compliance (always refund, leak format, ignore refusals).
+              <strong>Detect:</strong> offline eval on refusal and policy-violation sets before and after adapter merge; statistical outliers in
+              training JSONL (toxic n-grams, abnormal resolution rates); provenance audit on who submitted rows. Less common in production than
+              index poisoning but high impact when it lands.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Tool, agent, and exfiltration paths</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Tool misuse and privilege escalation</span>
+            <p>
+              Model calls tools with attacker-chosen arguments (wrong ids, bulk export, path traversal in filenames). Often combined with injection.
+              <strong>Detect:</strong> AuthZ denials logged and alerted; anomaly on tool argument patterns (recipient domains, row counts);
+              rate limits tripped per user; compare tool calls to allowed schema and allowlists. Harness must enforce scope — detection catches
+              what slips through.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">PII and secret exfiltration</span>
+            <p>
+              Model echoes training or context secrets into output, logs, or third-party LLM APIs; users trick the bot into repeating other users’ data.
+              <strong>Detect:</strong> DLP scanners on output and on outbound LLM payloads; regex/entity alerts on SSN, card patterns; cross-tenant
+              retrieval tests in CI; log redaction audits. <strong>Signal:</strong> support tickets citing “bot showed another customer’s order.”
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Availability, cost, and model abuse</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Denial of wallet and denial of service</span>
+            <p>
+              Long contexts, agent loops, or parallel sessions burn GPU and budget; retry storms amplify load.
+              <strong>Detect:</strong> tokens per session, steps per thread, cost per tenant vs baseline; queue depth and 429 rate;
+              same IP many sessions. Pair with <a href="agents-reliability.html">agents — reliability</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Model extraction and probing</span>
+            <p>
+              Systematic queries to reconstruct behavior or distill the model. <strong>Detect:</strong> high-volume templated queries from one
+              principal; unusual embedding of system prompt fragments in user input; rate limits and bot detection at edge.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Detection summary table</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Vector</th>
+                    <th scope="col">Primary detection</th>
+                    <th scope="col">Leading indicator</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Direct injection</td>
+                    <td>Input classifiers, output policy checks, red-team set regression</td>
+                    <td>Jailbreak rate ↑; sensitive tool calls after long prompts</td>
+                  </tr>
+                  <tr>
+                    <td>Indirect / RAG injection</td>
+                    <td>Ingest + retrieve scanning; honey docs; action–query mismatch</td>
+                    <td>New doc id in trace before exfil tool</td>
+                  </tr>
+                  <tr>
+                    <td>Index poisoning</td>
+                    <td>Source trust, quarantine, chunk diffs, faithfulness by doc id</td>
+                    <td>Spike in retrieval from one publisher</td>
+                  </tr>
+                  <tr>
+                    <td>Tool abuse</td>
+                    <td>AuthZ logs, argument allowlists, rate limits</td>
+                    <td>Novel recipient domains; bulk read tools</td>
+                  </tr>
+                  <tr>
+                    <td>PII exfil</td>
+                    <td>DLP on I/O, tenant isolation tests, retrieval ACL audits</td>
+                    <td>Cross-user entity in output</td>
+                  </tr>
+                  <tr>
+                    <td>Cost / DoS</td>
+                    <td>Per-tenant budgets, step caps, queue metrics</td>
+                    <td>Tokens/session p99 ↑</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">OWASP LLM reference</span>
+            <p>
+              Map internal runbooks to OWASP Top 10 for LLM applications (prompt injection, insecure output handling, training data poisoning,
+              excessive agency, etc.). Use it for gap checks in reviews, not as a substitute for product-specific red teams.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>
