@@ -234,6 +234,249 @@
             </ul>
           </section>
 
+          <section class="cell cell-band cell-span" id="vram-sizing">
+            <span class="cell-title">VRAM sizing for inference</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Total GPU memory for one replica is approximately <strong>weight footprint + KV cache for all active sequences + engine overhead</strong>.
+              Weights are fixed at load time; KV grows with each token stored for each concurrent request.
+              Decode throughput is often limited by memory bandwidth reading KV, not by FLOPs (<a href="transformers-efficiency.html">efficiency</a>).
+              The formulas below ignore tensor-parallel sharding (divide per-GPU totals by TP size) and treat vision or audio towers as extra weight bytes on multimodal checkpoints.
+            </p>
+            <p>
+              <strong>Weights (dense, no quant):</strong>
+              $\text{GiB}_{w} \approx N_{\mathrm{params}} \times b_{w} / 2^{30}$, where $b_{w} = 2$ for BF16 or FP16.
+              <strong>Weights (INT4 GPTQ/AWQ):</strong>
+              $\text{GiB}_{w} \approx N_{\mathrm{params}} \times 0.55 / 2^{30}$ (four bits plus scales and packing overhead; use the checkpoint’s published size when available).
+              MoE checkpoints still load all expert tensors in most vLLM/SGLang layouts unless you use expert-parallel or offloading — size from the HF card, not active parameters only.
+            </p>
+            <p>
+              <strong>KV cache (one sequence, all layers):</strong>
+              bytes $= 2 \times L \times n_{\mathrm{kv}} \times d_{k} \times \text{seq\_len} \times b_{\mathrm{kv}}$,
+              where the leading $2$ is key and value, $L$ is layer count, $n_{\mathrm{kv}}$ is GQA key/value head count, $d_k$ is head dimension, and $b_{\mathrm{kv}}$ is bytes per element (2 for FP16/BF16, 1 for FP8, 1 for INT8 where supported).
+              Multiply by the number of concurrent sequences the scheduler may hold (<code>max-num-seqs</code> in vLLM, <code>max-running-requests</code> in SGLang).
+              Hybrid or linear-attention layers cache less; use the model card or treat KV as a lower fraction of the dense estimate.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="vram-worked-example">
+            <span class="cell-title">Worked example — Llama 3.1 8B Instruct (10 users × 8k tokens)</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Assume ten concurrent agent sessions and 8192 tokens reserved per session (system prompt, tool traces, and generation budget).
+              Architecture matches Meta Llama 3.1 8B: $L=32$, $n_{\mathrm{kv}}=8$, $d_k=128$, $N \approx 8.03 \times 10^9$ parameters.
+              Per-token KV in FP16/BF16 is $2 \times 32 \times 8 \times 128 \times 2 = 131{,}072$ bytes (128 KiB); FP8 KV uses one byte per element and halves that footprint.
+              At 8192 tokens one sequence needs 1.0 GiB KV (FP16) or 0.5 GiB (FP8); ten sequences need 10.0 or 5.0 GiB respectively.
+              For self-host planning we assume an <strong>INT4 AWQ/GPTQ checkpoint</strong> (~4.4 GiB weights), not BF16 weights (~16 GiB).
+              Budget about 2 GiB for vLLM/SGLang allocator, CUDA graphs, and logits scratch.
+              <strong>Production band (quant weights only):</strong> about <strong>11–16 GiB</strong> total for this load (FP8 KV → FP16 KV).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Configuration</th>
+                    <th scope="col">Weights</th>
+                    <th scope="col">KV (10 × 8k)</th>
+                    <th scope="col">Overhead</th>
+                    <th scope="col">Total (approx.)</th>
+                    <th scope="col">Fits (single GPU, ~90% util.)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>BF16/FP16 weights + FP16/BF16 KV</td>
+                    <td>16.0 GiB</td>
+                    <td>10.0 GiB</td>
+                    <td>2 GiB</td>
+                    <td><strong>~28 GiB</strong></td>
+                    <td>NVIDIA A100 40GB; L4 24GB is too tight</td>
+                  </tr>
+                  <tr>
+                    <td>INT4 AWQ/GPTQ weights + FP16/BF16 KV</td>
+                    <td>~4.4 GiB</td>
+                    <td>10.0 GiB</td>
+                    <td>2 GiB</td>
+                    <td><strong>~16 GiB</strong></td>
+                    <td>NVIDIA L4 24GB (typical GCP <code>g2-standard-4</code>)</td>
+                  </tr>
+                  <tr>
+                    <td>INT4 weights + FP8 KV (<code>fp8_e4m3</code> or <code>fp8_e5m2</code>)</td>
+                    <td>~4.4 GiB</td>
+                    <td>5.0 GiB</td>
+                    <td>2 GiB</td>
+                    <td><strong>~11 GiB</strong></td>
+                    <td>L4 24GB with headroom for longer contexts</td>
+                  </tr>
+                  <tr>
+                    <td>BF16 weights + FP8 KV</td>
+                    <td>16.0 GiB</td>
+                    <td>5.0 GiB</td>
+                    <td>2 GiB</td>
+                    <td><strong>~23 GiB</strong></td>
+                    <td>L4 24GB at the edge of comfort — prefer A100 40GB for BF16 weights</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              FP8 KV halves KV bytes; quality depends on scales — see <a href="transformers-compression.html#kv-quant">KV quant</a>.
+              INT8 KV (<code>int8</code> paths in some builds) also uses one byte per element where the attention backend supports it.
+              <strong>Assumptions snapshot: November 2026</strong> — re-validate layer/head counts on the HF config before capacity sign-off.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">vLLM — dtype, weight quant, KV quant</span>
+            <p>Match flags to the checkpoint (AWQ/GPTQ/FP8). Set <code>--max-num-seqs 10</code> and <code>--max-model-len 8192</code> to align with the table above.</p>
+            <pre class="cell-code"><code># BF16/FP16 weights, full-precision KV
+vllm serve meta-llama/Llama-3.1-8B-Instruct \
+  --dtype bfloat16 \
+  --max-model-len 8192 \
+  --max-num-seqs 10 \
+  --gpu-memory-utilization 0.90
+
+# INT4 AWQ weights (example repo), FP16 KV
+vllm serve huggingface/llama-3.1-8b-instruct-awq \
+  --quantization awq \
+  --dtype float16 \
+  --max-model-len 8192 \
+  --max-num-seqs 10
+
+# INT4 weights + FP8 KV (e4m3 = default fp8; e5m2 = wider range)
+vllm serve huggingface/llama-3.1-8b-instruct-awq \
+  --quantization awq \
+  --kv-cache-dtype fp8_e4m3 \
+  --max-model-len 8192 \
+  --max-num-seqs 10</code></pre>
+            <p>
+              Other vLLM KV options include <code>auto</code>, <code>fp8</code> (alias for e4m3 on CUDA), <code>fp8_e5m2</code>, and model-specific paths such as <code>fp8_ds_mla</code> or <code>nvfp4</code> on supported checkpoints.
+              Use <code>--calculate-kv-scales</code> or calibrated scales when accuracy drops on long contexts.
+            </p>
+          </section>
+
+          <section class="cell">
+            <span class="cell-title">SGLang — dtype, weight quant, KV quant</span>
+            <p>SGLang uses the same conceptual knobs; prefer <code>--quantization-param-path</code> for FP8 KV when scales are not in the checkpoint.</p>
+            <pre class="cell-code"><code># BF16 weights, full-precision KV
+python3 -m sglang.launch_server \
+  --model-path meta-llama/Llama-3.1-8B-Instruct \
+  --dtype bfloat16 \
+  --context-length 8192 \
+  --max-running-requests 10
+
+# AWQ checkpoint
+python3 -m sglang.launch_server \
+  --model-path huggingface/llama-3.1-8b-instruct-awq \
+  --quantization awq \
+  --context-length 8192 \
+  --max-running-requests 10
+
+# AWQ + FP8 KV (e4m3 recommended in SGLang docs for accuracy)
+python3 -m sglang.launch_server \
+  --model-path huggingface/llama-3.1-8b-instruct-awq \
+  --quantization awq \
+  --kv-cache-dtype fp8_e4m3 \
+  --context-length 8192 \
+  --max-running-requests 10</code></pre>
+            <p>
+              NVFP4 and block FP4 KV dtypes exist for Blackwell-class GPUs and ModelOpt checkpoints; verify the attention backend supports quantized KV or throughput may regress.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span" id="gcp-gpu-ladder">
+            <span class="cell-title">GCP GPU ladder for LLM inference (us-central1) — snapshot November 2026</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>
+              Google’s first-party inference path is no longer “cheap T4 → expensive A100 only.”
+              For self-host sizing we walk SKUs in <strong>VRAM order</strong> and pick the smallest machine that fits the high end of your quant-weight + KV range at ~90% memory utilization.
+              Legacy <strong>N1 + T4</strong> (~$0.35/h GPU, 16 GB) remains on the price list but is omitted here: 16 GB is too tight for typical agent KV loads, Turing lacks modern FP8 serve paths, and Google lists <strong>T4 end of support August 1, 2027</strong> ([GPU machine types](https://cloud.google.com/compute/docs/gpus)).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tier (Nov 2026)</th>
+                    <th scope="col">Example machine type</th>
+                    <th scope="col">GPU VRAM</th>
+                    <th scope="col">~Memory BW</th>
+                    <th scope="col">On-demand ~$/hr</th>
+                    <th scope="col">~$/mo (730 h)</th>
+                    <th scope="col">When it fits</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1× L4</td>
+                    <td><code>g2-standard-4</code></td>
+                    <td>24 GB</td>
+                    <td>300 GB/s</td>
+                    <td>~$0.71</td>
+                    <td>~$520</td>
+                    <td>Quant 7–9B + FP8 KV at moderate concurrency; cost-first</td>
+                  </tr>
+                  <tr>
+                    <td>2× L4</td>
+                    <td><code>g2-standard-24</code></td>
+                    <td>48 GB (2 GPUs)</td>
+                    <td>~600 GB/s aggregate</td>
+                    <td>~$1.55</td>
+                    <td>~$1,130</td>
+                    <td>~25–35 GiB budgets; TP=2 or two replicas — not one unified 48 GB pool by default</td>
+                  </tr>
+                  <tr>
+                    <td>1× A100 40GB</td>
+                    <td><code>a2-highgpu-1g</code></td>
+                    <td>40 GB</td>
+                    <td>~1.55 TB/s</td>
+                    <td>~$3.67</td>
+                    <td>~$2,680</td>
+                    <td><strong>Speed middle ground</strong> when 24 GB L4 is slow but 96 GB is unnecessary; ~28–38 GiB FP16 KV loads</td>
+                  </tr>
+                  <tr>
+                    <td>1× RTX PRO 6000</td>
+                    <td><code>g4-standard-48</code></td>
+                    <td>96 GB</td>
+                    <td>~1.6 TB/s</td>
+                    <td>~$4.50</td>
+                    <td>~$3,285</td>
+                    <td><strong>VRAM middle ground</strong> — single-GPU 55–77 GiB quant+KV (70B Q4, large MoE packs) without 2× A100 80GB</td>
+                  </tr>
+                  <tr>
+                    <td>1× A100 80GB</td>
+                    <td><code>a2-ultragpu-1g</code></td>
+                    <td>80 GB</td>
+                    <td>~2.0 TB/s</td>
+                    <td>~$5.07</td>
+                    <td>~$3,700</td>
+                    <td>When G4 unavailable or you need Ampere/HBM ecosystem; similar VRAM band to G4 with higher BW</td>
+                  </tr>
+                  <tr>
+                    <td>2× A100 80GB</td>
+                    <td><code>a2-ultragpu-2g</code></td>
+                    <td>160 GB</td>
+                    <td>~4 TB/s aggregate</td>
+                    <td>~$10.14</td>
+                    <td>~$7,400</td>
+                    <td>~87–94 GiB single-replica quant+KV (122B-class packs)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Prices are <strong>on-demand us-central1</strong>, full VM+GPU, rounded — sourced from
+              <a href="https://cloud.google.com/products/compute/pricing/accelerator-optimized">accelerator-optimized pricing</a> and third-party price aggregators, November 2026.
+              Re-check before contracts; spot/CUDs change effective $/token.
+              Per-model SKU mapping → <a href="agents-llms.html#gcp-self-host">open-weight GCP self-host table</a> (same snapshot date).
+            </p>
+          </section>
+
           <section class="cell cell-band cell-span">
             <span class="cell-title">Hosting ops checklist</span>
           </section>
@@ -251,9 +494,10 @@
           <section class="cell">
             <span class="cell-title">Capacity planning</span>
             <ul>
-              <li>VRAM = weights + KV × concurrent seqs (<a href="transformers-compression.html#kv-quant">KV quant</a>).</li>
+              <li>VRAM = weights + KV × concurrent seqs — walk through <a href="#vram-worked-example">Llama 3.1 8B example</a> and <a href="transformers-compression.html#kv-quant">KV quant</a>.</li>
+              <li>GCP SKU ladder (dated) → <a href="#gcp-gpu-ladder">GCP GPU ladder</a>; per-model table → <a href="agents-llms.html#gcp-self-host">LLM comparison — GCP self-host</a>.</li>
               <li>Decode QPS often limited by memory bandwidth, not FLOPs.</li>
-              <li>Reserve headroom for long-context spikes and agent multi-turn.</li>
+              <li>Reserve headroom for long-context spikes and agent multi-turn; load-test at product max context.</li>
             </ul>
           </section>
 
