@@ -245,18 +245,33 @@
               Decode throughput is often limited by memory bandwidth reading KV, not by FLOPs (<a href="transformers-efficiency.html">efficiency</a>).
               The formulas below ignore tensor-parallel sharding (divide per-GPU totals by TP size) and treat vision or audio towers as extra weight bytes on multimodal checkpoints.
             </p>
-            <p>
-              <strong>Weights (dense, no quant):</strong>
-              $\text{GiB}_{w} \approx N_{\mathrm{params}} \times b_{w} / 2^{30}$, where $b_{w} = 2$ for BF16 or FP16.
-              <strong>Weights (INT4 GPTQ/AWQ):</strong>
-              $\text{GiB}_{w} \approx N_{\mathrm{params}} \times 0.55 / 2^{30}$ (four bits plus scales and packing overhead; use the checkpoint’s published size when available).
-              MoE checkpoints still load all expert tensors in most vLLM/SGLang layouts unless you use expert-parallel or offloading — size from the HF card, not active parameters only.
+            <p><strong>Weights</strong> — express model size as <strong>P_B</strong> = parameter count in <strong>billions</strong> (Llama 3.1 8B → <strong>P_B = 8</strong>). Rule-of-thumb GiB:</p>
+            <div class="formula">Weight GiB ≈ P_B × 2</div>
+            <p class="formula-comment">BF16/FP16 — 16 bits per param → ~2 GiB per billion parameters (8B → ~16 GiB)</p>
+            <div class="formula">Weight GiB ≈ P_B × 0.5</div>
+            <p class="formula-comment">ideal INT4 — 4 bits per param (8B → ~4 GiB)</p>
+            <div class="formula">Weight GiB ≈ P_B × 0.55</div>
+            <p class="formula-comment">shipped AWQ/GPTQ — ~4.5 bits/param effective with scales/packing (8B → ~4.4 GiB); prefer HF Disk size when listed</p>
+            <p class="formula-comment">
+              Precise: weight bytes = N_params × weight_bits_per_param ÷ 8, then Weight GiB = weight bytes ÷ 2<sup>30</sup> (one gibibyte = 2<sup>30</sup> bytes, not 10<sup>9</sup>).
+              The P_B shortcuts treat “8B” as 8×10<sup>9</sup> and are close enough for capacity planning; use the exact line when you are within a few GiB of a GPU limit.
             </p>
             <p>
-              <strong>KV cache (one sequence, all layers):</strong>
-              bytes $= 2 \times L \times n_{\mathrm{kv}} \times d_{k} \times \text{seq\_len} \times b_{\mathrm{kv}}$,
-              where the leading $2$ is key and value, $L$ is layer count, $n_{\mathrm{kv}}$ is GQA key/value head count, $d_k$ is head dimension, and $b_{\mathrm{kv}}$ is bytes per element (2 for FP16/BF16, 1 for FP8, 1 for INT8 where supported).
-              Multiply by the number of concurrent sequences the scheduler may hold (<code>max-num-seqs</code> in vLLM, <code>max-running-requests</code> in SGLang).
+              MoE checkpoints still load all expert tensors in most vLLM/SGLang layouts unless you use expert-parallel or offloading — size from the HF card, not active parameters only.
+            </p>
+            <p><strong>KV cache</strong> — one sequence, all layers:</p>
+            <div class="formula">KV bytes = 2 × num_layers × n_kv_heads × head_dim × seq_len × (kv_bits_per_element ÷ 8)</div>
+            <ul class="where">
+              <li><span class="sym">2</span>key tensor and value tensor</li>
+              <li><span class="sym">num_layers</span>transformer block count</li>
+              <li><span class="sym">n_kv_heads</span>GQA key/value head count</li>
+              <li><span class="sym">head_dim</span>dimension per KV head</li>
+              <li><span class="sym">seq_len</span>tokens stored for that sequence</li>
+              <li><span class="sym">kv_bits_per_element</span>16 for FP16/BF16 KV; 8 for FP8/INT8 KV where supported</li>
+            </ul>
+            <div class="formula">Total KV bytes = KV bytes × concurrent_sequences</div>
+            <p class="formula-comment"><code>max-num-seqs</code> (vLLM) or <code>max-running-requests</code> (SGLang)</p>
+            <p>
               Hybrid or linear-attention layers cache less; use the model card or treat KV as a lower fraction of the dense estimate.
             </p>
           </section>
@@ -267,13 +282,32 @@
 
           <section class="cell cell-span">
             <p>
-              Assume ten concurrent agent sessions and 8192 tokens reserved per session (system prompt, tool traces, and generation budget).
-              Architecture matches Meta Llama 3.1 8B: $L=32$, $n_{\mathrm{kv}}=8$, $d_k=128$, $N \approx 8.03 \times 10^9$ parameters.
-              Per-token KV in FP16/BF16 is $2 \times 32 \times 8 \times 128 \times 2 = 131{,}072$ bytes (128 KiB); FP8 KV uses one byte per element and halves that footprint.
-              At 8192 tokens one sequence needs 1.0 GiB KV (FP16) or 0.5 GiB (FP8); ten sequences need 10.0 or 5.0 GiB respectively.
-              For self-host planning we assume an <strong>INT4 AWQ/GPTQ checkpoint</strong> (~4.4 GiB weights), not BF16 weights (~16 GiB).
-              Budget about 2 GiB for vLLM/SGLang allocator, CUDA graphs, and logits scratch.
-              <strong>Production band (quant weights only):</strong> about <strong>11–16 GiB</strong> total for this load (FP8 KV → FP16 KV).
+              Ten concurrent agent sessions; 8192 tokens reserved per session (system prompt, tool traces, and generation budget).
+              Meta Llama 3.1 8B architecture constants:
+            </p>
+            <div class="formula">num_layers = 32</div>
+            <div class="formula">n_kv_heads = 8</div>
+            <div class="formula">head_dim = 128</div>
+            <div class="formula">P_B ≈ 8</div>
+            <p class="formula-comment">~8B parameters (Llama 3.1 8B)</p>
+            <div class="formula">kv_bits_per_element = 16</div>
+            <p class="formula-comment">FP16/BF16 KV for the substitution below</p>
+            <div class="formula">KV bytes per token = 2 × 32 × 8 × 128 × (16 ÷ 8)</div>
+            <div class="formula">KV bytes per token = 131,072 bytes (128 KiB)</div>
+            <div class="formula">kv_bits_per_element = 8</div>
+            <p class="formula-comment">FP8 KV — halve the per-token KV bytes above</p>
+            <div class="formula">KV per sequence (8192 tokens, FP16 KV) ≈ 1.0 GiB</div>
+            <div class="formula">KV per sequence (8192 tokens, FP8 KV) ≈ 0.5 GiB</div>
+            <div class="formula">KV for 10 sequences (FP16 KV) ≈ 10.0 GiB</div>
+            <div class="formula">KV for 10 sequences (FP8 KV) ≈ 5.0 GiB</div>
+            <div class="formula">Weight GiB ≈ P_B × 0.55 ≈ 4.4 GiB</div>
+            <p class="formula-comment">INT4 AWQ/GPTQ checkpoint for self-host planning</p>
+            <div class="formula">Weight GiB ≈ P_B × 2 ≈ 16 GiB</div>
+            <p class="formula-comment">BF16 full weights — comparison only</p>
+            <div class="formula">engine_overhead ≈ 2 GiB</div>
+            <p class="formula-comment">vLLM/SGLang allocator, CUDA graphs, logits scratch</p>
+            <p>
+              <strong>Production band (quant weights only):</strong> about 11–16 GiB total for this load (FP8 KV through FP16 KV), before optional headroom for longer contexts.
             </p>
             <div class="cell-table-wrap">
               <table class="cell-table">
@@ -305,7 +339,7 @@
                     <td>NVIDIA L4 24GB (typical GCP <code>g2-standard-4</code>)</td>
                   </tr>
                   <tr>
-                    <td>INT4 weights + FP8 KV (<code>fp8_e4m3</code> or <code>fp8_e5m2</code>)</td>
+                    <td>INT4 weights + FP8 KV (<code>fp8</code> on vLLM; <code>fp8_e4m3</code> on SGLang)</td>
                     <td>~4.4 GiB</td>
                     <td>5.0 GiB</td>
                     <td>2 GiB</td>
@@ -332,7 +366,11 @@
 
           <section class="cell">
             <span class="cell-title">vLLM — dtype, weight quant, KV quant</span>
-            <p>Match flags to the checkpoint (AWQ/GPTQ/FP8). Set <code>--max-num-seqs 10</code> and <code>--max-model-len 8192</code> to align with the table above.</p>
+            <p>
+              Set <code>--max-num-seqs 10</code> and <code>--max-model-len 8192</code> to align with the VRAM table.
+              For <strong>offline AWQ/GPTQ checkpoints</strong>, omit <code>--quantization</code>: vLLM reads <code>quantization_config</code> in <code>config.json</code> and picks <code>auto_awq</code> / Marlin when eligible.
+              Passing <code>--quantization awq</code> forces a legacy path and can fail on modern AutoAWQ repos — only use <code>-q</code> when docs require an override (e.g. explicit <code>gptq</code> vs <code>marlin</code>).
+            </p>
             <pre class="cell-code"><code># BF16/FP16 weights, full-precision KV
 vllm serve meta-llama/Llama-3.1-8B-Instruct \
   --dtype bfloat16 \
@@ -340,28 +378,34 @@ vllm serve meta-llama/Llama-3.1-8B-Instruct \
   --max-num-seqs 10 \
   --gpu-memory-utilization 0.90
 
-# INT4 AWQ weights (example repo), FP16 KV
-vllm serve huggingface/llama-3.1-8b-instruct-awq \
-  --quantization awq \
-  --dtype float16 \
+# Pre-quantized AWQ (AutoAWQ on HF) — no --quantization flag
+vllm serve hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4 \
+  --dtype auto \
   --max-model-len 8192 \
   --max-num-seqs 10
 
-# INT4 weights + FP8 KV (e4m3 = default fp8; e5m2 = wider range)
-vllm serve huggingface/llama-3.1-8b-instruct-awq \
-  --quantization awq \
-  --kv-cache-dtype fp8_e4m3 \
+# Same checkpoint + FP8 KV (CLI value is fp8; maps to fp8_e4m3 on supported GPUs)
+vllm serve hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4 \
+  --dtype auto \
+  --kv-cache-dtype fp8 \
   --max-model-len 8192 \
   --max-num-seqs 10</code></pre>
             <p>
-              Other vLLM KV options include <code>auto</code>, <code>fp8</code> (alias for e4m3 on CUDA), <code>fp8_e5m2</code>, and model-specific paths such as <code>fp8_ds_mla</code> or <code>nvfp4</code> on supported checkpoints.
-              Use <code>--calculate-kv-scales</code> or calibrated scales when accuracy drops on long contexts.
+              <strong>FP8 KV and GPU generation:</strong> Ada Lovelace (L4, RTX 40xx) and Hopper (H100) are the straightforward targets for <code>--kv-cache-dtype fp8</code>.
+              Ampere (A100, RTX 30xx) has no native FP8 tensor cores; FP8 KV may still work when the <strong>attention backend</strong> stores FP8 but computes in BF16/FP16 (e.g. FlashInfer on A100 in recent vLLM builds).
+              If init fails with an architecture or Triton <code>fp8e4nv</code> error, stay on BF16/FP16 KV, try <code>VLLM_ATTENTION_BACKEND=FLASHINFER</code>, or pin a vLLM version whose release notes cover SM80 FP8 KV — behavior moves quickly.
+              Optional: <code>--calculate-kv-scales</code> or calibrated scales on long context; <code>fp8_e5m2</code> remains an explicit alternative where supported.
             </p>
           </section>
 
           <section class="cell">
             <span class="cell-title">SGLang — dtype, weight quant, KV quant</span>
-            <p>SGLang uses the same conceptual knobs; prefer <code>--quantization-param-path</code> for FP8 KV when scales are not in the checkpoint.</p>
+            <p>
+              Same rule for <strong>offline-quantized</strong> weights: do <strong>not</strong> pass <code>--quantization awq</code> (that is for on-the-fly quant).
+              SGLang parses the method from the HF <code>config.json</code>.
+              For FP8 KV, SGLang’s CLI uses explicit <code>fp8_e4m3</code> or <code>fp8_e5m2</code> (there is no short <code>fp8</code> alias like vLLM).
+              Supply <code>--quantization-param-path</code> when FP8 KV scales are not embedded in the checkpoint.
+            </p>
             <pre class="cell-code"><code># BF16 weights, full-precision KV
 python3 -m sglang.launch_server \
   --model-path meta-llama/Llama-3.1-8B-Instruct \
@@ -369,22 +413,23 @@ python3 -m sglang.launch_server \
   --context-length 8192 \
   --max-running-requests 10
 
-# AWQ checkpoint
+# Pre-quantized AWQ — no --quantization flag
 python3 -m sglang.launch_server \
-  --model-path huggingface/llama-3.1-8b-instruct-awq \
-  --quantization awq \
+  --model-path hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4 \
+  --dtype auto \
   --context-length 8192 \
   --max-running-requests 10
 
-# AWQ + FP8 KV (e4m3 recommended in SGLang docs for accuracy)
+# AWQ + FP8 KV (SGLang: fp8_e4m3 recommended for accuracy in docs)
 python3 -m sglang.launch_server \
-  --model-path huggingface/llama-3.1-8b-instruct-awq \
-  --quantization awq \
+  --model-path hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4 \
+  --dtype auto \
   --kv-cache-dtype fp8_e4m3 \
   --context-length 8192 \
   --max-running-requests 10</code></pre>
             <p>
-              NVFP4 and block FP4 KV dtypes exist for Blackwell-class GPUs and ModelOpt checkpoints; verify the attention backend supports quantized KV or throughput may regress.
+              Confirm the chosen attention backend supports quantized KV; otherwise dequant paths can erase throughput gains.
+              NVFP4 / block FP4 KV dtypes target Blackwell-class GPUs and ModelOpt checkpoints.
             </p>
           </section>
 
