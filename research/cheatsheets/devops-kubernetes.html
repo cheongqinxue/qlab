@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DevOps — Kubernetes · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Prerequisite → <a href="devops-containers.html">containers</a>.
+          LLM capacity on top → <a href="transformers-serving-autoscaling.html">LLM autoscaling</a>,
+          <a href="transformers-serving-ray-vllm.html">Ray + vLLM runbooks</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">DevOps — Kubernetes</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span" id="what-is">
+            <span class="cell-title">What is Kubernetes?</span>
+            <p>
+              <strong>Kubernetes</strong> (often abbreviated <strong>K8s</strong>) is a system that runs your
+              <strong>container</strong> workloads across a pool of machines. You declare desired state (how many copies of an app,
+              how much CPU or graphics processing unit (GPU) each needs); the control plane schedules pods onto
+              <strong>nodes</strong>, restarts failed containers, and rolls out new versions.
+            </p>
+            <p>
+              You reach for K8s when you have multiple services, need high availability, or attach GPUs at scale — not for a first
+              “hello API” unless the team already operates a cluster. Images and registries →
+              <a href="devops-containers.html">containers</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Cluster anatomy</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Control plane vs workers</span>
+            <ul>
+              <li><strong>Control plane</strong> — API server, scheduler, controllers; decides <em>what</em> should run where.</li>
+              <li><strong>Node</strong> — a worker machine (virtual machine (VM) or bare metal) that runs your pods; cloud “node pools” are groups of similar nodes.</li>
+              <li><strong>Pod</strong> — smallest deployable unit; one or more containers that share network and storage; usually one main container per pod for apps.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Deployment (replicated apps)</span>
+            <p>
+              A <strong>Deployment</strong> owns a set of identical pods and keeps <code>replicas</code> at the number you set.
+              Rolling updates replace pods gradually; scale up/down changes replica count. For inference, one vLLM pod often means
+              <strong>one GPU and one model process</strong> per pod unless you use tensor parallel inside a multi-GPU pod.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Networking &amp; load balancing</span>
+          </section>
+
+          <section class="cell cell-span" id="networking">
+            <span class="cell-title">Service vs Ingress</span>
+            <ul>
+              <li>
+                <strong>Service</strong> — stable cluster-internal name and IP that load-balances <em>across ready pods</em> matching a label selector.
+                Other pods (e.g. your agent) call <code>http://vllm-service:8000</code>.
+              </li>
+              <li>
+                <strong>Ingress</strong> — HTTP(S) entry from outside the cluster (often with a cloud load balancer in front).
+                Terminates TLS and routes host/path to Services.
+              </li>
+            </ul>
+            <p>
+              When people say “the load balancer sends traffic to the new vLLM instance,” in K8s that usually means:
+              the new pod passes <strong>readiness</strong>, joins the Service endpoints, and the Service (or Ingress controller) starts including it in rotation.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Scheduling &amp; resources</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Requests, limits, and GPUs</span>
+            <ul>
+              <li><strong>requests</strong> — what the scheduler reserves when placing a pod (e.g. <code>cpu: 2</code>, <code>memory: 8Gi</code>).</li>
+              <li><strong>limits</strong> — hard cap; exceed memory → out-of-memory (OOM) kill.</li>
+              <li><strong><code>nvidia.com/gpu: 1</code></strong> — request one GPU device; pod stays <strong>Pending</strong> if no node has a free GPU.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Pod phases you will see</span>
+            <ul>
+              <li><strong>Pending</strong> — not scheduled yet (no capacity, pulling image, waiting for GPU).</li>
+              <li><strong>Running</strong> — scheduled; containers started.</li>
+              <li><strong>CrashLoopBackOff</strong> — container exits repeatedly; check logs and probes.</li>
+            </ul>
+            <p><code>kubectl describe pod &lt;name&gt;</code> events often say <code>Insufficient nvidia.com/gpu</code> when the cluster is full.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Health checks</span>
+          </section>
+
+          <section class="cell cell-span" id="probes">
+            <span class="cell-title">Liveness vs readiness</span>
+            <ul>
+              <li><strong>Liveness</strong> — “Is the process alive?” Fail → kubelet restarts the container.</li>
+              <li><strong>Readiness</strong> — “Should this pod receive traffic?” Fail → removed from Service endpoints (no new requests) while still running.</li>
+            </ul>
+            <p>
+              For vLLM, readiness often waits until the model is loaded (and sometimes a cheap generate check).
+              Traffic must not hit a pod until readiness passes — otherwise time to first token (TTFT) spikes on cold workers.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Autoscaling (two layers)</span>
+          </section>
+
+          <section class="cell cell-span" id="autoscaling">
+            <span class="cell-title">Pods vs nodes</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Layer</th>
+                    <th scope="col">What changes</th>
+                    <th scope="col">Typical tooling</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Pod count</td>
+                    <td>More/fewer replicas of your Deployment</td>
+                    <td>Horizontal Pod Autoscaler (HPA), Kubernetes Event-driven Autoscaling (KEDA)</td>
+                  </tr>
+                  <tr>
+                    <td>Node count</td>
+                    <td>More/fewer machines when pods cannot schedule</td>
+                    <td>Cluster Autoscaler (CA) on cloud node pools</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Scaling pods without free GPUs creates <strong>Pending</strong> pods — fix nodes or quota, not only “raise max replicas.”
+              LLM metrics, Ray Serve, and policies → <a href="transformers-serving-autoscaling.html">LLM autoscaling</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">ML inference on Kubernetes</span>
+          </section>
+
+          <section class="cell cell-span" id="ml-inference">
+            <span class="cell-title">Common layout</span>
+            <ul>
+              <li><strong>Agent</strong> — CPU Deployment + Service; scales on requests per second (RPS) or CPU.</li>
+              <li><strong>vLLM</strong> — GPU Deployment; image pins model + engine; probes on <code>/health</code>.</li>
+              <li><strong>Ray on K8s</strong> (optional) — KubeRay <code>RayCluster</code> worker pods; Ray Serve sits on top — not required for plain vLLM.</li>
+            </ul>
+            <p>
+              Video RAM (VRAM) sizing and engine flags → <a href="transformers-serving.html">serving</a>.
+              Incidents (pending replica storm, queues) → <a href="transformers-serving-ray-vllm.html">Ray + vLLM runbooks</a>.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Objects cheat sheet</span>
+          </section>
+
+          <section class="cell cell-span" id="objects">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Object</th>
+                    <th scope="col">You use it to…</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Deployment</td>
+                    <td>Run N copies of an app; roll out new container images</td>
+                  </tr>
+                  <tr>
+                    <td>Service</td>
+                    <td>Stable address + load balance to ready pods</td>
+                  </tr>
+                  <tr>
+                    <td>Ingress</td>
+                    <td>Expose HTTP(S) to the internet or VPC</td>
+                  </tr>
+                  <tr>
+                    <td>ConfigMap / Secret</td>
+                    <td>Non-secret config vs credentials (mount or env)</td>
+                  </tr>
+                  <tr>
+                    <td>Namespace</td>
+                    <td>Isolate teams or environments on one cluster</td>
+                  </tr>
+                  <tr>
+                    <td>ScaledObject (KEDA)</td>
+                    <td>Scale a Deployment from Prometheus or other triggers</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">kubectl — what to run when</span>
+          </section>
+
+          <section class="cell cell-span" id="debug">
+            <span class="cell-title">Command cheat sheet</span>
+            <p>
+              <code>kubectl</code> is the CLI for the Kubernetes API. Add <code>-n &lt;namespace&gt;</code> when workloads are not in
+              <code>default</code> (e.g. <code>-n ray-system</code>).
+            </p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Command</th>
+                    <th scope="col">Shows</th>
+                    <th scope="col">Use when</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>kubectl get pods</code></td>
+                    <td>Phase, restarts, age, node (if scheduled)</td>
+                    <td>Quick scan — Pending vs CrashLoopBackOff</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl describe pod &lt;name&gt;</code></td>
+                    <td><strong>Events</strong>, conditions, requests/limits, container last state</td>
+                    <td>Pod not ready — scheduling (<code>Insufficient nvidia.com/gpu</code>), image pull, probe failures, OOMKilled</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl logs &lt;pod&gt;</code></td>
+                    <td>Application stdout/stderr from the container</td>
+                    <td>Process errors after the pod is on a node — vLLM stack traces, config mistakes</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl logs &lt;pod&gt; --previous</code></td>
+                    <td>Logs from the last crashed container instance</td>
+                    <td>CrashLoopBackOff — current container may be empty</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl get deploy &lt;name&gt;</code></td>
+                    <td><code>READY</code> vs desired replicas</td>
+                    <td>Autoscale or rollout — “want 6, have 1 ready”</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl get svc,ingress</code></td>
+                    <td>Cluster DNS names, ports, ingress hosts</td>
+                    <td>Traffic routing — agent cannot reach vLLM Service</td>
+                  </tr>
+                  <tr>
+                    <td><code>kubectl get events --sort-by=.lastTimestamp</code></td>
+                    <td>Recent namespace events (sometimes duplicates describe)</td>
+                    <td>Cluster Autoscaler blocked, quota, failed mounts</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>describe vs logs:</strong> <code>describe</code> explains <em>why Kubernetes has not marked the pod ready</em>;
+              <code>logs</code> explain <em>why your app exited or misbehaved</em>. Use both on GPU inference incidents.
+            </p>
+            <p>Centralized logs and dashboards → <a href="devops-observability.html">observability</a>.
+              Pending replica storm runbook → <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>.</p>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

@@ -1,0 +1,779 @@
+{"text": "Explain how a neural network learns — to a non-technical stakeholder. — Weights = knobs; training nudges them to reduce error on examples", "source": "ai-engineer-interview.html"}
+{"text": "Explain how a neural network learns — to a non-technical stakeholder. — Layers = stages of abstraction (simple patterns → decisions)", "source": "ai-engineer-interview.html"}
+{"text": "Explain how a neural network learns — to a non-technical stakeholder. — Not memorization alone: generalization needs diverse data + validation", "source": "ai-engineer-interview.html"}
+{"text": "Explain how a neural network learns — to a non-technical stakeholder. — Analogy: flashcards + coach correcting each round", "source": "ai-engineer-interview.html"}
+{"text": "When would you pick a CNN/Inception-style model vs a Transformer? — CNN: grid data (images/video frames), local patterns, efficient inductive bias", "source": "ai-engineer-interview.html"}
+{"text": "When would you pick a CNN/Inception-style model vs a Transformer? — Inception: multi-scale features in one forward pass", "source": "ai-engineer-interview.html"}
+{"text": "When would you pick a CNN/Inception-style model vs a Transformer? — Transformer: long context, global dependencies, parallel training — default for language/multimodal", "source": "ai-engineer-interview.html"}
+{"text": "When would you pick a CNN/Inception-style model vs a Transformer? — Tabular: often GBM/logistic first; NN when scale + messy interactions justify cost", "source": "ai-engineer-interview.html"}
+{"text": "Why is Adam so common in deep learning? — Per-parameter learning rate from gradient + squared-gradient EMAs", "source": "ai-engineer-interview.html"}
+{"text": "Why is Adam so common in deep learning? — Handles sparse/noisy grads better than fixed-lr SGD in many DL tasks", "source": "ai-engineer-interview.html"}
+{"text": "Why is Adam so common in deep learning? — Production: prefer AdamW (weight decay decoupled from adaptive step)", "source": "ai-engineer-interview.html"}
+{"text": "Why is Adam so common in deep learning? — Watch: grad clip, ε, stale second moments — see failure modes", "source": "ai-engineer-interview.html"}
+{"text": "What is self-attention, in one interview answer? — Each token compares itself (query) to all keys → softmax weights → weighted sum of values", "source": "ai-engineer-interview.html"}
+{"text": "What is self-attention, in one interview answer? — Learns which context tokens matter for this position", "source": "ai-engineer-interview.html"}
+{"text": "What is self-attention, in one interview answer? — Multi-head = several relation types in parallel", "source": "ai-engineer-interview.html"}
+{"text": "What is self-attention, in one interview answer? — Cost scales with sequence length (quadratic in full attention)", "source": "ai-engineer-interview.html"}
+{"text": "Why mask the decoder during training? — Causal mask: position t cannot attend to tokens &gt; t", "source": "ai-engineer-interview.html"}
+{"text": "Why mask the decoder during training? — Without it, model “sees the answer” — not true next-token prediction", "source": "ai-engineer-interview.html"}
+{"text": "Why mask the decoder during training? — Encoder-only (BERT): bidirectional, no causal mask — different pretraining objective", "source": "ai-engineer-interview.html"}
+{"text": "Why mask the decoder during training? — Seq2seq: decoder self-attn masked; cross-attn to encoder unmasked", "source": "ai-engineer-interview.html"}
+{"text": "What breaks when you keep making the network deeper? — Vanishing/exploding gradients — residuals, norm, init, clipping", "source": "ai-engineer-interview.html"}
+{"text": "What breaks when you keep making the network deeper? — Overfit — data, regularization, early stop", "source": "ai-engineer-interview.html"}
+{"text": "What breaks when you keep making the network deeper? — Train/serve cost — latency, memory; distill / quantize / KV cache at inference", "source": "ai-engineer-interview.html"}
+{"text": "What breaks when you keep making the network deeper? — Diminishing returns — measure on val, not depth for its own sake", "source": "ai-engineer-interview.html"}
+{"text": "Design a multimodal GenAI feature for an e-commerce site. How do you handle bias? — Human approval before customer-facing copy; style/brand guardrails", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents. — Ingest → chunk → embed → vector index + metadata (tenant, date, doc ACL)", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents. — Retrieve top-k → optional rerank → prompt with citations only", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents. — Refuse or escalate when retrieval confidence low", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents. — Eval: recall@k, groundedness/faithfulness, human review on high-risk queries", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents. — Ops: index refresh, PII-safe logging, access control on retrieval", "source": "ai-engineer-interview.html"}
+{"text": "How would you use a feature store for a recommendation system? — Offline: point-in-time correct joins for training — no future leakage", "source": "ai-engineer-interview.html"}
+{"text": "How would you use a feature store for a recommendation system? — Online: low-latency key lookup (user/item) at serve time", "source": "ai-engineer-interview.html"}
+{"text": "How would you use a feature store for a recommendation system? — Registry: single definition of each feature; backfill when logic changes", "source": "ai-engineer-interview.html"}
+{"text": "How would you use a feature store for a recommendation system? — Monitor: null rate, freshness lag, train/serve skew", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer. — Label: accept/decline; watch selection bias (only offered trips logged)", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer. — Features: distance, surge, time, rider history, supply/demand context", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer. — Latency budget for real-time scoring; fallback heuristic", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer. — Optimize business metric (completed trips / revenue), not raw accuracy", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer. — Experiment: shadow → A/B on accept rate and driver wait time", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history? — Signals: timing regularity, scroll/mouse entropy, navigation patterns, velocity", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history? — Network/device: headless flags, datacenter IP, cookie/session reuse", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history? — Labels from challenges/CAPTCHA + analyst review — class imbalance likely", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history? — Blend rules (cheap) + model; human queue for borderline", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history? — Privacy: minimize retention; document purpose", "source": "ai-engineer-interview.html"}
+{"text": "Two teams train on the “same” dataset but get different results. Why? — Different splits, preprocessing, or leakage in one pipeline", "source": "ai-engineer-interview.html"}
+{"text": "Two teams train on the “same” dataset but get different results. Why? — Seeds, hyperparams, class-weight handling", "source": "ai-engineer-interview.html"}
+{"text": "Two teams train on the “same” dataset but get different results. Why? — Fix: shared pipeline artifact, fixed holdout, same primary metric", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check? — Decision uses threshold/ranking — AUC may not move the action", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check? — Train/serve skew or wrong population in offline eval", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check? — Proxy metric misaligned with revenue; calibration off at operating point", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check? — Leakage inflated offline AUC", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check? — Re-run with business KPI primary on same users/time window", "source": "ai-engineer-interview.html"}
+{"text": "ROC-AUC is 0.92 but precision at your production threshold is 0.40. How can both be true? — AUC = ranking; precision = one cutoff — threshold may be too aggressive", "source": "ai-engineer-interview.html"}
+{"text": "Stakeholders ask why you used a neural net instead of logistic regression. — Nonlinear interactions / representation learning justified by val + business metric", "source": "ai-engineer-interview.html"}
+{"text": "Stakeholders ask why you used a neural net instead of logistic regression. — Cost: data volume, latency, explainability requirements", "source": "ai-engineer-interview.html"}
+{"text": "Stakeholders ask why you used a neural net instead of logistic regression. — If regulated: interpretability, audit trail, or hybrid (linear + NN features)", "source": "ai-engineer-interview.html"}
+{"text": "Stakeholders ask why you used a neural net instead of logistic regression. — Show baseline comparison — NN must earn its complexity", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature? — Hypothesis + pre-registered primary metric (revenue, retention — not clicks alone)", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature? — Randomization unit = user (avoid session-level noise)", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature? — Power, duration, guardrails (latency, support tickets, fraud)", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature? — Novelty/primacy effects; optional long holdout", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature? — Peeking policy or fixed analysis date", "source": "ai-engineer-interview.html"}
+{"text": "How do you present model insights to executives who do not code? — Lead with decision and confidence, not algorithm name", "source": "ai-engineer-interview.html"}
+{"text": "How do you present model insights to executives who do not code? — One chart: impact $ or %, baseline vs new, uncertainty", "source": "ai-engineer-interview.html"}
+{"text": "How do you present model insights to executives who do not code? — Plain language: what changed in customer behavior", "source": "ai-engineer-interview.html"}
+{"text": "How do you present model insights to executives who do not code? — Risks, monitoring, and what you need from them (policy, budget)", "source": "ai-engineer-interview.html"}
+{"text": "What is model drift and how do you respond in production? — Data drift: input distribution shift — PSI, slice dashboards", "source": "ai-engineer-interview.html"}
+{"text": "What is model drift and how do you respond in production? — Concept drift: P(y|x) changes — performance drop on recent window", "source": "ai-engineer-interview.html"}
+{"text": "What is model drift and how do you respond in production? — Alerts → diagnose slice → shadow new model or retrain trigger", "source": "ai-engineer-interview.html"}
+{"text": "What is model drift and how do you respond in production? — Keep rollback artifact; document incident", "source": "ai-engineer-interview.html"}
+{"text": "What belongs in an ML CI/CD pipeline? — Schema/tests on data and feature code; model contract + smoke inference", "source": "ai-engineer-interview.html"}
+{"text": "What belongs in an ML CI/CD pipeline? — Versioned datasets, configs, registered artifacts", "source": "ai-engineer-interview.html"}
+{"text": "What belongs in an ML CI/CD pipeline? — Promote: offline gates → canary/shadow → full", "source": "ai-engineer-interview.html"}
+{"text": "What belongs in an ML CI/CD pipeline? — Live monitors: latency, errors, KPI, fairness slices", "source": "ai-engineer-interview.html"}
+{"text": "Your team ships code heavily written by AI assistants. How do you validate before production? — Every change = PR + human review + unit/integration tests", "source": "ai-engineer-interview.html"}
+{"text": "Walk through the end-to-end RAG pipeline (ingestion → answer). — Offline: parse → structure-aware chunk + metadata → embed → upsert vector + optional BM25 index", "source": "ai-engineer-interview.html"}
+{"text": "Walk through the end-to-end RAG pipeline (ingestion → answer). — Online: embed query (same model) → hybrid retrieve ~50 → rerank → prompt with numbered sources", "source": "ai-engineer-interview.html"}
+{"text": "Walk through the end-to-end RAG pipeline (ingestion → answer). — Post: citations, abstain rule, faithfulness check, trace log for eval", "source": "ai-engineer-interview.html"}
+{"text": "Walk through the end-to-end RAG pipeline (ingestion → answer). — See rag-systems, chunking, retrieval", "source": "ai-engineer-interview.html"}
+{"text": "Why hybrid search (dense + BM25) instead of vectors alone? — Dense: paraphrase and semantic match; weak on SKUs, error codes, rare acronyms, exact numbers", "source": "ai-engineer-interview.html"}
+{"text": "Why hybrid search (dense + BM25) instead of vectors alone? — BM25: keyword/exact token recall; misses meaning across wording", "source": "ai-engineer-interview.html"}
+{"text": "Why hybrid search (dense + BM25) instead of vectors alone? — Fuse with Reciprocal Rank Fusion (k ≈ 60) — rank-only, no score normalization", "source": "ai-engineer-interview.html"}
+{"text": "Why hybrid search (dense + BM25) instead of vectors alone? — Cross-encoder rerank top ~50 → keep ~5; optional MMR for duplicate chunks — fusion &amp; ranking", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder vs cross-encoder — where does each sit? — Bi-encoder: embed query and doc once → cheap ANN over millions", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder vs cross-encoder — where does each sit? — Cross-encoder: joint query+doc forward → accurate, too slow for full corpus", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder vs cross-encoder — where does each sit? — Pattern: retrieve-then-rerank; ColBERT / late interaction as middle ground", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder vs cross-encoder — where does each sit? — See representations embedder catalog", "source": "ai-engineer-interview.html"}
+{"text": "How do you tune HNSW (M, ef_construction, ef_search)? — Trade-off: recall@k vs latency vs RAM (graph edges + layers)", "source": "ai-engineer-interview.html"}
+{"text": "How do you tune HNSW (M, ef_construction, ef_search)? — Higher ef_search → better recall, slower queries; tune on a golden query set", "source": "ai-engineer-interview.html"}
+{"text": "How do you tune HNSW (M, ef_construction, ef_search)? — ACL / tenant filters: prefer payload pre-filter + indexed fields — not one collection per user at B2C scale", "source": "ai-engineer-interview.html"}
+{"text": "How do you tune HNSW (M, ef_construction, ef_search)? — Sizing: raw float32 ≈ N×D×4 bytes; add HNSW overhead — see rag-ann", "source": "ai-engineer-interview.html"}
+{"text": "pgvector vs Qdrant vs Pinecone for production RAG? — pgvector: small/medium scale, team already on Postgres, simpler ops — watch ANN perf at high QPS", "source": "ai-engineer-interview.html"}
+{"text": "pgvector vs Qdrant vs Pinecone for production RAG? — Qdrant: filters, on-prem/cloud, dev-friendly; multitenancy via payload + is_tenant pre-filter", "source": "ai-engineer-interview.html"}
+{"text": "pgvector vs Qdrant vs Pinecone for production RAG? — Pinecone: managed scale; watch namespace/collection economics and caps at many tenants", "source": "ai-engineer-interview.html"}
+{"text": "pgvector vs Qdrant vs Pinecone for production RAG? — Decision: QPS, filter complexity, ops headcount, reindex/version strategy — rag-ann", "source": "ai-engineer-interview.html"}
+{"text": "Enforce ACLs on retrieval — zero cross-tenant leakage. — Store tenant/user/role on every chunk; filter in the vector DB before top-k (not “hope the LLM ignores”)", "source": "ai-engineer-interview.html"}
+{"text": "Enforce ACLs on retrieval — zero cross-tenant leakage. — Identity from server session — never trust client-supplied tenant_id alone", "source": "ai-engineer-interview.html"}
+{"text": "Enforce ACLs on retrieval — zero cross-tenant leakage. — Audit retrieval IDs; regression tests with forbidden cross-user queries", "source": "ai-engineer-interview.html"}
+{"text": "Enforce ACLs on retrieval — zero cross-tenant leakage. — Cache keys include principal; sync ACL deletes to index — access control", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate RAG: separate retrieval from generation. — Retrieval: recall@k, nDCG, hit rate on labeled (query, relevant_chunk_ids)", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate RAG: separate retrieval from generation. — Generation: faithfulness/groundedness (claims ⊆ context), answer correctness vs world", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate RAG: separate retrieval from generation. — End-to-end: task success, citation precision, abstention when context weak", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate RAG: separate retrieval from generation. — Release gates on golden set + slice by locale/doc type — agents-model-eval", "source": "ai-engineer-interview.html"}
+{"text": "RAG answers are bad — debug in what order? — Classify: retrieval miss vs wrong rank vs stale doc vs generation vs prompt injection in HTML", "source": "ai-engineer-interview.html"}
+{"text": "RAG answers are bad — debug in what order? — Log retrieved chunk IDs + scores; inspect “right doc at rank 17” cases", "source": "ai-engineer-interview.html"}
+{"text": "RAG answers are bad — debug in what order? — A/B chunk size, hybrid on/off, reranker; re-embed only after retrieval metrics move", "source": "ai-engineer-interview.html"}
+{"text": "RAG answers are bad — debug in what order? — Do not jump straight to “bigger LLM” — rag-systems", "source": "ai-engineer-interview.html"}
+{"text": "How do you choose chunk size, overlap, and boundaries? — Structure-aware splits (headings, paragraphs) beat blind fixed windows for policies and docs", "source": "ai-engineer-interview.html"}
+{"text": "How do you choose chunk size, overlap, and boundaries? — Typical band ~300–800 tokens with ~10–20% overlap; tune on golden recall@k", "source": "ai-engineer-interview.html"}
+{"text": "How do you choose chunk size, overlap, and boundaries? — Parent–child: retrieve small chunk, return larger parent for LLM context", "source": "ai-engineer-interview.html"}
+{"text": "How do you choose chunk size, overlap, and boundaries? — Tables/code in PDFs need specialized parsers — chunking", "source": "ai-engineer-interview.html"}
+{"text": "Vector DB returns scores — why add a cross-encoder reranker? — Bi-encoder similarity is fast but misorders hard pairs (“rank 17” problem)", "source": "ai-engineer-interview.html"}
+{"text": "Vector DB returns scores — why add a cross-encoder reranker? — Rerank top ~50 fused candidates → keep ~5; joint query+doc encoding", "source": "ai-engineer-interview.html"}
+{"text": "Vector DB returns scores — why add a cross-encoder reranker? — Cutoff when max score below threshold → abstain or ask clarifying question", "source": "ai-engineer-interview.html"}
+{"text": "Vector DB returns scores — why add a cross-encoder reranker? — See retrieval, representations", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness vs answer correctness — how are they different? — Faithfulness: every claim supported by retrieved context (groundedness)", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness vs answer correctness — how are they different? — Correctness: answer true in the real world — context may be wrong or stale", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness vs answer correctness — how are they different? — High faithfulness + angry users → fix retrieval/index, not only the LLM", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness vs answer correctness — how are they different? — Citation precision: cited span actually supports the sentence", "source": "ai-engineer-interview.html"}
+{"text": "How do you pick an embedding model (and when fine-tune)? — Language/domain, context length, cosine-normalized vs dot product, license and cost", "source": "ai-engineer-interview.html"}
+{"text": "How do you pick an embedding model (and when fine-tune)? — Matryoshka dims for storage; same model + version for ingest and query", "source": "ai-engineer-interview.html"}
+{"text": "How do you pick an embedding model (and when fine-tune)? — Fine-tune with contrastive pairs when domain vocabulary dominates (SKUs, internal jargon)", "source": "ai-engineer-interview.html"}
+{"text": "How do you pick an embedding model (and when fine-tune)? — Embedder catalog — rag-representations", "source": "ai-engineer-interview.html"}
+{"text": "ReAct vs plan-and-execute — when do you pick each? — ReAct: interleaved thought → tool → observation; good for exploratory, short horizons", "source": "ai-engineer-interview.html"}
+{"text": "ReAct vs plan-and-execute — when do you pick each? — Plan-and-execute: plan once, batch tools; better when steps are known and tools expensive", "source": "ai-engineer-interview.html"}
+{"text": "ReAct vs plan-and-execute — when do you pick each? — Long horizons: replanning, step caps, human gates on irreversible actions", "source": "ai-engineer-interview.html"}
+{"text": "ReAct vs plan-and-execute — when do you pick each? — See agents-patterns", "source": "ai-engineer-interview.html"}
+{"text": "Design a production-safe tool loop (max steps, loops, bad args). — Hard caps: max steps, max wall time, max spend/tokens per session", "source": "ai-engineer-interview.html"}
+{"text": "Design a production-safe tool loop (max steps, loops, bad args). — Detect duplicate tool+args; block or require confirmation on destructive ops", "source": "ai-engineer-interview.html"}
+{"text": "Design a production-safe tool loop (max steps, loops, bad args). — Validate JSON/schema before execute; timeouts; user-visible fallback message", "source": "ai-engineer-interview.html"}
+{"text": "Design a production-safe tool loop (max steps, loops, bad args). — Idempotent reads vs transactional writes — reliability", "source": "ai-engineer-interview.html"}
+{"text": "LangGraph-style orchestration in one answer. — State object + nodes (functions) + edges (fixed or conditional on state)", "source": "ai-engineer-interview.html"}
+{"text": "LangGraph-style orchestration in one answer. — Checkpointer (e.g. Postgres) for thread resume; interrupt before side effects", "source": "ai-engineer-interview.html"}
+{"text": "LangGraph-style orchestration in one answer. — Prefer explicit graph when branches, retries, HITL — not a single while-loop script", "source": "ai-engineer-interview.html"}
+{"text": "LangGraph-style orchestration in one answer. — See agents-patterns, memory", "source": "ai-engineer-interview.html"}
+{"text": "Short-term vs long-term memory for a support agent. — Short: checkpointed messages + rolling summary + “open task” fields in state", "source": "ai-engineer-interview.html"}
+{"text": "Short-term vs long-term memory for a support agent. — Long: per-user vector index of past threads; retrieve snippets, never raw dump of all history", "source": "ai-engineer-interview.html"}
+{"text": "Short-term vs long-term memory for a support agent. — Pre-login summary at session start; tools for exact order/PII fields on demand", "source": "ai-engineer-interview.html"}
+{"text": "Short-term vs long-term memory for a support agent. — Tenant isolation on every long-term retrieve — agents-memory", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection via retrieved docs or tool output — defend how? — Untrusted data never overrides system policy; delimit context; ignore “new instructions” in chunks", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection via retrieved docs or tool output — defend how? — Least-privilege tools; no broad SQL; output filters; human approval for money/refunds", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection via retrieved docs or tool output — defend how? — OWASP LLM01: direct (user) vs indirect (document) injection — both in threat model", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection via retrieved docs or tool output — defend how? — See trust-policy, system-security", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate agents beyond final-answer exact match. — Trajectory: required tools called, step budget, no infinite loops", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate agents beyond final-answer exact match. — Grounding when RAG involved; task success on replayed tickets", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate agents beyond final-answer exact match. — LLM-as-judge + human calibration set; production failure mining into CI", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate agents beyond final-answer exact match. — See agents-model-eval, grounding", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails vs offline eval — why do you need both? — Guardrails: runtime block/modify on policy violations (latency-sensitive)", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails vs offline eval — why do you need both? — Offline eval: regression gates before ship; golden set + slice metrics", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails vs offline eval — why do you need both? — Novel jailbreaks slip eval → online sampling, human review queue, update gates", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails vs offline eval — why do you need both? — Balance false refusal vs safety on high-stakes intents — trust-policy", "source": "ai-engineer-interview.html"}
+{"text": "Human-in-the-loop before irreversible actions (refund, cancel, ship). — Graph interrupt after intent clear, before tool side effect; durable thread ID", "source": "ai-engineer-interview.html"}
+{"text": "Human-in-the-loop before irreversible actions (refund, cancel, ship). — User approve / edit / reject; timeout → escalate, do not auto-run", "source": "ai-engineer-interview.html"}
+{"text": "Human-in-the-loop before irreversible actions (refund, cancel, ship). — Idempotent tool design — resume after interrupt may re-run prior nodes", "source": "ai-engineer-interview.html"}
+{"text": "Human-in-the-loop before irreversible actions (refund, cancel, ship). — Auto-approve only under hard caps enforced in code, not prompt — patterns", "source": "ai-engineer-interview.html"}
+{"text": "Where does vLLM end and Ray Serve begin? — K8s: schedules GPU nodes/pods; Ray: places actors; Serve: deployment graph, routing, replica autoscale", "source": "ai-engineer-interview.html"}
+{"text": "Where does vLLM end and Ray Serve begin? — vLLM: continuous batching, PagedAttention, KV cache on GPU", "source": "ai-engineer-interview.html"}
+{"text": "Where does vLLM end and Ray Serve begin? — Skip Ray when one model + simple Deployment + ingress is enough", "source": "ai-engineer-interview.html"}
+{"text": "Where does vLLM end and Ray Serve begin? — Queues: BFF limits → Serve max_queued_requests → vLLM max-num-seqs — Ray + vLLM", "source": "ai-engineer-interview.html"}
+{"text": "Explain PagedAttention and why KV cache limits concurrency. — KV stored in fixed blocks with block table — less fragmentation than one contiguous buffer per seq", "source": "ai-engineer-interview.html"}
+{"text": "Explain PagedAttention and why KV cache limits concurrency. — Memory ~ layers × heads × head_dim × seq × dtype × 2 (K and V)", "source": "ai-engineer-interview.html"}
+{"text": "Explain PagedAttention and why KV cache limits concurrency. — Often hits KV cap before compute-bound; prefix caching shares blocks across prompts", "source": "ai-engineer-interview.html"}
+{"text": "Explain PagedAttention and why KV cache limits concurrency. — See efficiency, serving", "source": "ai-engineer-interview.html"}
+{"text": "TTFT vs TPOT — what breaks when each degrades? — TTFT: queue + prefill; up with saturation or long prompts", "source": "ai-engineer-interview.html"}
+{"text": "TTFT vs TPOT — what breaks when each degrades? — TPOT / inter-token latency: decode batching and KV pressure", "source": "ai-engineer-interview.html"}
+{"text": "TTFT vs TPOT — what breaks when each degrades? — Instrument per stage; SLO on p95/p99 — not mean latency", "source": "ai-engineer-interview.html"}
+{"text": "TTFT vs TPOT — what breaks when each degrades? — See observability", "source": "ai-engineer-interview.html"}
+{"text": "P99 TTFT spikes but TPOT is fine — debug in what order? — Queue depth and admission control; cold start / new replicas not ready", "source": "ai-engineer-interview.html"}
+{"text": "P99 TTFT spikes but TPOT is fine — debug in what order? — Prefill head-of-line: long prompts, chunked prefill settings", "source": "ai-engineer-interview.html"}
+{"text": "P99 TTFT spikes but TPOT is fine — debug in what order? — KV occupancy and preemption rate — not visible on GPU-util-only dashboards", "source": "ai-engineer-interview.html"}
+{"text": "P99 TTFT spikes but TPOT is fine — debug in what order? — Post-deploy: warm replicas before traffic; cap queue → 429 — runbooks", "source": "ai-engineer-interview.html"}
+{"text": "K8s autoscaling for LLMs — why not GPU utilization alone? — GPU util lags and hides queue buildup; scale on waiting requests, batch depth, TTFT p95", "source": "ai-engineer-interview.html"}
+{"text": "K8s autoscaling for LLMs — why not GPU utilization alone? — Scale-down stabilization — avoid flapping; minReplicas / warm pool for cold start", "source": "ai-engineer-interview.html"}
+{"text": "K8s autoscaling for LLMs — why not GPU utilization alone? — Pending replica storm: GPUs unavailable → cap replicas, shed load, drain non-critical deployments", "source": "ai-engineer-interview.html"}
+{"text": "K8s autoscaling for LLMs — why not GPU utilization alone? — Feature flags at BFF to stop retry storms — autoscaling overview, failure runbooks", "source": "ai-engineer-interview.html"}
+{"text": "Design an LLM inference API (streaming, multi-tenant, SLOs). — Gateway: auth, quotas, validation, SSE streaming, cancellation propagates to free KV", "source": "ai-engineer-interview.html"}
+{"text": "Design an LLM inference API (streaming, multi-tenant, SLOs). — Admission control + bounded queues; 429 vs unbounded wait", "source": "ai-engineer-interview.html"}
+{"text": "Design an LLM inference API (streaming, multi-tenant, SLOs). — Model registry, canary, shadow traffic, rollback artifact pinned", "source": "ai-engineer-interview.html"}
+{"text": "Design an LLM inference API (streaming, multi-tenant, SLOs). — Separate interactive vs batch priority classes — common 45–60 min senior prompt", "source": "ai-engineer-interview.html"}
+{"text": "Find the bugs in this PyTorch training loop. — Missing optimizer.zero_grad(); logging loss tensor vs loss.item()", "source": "ai-engineer-interview.html"}
+{"text": "Find the bugs in this PyTorch training loop. — model.train() / eval() + torch.no_grad() for validation", "source": "ai-engineer-interview.html"}
+{"text": "Find the bugs in this PyTorch training loop. — Wrong accuracy denominator; logits vs softmax for CE", "source": "ai-engineer-interview.html"}
+{"text": "Find the bugs in this PyTorch training loop. — See training-loop, failure modes", "source": "ai-engineer-interview.html"}
+{"text": "LoRA — formula, init, rank, when to merge for serving. — ΔW = BA, rank r; A random, B zero → start at base weights", "source": "ai-engineer-interview.html"}
+{"text": "LoRA — formula, init, rank, when to merge for serving. — Scale α/r; target q_proj/v_proj typical; QLoRA when VRAM-bound", "source": "ai-engineer-interview.html"}
+{"text": "LoRA — formula, init, rank, when to merge for serving. — Merge adapters into base for lowest latency unless base is quantized in a way that forbids it", "source": "ai-engineer-interview.html"}
+{"text": "LoRA — formula, init, rank, when to merge for serving. — See PEFT", "source": "ai-engineer-interview.html"}
+{"text": "Define prediction time and give two leakage examples. — Only features known at decision time T; label must not appear in features", "source": "ai-engineer-interview.html"}
+{"text": "Define prediction time and give two leakage examples. — Obvious: target column in X; subtle: aggregates including events after T", "source": "ai-engineer-interview.html"}
+{"text": "Define prediction time and give two leakage examples. — Fit preprocessors inside CV folds; group splits by user/entity", "source": "ai-engineer-interview.html"}
+{"text": "Define prediction time and give two leakage examples. — See generalization, testing-ml", "source": "ai-engineer-interview.html"}
+{"text": "How is ML CI/CD different from normal software CI/CD? — Three moving parts: code, data, model — any can change behavior independently", "source": "ai-engineer-interview.html"}
+{"text": "How is ML CI/CD different from normal software CI/CD? — Non-deterministic training; need data/schema tests and reproducible artifacts", "source": "ai-engineer-interview.html"}
+{"text": "How is ML CI/CD different from normal software CI/CD? — Gates: offline metrics → register → canary/shadow → promote; prediction contract tests", "source": "ai-engineer-interview.html"}
+{"text": "How is ML CI/CD different from normal software CI/CD? — See pipelines, devops-cicd", "source": "ai-engineer-interview.html"}
+{"text": "Agentic e-commerce support (~100k contacts/day, refunds via tools). — Score: identity before account actions, refund caps in code, audit trail, eval on ticket replay", "source": "ai-engineer-interview.html"}
+{"text": "Agentic e-commerce support (~100k contacts/day, refunds via tools). — Probe: walk one refund with latency budget; injection via order notes; 10× traffic plan", "source": "ai-engineer-interview.html"}
+{"text": "Agentic e-commerce support (~100k contacts/day, refunds via tools). — Aligns with agents-security + order APIs", "source": "ai-engineer-interview.html"}
+{"text": "Enterprise doc RAG (millions of docs, ACL per user, &lt;3s p95 chat). — Hybrid + rerank; mandatory metadata filter on every query; legal hold / deletion propagation", "source": "ai-engineer-interview.html"}
+{"text": "Enterprise doc RAG (millions of docs, ACL per user, &lt;3s p95 chat). — Probe: sharding index; hallucination metrics; block release if ACL-leak tests fail", "source": "ai-engineer-interview.html"}
+{"text": "Enterprise doc RAG (millions of docs, ACL per user, &lt;3s p95 chat). — See rag-systems, access control", "source": "ai-engineer-interview.html"}
+{"text": "IDE code completion (p95 ghost text &lt;800ms, 100k+ devs). — Prefix cache / KV affinity routing; small model for completion, large for chat", "source": "ai-engineer-interview.html"}
+{"text": "IDE code completion (p95 ghost text &lt;800ms, 100k+ devs). — Client secret redaction; acceptance rate + retention as online metrics", "source": "ai-engineer-interview.html"}
+{"text": "IDE code completion (p95 ghost text &lt;800ms, 100k+ devs). — Fail silent on timeout — user keeps typing", "source": "ai-engineer-interview.html"}
+{"text": "Real-time fraud scoring (p99 ≤50ms, 10k RPS, delayed labels). — Streaming features (Redis); GBDT + rules; shadow deploy; fail-open vs fail-closed by tier", "source": "ai-engineer-interview.html"}
+{"text": "Real-time fraud scoring (p99 ≤50ms, 10k RPS, delayed labels). — Not LLM-first — tests classical ML + infra depth", "source": "ai-engineer-interview.html"}
+{"text": "Real-time fraud scoring (p99 ≤50ms, 10k RPS, delayed labels). — See monitoring, metrics", "source": "ai-engineer-interview.html"}
+{"text": "Conversational product discovery (“gift under $40, arrives Friday”). — NL → structured filters + semantic retrieval over large SKU index; grounded product cards", "source": "ai-engineer-interview.html"}
+{"text": "Conversational product discovery (“gift under $40, arrives Friday”). — Never promise delivery the catalog cannot support; show stock/shipping freshness", "source": "ai-engineer-interview.html"}
+{"text": "Conversational product discovery (“gift under $40, arrives Friday”). — Probe: hybrid search latency budget; hallucinated product attributes", "source": "ai-engineer-interview.html"}
+{"text": "Developer docs assistant (versioned APIs, 500 QPS, cite or refuse). — Chunk by version + endpoint; refuse when retrieval score low; mandatory citations", "source": "ai-engineer-interview.html"}
+{"text": "Developer docs assistant (versioned APIs, 500 QPS, cite or refuse). — CI eval on every doc publish webhook; route simple queries to smaller model", "source": "ai-engineer-interview.html"}
+{"text": "Developer docs assistant (versioned APIs, 500 QPS, cite or refuse). — Multi-hop “v2 vs v3 migration” needs planner or decomposed sub-queries", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design. — End-to-end latency budget per hop", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design. — Retrieval failed — metric and fix order", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design. — Prompt injection trust boundary", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design. — 10× traffic — first bottleneck", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design. — Ship v2 — shadow/canary gates and rollback trigger", "source": "ai-engineer-interview.html"}
+{"text": "Requirements were vague and the deadline was fixed. What did you do? — STAR: narrow to measurable outcome with sponsor", "source": "ai-engineer-interview.html"}
+{"text": "Requirements were vague and the deadline was fixed. What did you do? — Time-box discovery; deliver thin vertical slice first", "source": "ai-engineer-interview.html"}
+{"text": "Requirements were vague and the deadline was fixed. What did you do? — Written assumptions; explicit out-of-scope", "source": "ai-engineer-interview.html"}
+{"text": "Requirements were vague and the deadline was fixed. What did you do? — Communicate trade-offs early — date vs scope vs quality", "source": "ai-engineer-interview.html"}
+{"text": "You disagreed with a senior engineer on the technical approach. — Data or experiment to resolve — not opinion alone", "source": "ai-engineer-interview.html"}
+{"text": "You disagreed with a senior engineer on the technical approach. — Align on criteria: risk, cost, maintainability, user impact", "source": "ai-engineer-interview.html"}
+{"text": "You disagreed with a senior engineer on the technical approach. — Disagree and commit once decided; document decision", "source": "ai-engineer-interview.html"}
+{"text": "You disagreed with a senior engineer on the technical approach. — Escalate only if risk to users, security, or ethics", "source": "ai-engineer-interview.html"}
+{"text": "You had no direct authority but needed another team to prioritize your work. — Shared goal in their language (risk, revenue, SLA)", "source": "ai-engineer-interview.html"}
+{"text": "You had no direct authority but needed another team to prioritize your work. — Executive sponsor if blocked", "source": "ai-engineer-interview.html"}
+{"text": "You had no direct authority but needed another team to prioritize your work. — Make work easy: clear spec, estimates, rollback plan", "source": "ai-engineer-interview.html"}
+{"text": "Critical training data was missing or badly labeled. — Quantify impact on metric slices", "source": "ai-engineer-interview.html"}
+{"text": "Critical training data was missing or badly labeled. — Options: relabel budget, weak labels, transfer learning, rule baseline", "source": "ai-engineer-interview.html"}
+{"text": "Critical training data was missing or badly labeled. — Ship with confidence bounds + human review where error is costly", "source": "ai-engineer-interview.html"}
+{"text": "Critical training data was missing or badly labeled. — Transparent to stakeholders — no silent failure", "source": "ai-engineer-interview.html"}
+{"text": "Describe an end-to-end ML or AI project you are proud of. — Problem → baseline → iteration → deployment (even pilot)", "source": "ai-engineer-interview.html"}
+{"text": "Describe an end-to-end ML or AI project you are proud of. — Your specific ownership (data, model, infra, stakeholder)", "source": "ai-engineer-interview.html"}
+{"text": "Describe an end-to-end ML or AI project you are proud of. — Metric moved; what you’d improve second time", "source": "ai-engineer-interview.html"}
+{"text": "Describe an end-to-end ML or AI project you are proud of. — Responsible angle if user-facing (fairness, privacy, fallback)", "source": "ai-engineer-interview.html"}
+{"text": "You are pair programming in the interview. What do they want to see? — Think aloud: intent before typing", "source": "ai-engineer-interview.html"}
+{"text": "You are pair programming in the interview. What do they want to see? — Clarify constraints and edge cases", "source": "ai-engineer-interview.html"}
+{"text": "You are pair programming in the interview. What do they want to see? — Small steps; run/test often", "source": "ai-engineer-interview.html"}
+{"text": "You are pair programming in the interview. What do they want to see? — Invite feedback — collaboration over solo heroics", "source": "ai-engineer-interview.html"}
+{"text": "Related cheatsheets (study by loop type) — RAG: systems, evaluation, hallucination diagnosis, fusion, ANN, representations, retrieval, chunking, ingest", "source": "ai-engineer-interview.html"}
+{"text": "Related cheatsheets (study by loop type) — Agents: patterns, memory, reliability, eval, trust", "source": "ai-engineer-interview.html"}
+{"text": "Related cheatsheets (study by loop type) — Serving: autoscaling, Ray + vLLM, serving, efficiency, observability", "source": "ai-engineer-interview.html"}
+{"text": "Related cheatsheets (study by loop type) — ML core: transformers, optimizers, MLOps, testing-ml", "source": "ai-engineer-interview.html"}
+{"text": "Related cheatsheets (study by loop type) — Tailor STAR stories to the job description; rehearse one full system design out loud timed to 45 min", "source": "ai-engineer-interview.html"}
+{"text": "ML fundamentals: transformers, optimizers, generalization — often 20–30 min", "source": "ai-engineer-interview.html"}
+{"text": "GenAI / RAG / agents: pipeline, eval, security — conceptual + mini design", "source": "ai-engineer-interview.html"}
+{"text": "System design (45–60 min): requirements, scale, data, eval, cost, failure modes — answer framework, curveballs", "source": "ai-engineer-interview.html"}
+{"text": "Serving: batching, KV cache, autoscaling, observability — senior / infra-leaning loops", "source": "ai-engineer-interview.html"}
+{"text": "Behavioral + coding: STAR stories; training-loop bugs; metrics by hand", "source": "ai-engineer-interview.html"}
+{"text": "Weights = knobs; training nudges them to reduce error on examples", "source": "ai-engineer-interview.html"}
+{"text": "Layers = stages of abstraction (simple patterns → decisions)", "source": "ai-engineer-interview.html"}
+{"text": "Not memorization alone: generalization needs diverse data + validation", "source": "ai-engineer-interview.html"}
+{"text": "Analogy: flashcards + coach correcting each round", "source": "ai-engineer-interview.html"}
+{"text": "CNN: grid data (images/video frames), local patterns, efficient inductive bias", "source": "ai-engineer-interview.html"}
+{"text": "Inception: multi-scale features in one forward pass", "source": "ai-engineer-interview.html"}
+{"text": "Transformer: long context, global dependencies, parallel training — default for language/multimodal", "source": "ai-engineer-interview.html"}
+{"text": "Tabular: often GBM/logistic first; NN when scale + messy interactions justify cost", "source": "ai-engineer-interview.html"}
+{"text": "Per-parameter learning rate from gradient + squared-gradient EMAs", "source": "ai-engineer-interview.html"}
+{"text": "Handles sparse/noisy grads better than fixed-lr SGD in many DL tasks", "source": "ai-engineer-interview.html"}
+{"text": "Production: prefer AdamW (weight decay decoupled from adaptive step)", "source": "ai-engineer-interview.html"}
+{"text": "Watch: grad clip, ε, stale second moments — see failure modes", "source": "ai-engineer-interview.html"}
+{"text": "Each token compares itself (query) to all keys → softmax weights → weighted sum of values", "source": "ai-engineer-interview.html"}
+{"text": "Learns which context tokens matter for this position", "source": "ai-engineer-interview.html"}
+{"text": "Multi-head = several relation types in parallel", "source": "ai-engineer-interview.html"}
+{"text": "Cost scales with sequence length (quadratic in full attention)", "source": "ai-engineer-interview.html"}
+{"text": "Causal mask: position t cannot attend to tokens &gt; t", "source": "ai-engineer-interview.html"}
+{"text": "Without it, model “sees the answer” — not true next-token prediction", "source": "ai-engineer-interview.html"}
+{"text": "Encoder-only (BERT): bidirectional, no causal mask — different pretraining objective", "source": "ai-engineer-interview.html"}
+{"text": "Seq2seq: decoder self-attn masked; cross-attn to encoder unmasked", "source": "ai-engineer-interview.html"}
+{"text": "Vanishing/exploding gradients — residuals, norm, init, clipping", "source": "ai-engineer-interview.html"}
+{"text": "Overfit — data, regularization, early stop", "source": "ai-engineer-interview.html"}
+{"text": "Train/serve cost — latency, memory; distill / quantize / KV cache at inference", "source": "ai-engineer-interview.html"}
+{"text": "Diminishing returns — measure on val, not depth for its own sake", "source": "ai-engineer-interview.html"}
+{"text": "Human approval before customer-facing copy; style/brand guardrails", "source": "ai-engineer-interview.html"}
+{"text": "Slice eval: locale, gender presentation, product category, language", "source": "ai-engineer-interview.html"}
+{"text": "Red-team prompts; refusal policy; escalation for sensitive categories", "source": "ai-engineer-interview.html"}
+{"text": "Metrics: override rate, harm reports, business KPI vs control — not demo quality alone", "source": "ai-engineer-interview.html"}
+{"text": "Ask: who is harmed first if the model is wrong?", "source": "ai-engineer-interview.html"}
+{"text": "Ingest → chunk → embed → vector index + metadata (tenant, date, doc ACL)", "source": "ai-engineer-interview.html"}
+{"text": "Retrieve top-k → optional rerank → prompt with citations only", "source": "ai-engineer-interview.html"}
+{"text": "Refuse or escalate when retrieval confidence low", "source": "ai-engineer-interview.html"}
+{"text": "Eval: recall@k, groundedness/faithfulness, human review on high-risk queries", "source": "ai-engineer-interview.html"}
+{"text": "Ops: index refresh, PII-safe logging, access control on retrieval", "source": "ai-engineer-interview.html"}
+{"text": "Offline: point-in-time correct joins for training — no future leakage", "source": "ai-engineer-interview.html"}
+{"text": "Online: low-latency key lookup (user/item) at serve time", "source": "ai-engineer-interview.html"}
+{"text": "Registry: single definition of each feature; backfill when logic changes", "source": "ai-engineer-interview.html"}
+{"text": "Monitor: null rate, freshness lag, train/serve skew", "source": "ai-engineer-interview.html"}
+{"text": "Label: accept/decline; watch selection bias (only offered trips logged)", "source": "ai-engineer-interview.html"}
+{"text": "Features: distance, surge, time, rider history, supply/demand context", "source": "ai-engineer-interview.html"}
+{"text": "Latency budget for real-time scoring; fallback heuristic", "source": "ai-engineer-interview.html"}
+{"text": "Optimize business metric (completed trips / revenue), not raw accuracy", "source": "ai-engineer-interview.html"}
+{"text": "Experiment: shadow → A/B on accept rate and driver wait time", "source": "ai-engineer-interview.html"}
+{"text": "Signals: timing regularity, scroll/mouse entropy, navigation patterns, velocity", "source": "ai-engineer-interview.html"}
+{"text": "Network/device: headless flags, datacenter IP, cookie/session reuse", "source": "ai-engineer-interview.html"}
+{"text": "Labels from challenges/CAPTCHA + analyst review — class imbalance likely", "source": "ai-engineer-interview.html"}
+{"text": "Blend rules (cheap) + model; human queue for borderline", "source": "ai-engineer-interview.html"}
+{"text": "Privacy: minimize retention; document purpose", "source": "ai-engineer-interview.html"}
+{"text": "Different splits, preprocessing, or leakage in one pipeline", "source": "ai-engineer-interview.html"}
+{"text": "Seeds, hyperparams, class-weight handling", "source": "ai-engineer-interview.html"}
+{"text": "Different metrics or bug in eval code", "source": "ai-engineer-interview.html"}
+{"text": "Fix: shared pipeline artifact, fixed holdout, same primary metric", "source": "ai-engineer-interview.html"}
+{"text": "Decision uses threshold/ranking — AUC may not move the action", "source": "ai-engineer-interview.html"}
+{"text": "Train/serve skew or wrong population in offline eval", "source": "ai-engineer-interview.html"}
+{"text": "Proxy metric misaligned with revenue; calibration off at operating point", "source": "ai-engineer-interview.html"}
+{"text": "Leakage inflated offline AUC", "source": "ai-engineer-interview.html"}
+{"text": "Re-run with business KPI primary on same users/time window", "source": "ai-engineer-interview.html"}
+{"text": "AUC = ranking; precision = one cutoff — threshold may be too aggressive", "source": "ai-engineer-interview.html"}
+{"text": "Rare positive class → many FPs among predicted positives; check PR-AUC and base rates", "source": "ai-engineer-interview.html"}
+{"text": "Production base rate or calibration drift vs training", "source": "ai-engineer-interview.html"}
+{"text": "See metrics — ROC-AUC vs precision", "source": "ai-engineer-interview.html"}
+{"text": "Nonlinear interactions / representation learning justified by val + business metric", "source": "ai-engineer-interview.html"}
+{"text": "Cost: data volume, latency, explainability requirements", "source": "ai-engineer-interview.html"}
+{"text": "If regulated: interpretability, audit trail, or hybrid (linear + NN features)", "source": "ai-engineer-interview.html"}
+{"text": "Show baseline comparison — NN must earn its complexity", "source": "ai-engineer-interview.html"}
+{"text": "Hypothesis + pre-registered primary metric (revenue, retention — not clicks alone)", "source": "ai-engineer-interview.html"}
+{"text": "Randomization unit = user (avoid session-level noise)", "source": "ai-engineer-interview.html"}
+{"text": "Power, duration, guardrails (latency, support tickets, fraud)", "source": "ai-engineer-interview.html"}
+{"text": "Novelty/primacy effects; optional long holdout", "source": "ai-engineer-interview.html"}
+{"text": "Peeking policy or fixed analysis date", "source": "ai-engineer-interview.html"}
+{"text": "Lead with decision and confidence, not algorithm name", "source": "ai-engineer-interview.html"}
+{"text": "One chart: impact $ or %, baseline vs new, uncertainty", "source": "ai-engineer-interview.html"}
+{"text": "Plain language: what changed in customer behavior", "source": "ai-engineer-interview.html"}
+{"text": "Risks, monitoring, and what you need from them (policy, budget)", "source": "ai-engineer-interview.html"}
+{"text": "Data drift: input distribution shift — PSI, slice dashboards", "source": "ai-engineer-interview.html"}
+{"text": "Concept drift: P(y|x) changes — performance drop on recent window", "source": "ai-engineer-interview.html"}
+{"text": "Alerts → diagnose slice → shadow new model or retrain trigger", "source": "ai-engineer-interview.html"}
+{"text": "Keep rollback artifact; document incident", "source": "ai-engineer-interview.html"}
+{"text": "Schema/tests on data and feature code; model contract + smoke inference", "source": "ai-engineer-interview.html"}
+{"text": "Versioned datasets, configs, registered artifacts", "source": "ai-engineer-interview.html"}
+{"text": "Promote: offline gates → canary/shadow → full", "source": "ai-engineer-interview.html"}
+{"text": "Live monitors: latency, errors, KPI, fairness slices", "source": "ai-engineer-interview.html"}
+{"text": "Every change = PR + human review + unit/integration tests", "source": "ai-engineer-interview.html"}
+{"text": "SAST on merge; block critical findings", "source": "ai-engineer-interview.html"}
+{"text": "Security cases: injection, authz, malformed input", "source": "ai-engineer-interview.html"}
+{"text": "SCA on deps — verify packages exist (hallucinated names)", "source": "ai-engineer-interview.html"}
+{"text": "Sandbox deploy; stricter gate on auth, payments, PII paths", "source": "ai-engineer-interview.html"}
+{"text": "Offline: parse → structure-aware chunk + metadata → embed → upsert vector + optional BM25 index", "source": "ai-engineer-interview.html"}
+{"text": "Online: embed query (same model) → hybrid retrieve ~50 → rerank → prompt with numbered sources", "source": "ai-engineer-interview.html"}
+{"text": "Post: citations, abstain rule, faithfulness check, trace log for eval", "source": "ai-engineer-interview.html"}
+{"text": "See rag-systems, chunking, retrieval", "source": "ai-engineer-interview.html"}
+{"text": "Dense: paraphrase and semantic match; weak on SKUs, error codes, rare acronyms, exact numbers", "source": "ai-engineer-interview.html"}
+{"text": "BM25: keyword/exact token recall; misses meaning across wording", "source": "ai-engineer-interview.html"}
+{"text": "Fuse with Reciprocal Rank Fusion (k ≈ 60) — rank-only, no score normalization", "source": "ai-engineer-interview.html"}
+{"text": "Cross-encoder rerank top ~50 → keep ~5; optional MMR for duplicate chunks — fusion &amp; ranking", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder: embed query and doc once → cheap ANN over millions", "source": "ai-engineer-interview.html"}
+{"text": "Cross-encoder: joint query+doc forward → accurate, too slow for full corpus", "source": "ai-engineer-interview.html"}
+{"text": "Pattern: retrieve-then-rerank; ColBERT / late interaction as middle ground", "source": "ai-engineer-interview.html"}
+{"text": "See representations embedder catalog", "source": "ai-engineer-interview.html"}
+{"text": "Trade-off: recall@k vs latency vs RAM (graph edges + layers)", "source": "ai-engineer-interview.html"}
+{"text": "Higher ef_search → better recall, slower queries; tune on a golden query set", "source": "ai-engineer-interview.html"}
+{"text": "ACL / tenant filters: prefer payload pre-filter + indexed fields — not one collection per user at B2C scale", "source": "ai-engineer-interview.html"}
+{"text": "Sizing: raw float32 ≈ N×D×4 bytes; add HNSW overhead — see rag-ann", "source": "ai-engineer-interview.html"}
+{"text": "pgvector: small/medium scale, team already on Postgres, simpler ops — watch ANN perf at high QPS", "source": "ai-engineer-interview.html"}
+{"text": "Qdrant: filters, on-prem/cloud, dev-friendly; multitenancy via payload + is_tenant pre-filter", "source": "ai-engineer-interview.html"}
+{"text": "Pinecone: managed scale; watch namespace/collection economics and caps at many tenants", "source": "ai-engineer-interview.html"}
+{"text": "Decision: QPS, filter complexity, ops headcount, reindex/version strategy — rag-ann", "source": "ai-engineer-interview.html"}
+{"text": "Store tenant/user/role on every chunk; filter in the vector DB before top-k (not “hope the LLM ignores”)", "source": "ai-engineer-interview.html"}
+{"text": "Identity from server session — never trust client-supplied tenant_id alone", "source": "ai-engineer-interview.html"}
+{"text": "Audit retrieval IDs; regression tests with forbidden cross-user queries", "source": "ai-engineer-interview.html"}
+{"text": "Cache keys include principal; sync ACL deletes to index — access control", "source": "ai-engineer-interview.html"}
+{"text": "Retrieval: recall@k, nDCG, hit rate on labeled (query, relevant_chunk_ids)", "source": "ai-engineer-interview.html"}
+{"text": "Generation: faithfulness/groundedness (claims ⊆ context), answer correctness vs world", "source": "ai-engineer-interview.html"}
+{"text": "End-to-end: task success, citation precision, abstention when context weak", "source": "ai-engineer-interview.html"}
+{"text": "Release gates on golden set + slice by locale/doc type — agents-model-eval", "source": "ai-engineer-interview.html"}
+{"text": "Classify: retrieval miss vs wrong rank vs stale doc vs generation vs prompt injection in HTML", "source": "ai-engineer-interview.html"}
+{"text": "Log retrieved chunk IDs + scores; inspect “right doc at rank 17” cases", "source": "ai-engineer-interview.html"}
+{"text": "A/B chunk size, hybrid on/off, reranker; re-embed only after retrieval metrics move", "source": "ai-engineer-interview.html"}
+{"text": "Do not jump straight to “bigger LLM” — rag-systems", "source": "ai-engineer-interview.html"}
+{"text": "Structure-aware splits (headings, paragraphs) beat blind fixed windows for policies and docs", "source": "ai-engineer-interview.html"}
+{"text": "Typical band ~300–800 tokens with ~10–20% overlap; tune on golden recall@k", "source": "ai-engineer-interview.html"}
+{"text": "Parent–child: retrieve small chunk, return larger parent for LLM context", "source": "ai-engineer-interview.html"}
+{"text": "Tables/code in PDFs need specialized parsers — chunking", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder similarity is fast but misorders hard pairs (“rank 17” problem)", "source": "ai-engineer-interview.html"}
+{"text": "Rerank top ~50 fused candidates → keep ~5; joint query+doc encoding", "source": "ai-engineer-interview.html"}
+{"text": "Cutoff when max score below threshold → abstain or ask clarifying question", "source": "ai-engineer-interview.html"}
+{"text": "See retrieval, representations", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness: every claim supported by retrieved context (groundedness)", "source": "ai-engineer-interview.html"}
+{"text": "Correctness: answer true in the real world — context may be wrong or stale", "source": "ai-engineer-interview.html"}
+{"text": "High faithfulness + angry users → fix retrieval/index, not only the LLM", "source": "ai-engineer-interview.html"}
+{"text": "Citation precision: cited span actually supports the sentence", "source": "ai-engineer-interview.html"}
+{"text": "Language/domain, context length, cosine-normalized vs dot product, license and cost", "source": "ai-engineer-interview.html"}
+{"text": "Matryoshka dims for storage; same model + version for ingest and query", "source": "ai-engineer-interview.html"}
+{"text": "Fine-tune with contrastive pairs when domain vocabulary dominates (SKUs, internal jargon)", "source": "ai-engineer-interview.html"}
+{"text": "Embedder catalog — rag-representations", "source": "ai-engineer-interview.html"}
+{"text": "ReAct: interleaved thought → tool → observation; good for exploratory, short horizons", "source": "ai-engineer-interview.html"}
+{"text": "Plan-and-execute: plan once, batch tools; better when steps are known and tools expensive", "source": "ai-engineer-interview.html"}
+{"text": "Long horizons: replanning, step caps, human gates on irreversible actions", "source": "ai-engineer-interview.html"}
+{"text": "Hard caps: max steps, max wall time, max spend/tokens per session", "source": "ai-engineer-interview.html"}
+{"text": "Detect duplicate tool+args; block or require confirmation on destructive ops", "source": "ai-engineer-interview.html"}
+{"text": "Validate JSON/schema before execute; timeouts; user-visible fallback message", "source": "ai-engineer-interview.html"}
+{"text": "Idempotent reads vs transactional writes — reliability", "source": "ai-engineer-interview.html"}
+{"text": "State object + nodes (functions) + edges (fixed or conditional on state)", "source": "ai-engineer-interview.html"}
+{"text": "Checkpointer (e.g. Postgres) for thread resume; interrupt before side effects", "source": "ai-engineer-interview.html"}
+{"text": "Prefer explicit graph when branches, retries, HITL — not a single while-loop script", "source": "ai-engineer-interview.html"}
+{"text": "See agents-patterns, memory", "source": "ai-engineer-interview.html"}
+{"text": "Short: checkpointed messages + rolling summary + “open task” fields in state", "source": "ai-engineer-interview.html"}
+{"text": "Long: per-user vector index of past threads; retrieve snippets, never raw dump of all history", "source": "ai-engineer-interview.html"}
+{"text": "Pre-login summary at session start; tools for exact order/PII fields on demand", "source": "ai-engineer-interview.html"}
+{"text": "Tenant isolation on every long-term retrieve — agents-memory", "source": "ai-engineer-interview.html"}
+{"text": "Untrusted data never overrides system policy; delimit context; ignore “new instructions” in chunks", "source": "ai-engineer-interview.html"}
+{"text": "Least-privilege tools; no broad SQL; output filters; human approval for money/refunds", "source": "ai-engineer-interview.html"}
+{"text": "OWASP LLM01: direct (user) vs indirect (document) injection — both in threat model", "source": "ai-engineer-interview.html"}
+{"text": "See trust-policy, system-security", "source": "ai-engineer-interview.html"}
+{"text": "Trajectory: required tools called, step budget, no infinite loops", "source": "ai-engineer-interview.html"}
+{"text": "Grounding when RAG involved; task success on replayed tickets", "source": "ai-engineer-interview.html"}
+{"text": "LLM-as-judge + human calibration set; production failure mining into CI", "source": "ai-engineer-interview.html"}
+{"text": "See agents-model-eval, grounding", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails: runtime block/modify on policy violations (latency-sensitive)", "source": "ai-engineer-interview.html"}
+{"text": "Offline eval: regression gates before ship; golden set + slice metrics", "source": "ai-engineer-interview.html"}
+{"text": "Novel jailbreaks slip eval → online sampling, human review queue, update gates", "source": "ai-engineer-interview.html"}
+{"text": "Balance false refusal vs safety on high-stakes intents — trust-policy", "source": "ai-engineer-interview.html"}
+{"text": "Graph interrupt after intent clear, before tool side effect; durable thread ID", "source": "ai-engineer-interview.html"}
+{"text": "User approve / edit / reject; timeout → escalate, do not auto-run", "source": "ai-engineer-interview.html"}
+{"text": "Idempotent tool design — resume after interrupt may re-run prior nodes", "source": "ai-engineer-interview.html"}
+{"text": "Auto-approve only under hard caps enforced in code, not prompt — patterns", "source": "ai-engineer-interview.html"}
+{"text": "K8s: schedules GPU nodes/pods; Ray: places actors; Serve: deployment graph, routing, replica autoscale", "source": "ai-engineer-interview.html"}
+{"text": "vLLM: continuous batching, PagedAttention, KV cache on GPU", "source": "ai-engineer-interview.html"}
+{"text": "Skip Ray when one model + simple Deployment + ingress is enough", "source": "ai-engineer-interview.html"}
+{"text": "Queues: BFF limits → Serve max_queued_requests → vLLM max-num-seqs — Ray + vLLM", "source": "ai-engineer-interview.html"}
+{"text": "KV stored in fixed blocks with block table — less fragmentation than one contiguous buffer per seq", "source": "ai-engineer-interview.html"}
+{"text": "Memory ~ layers × heads × head_dim × seq × dtype × 2 (K and V)", "source": "ai-engineer-interview.html"}
+{"text": "Often hits KV cap before compute-bound; prefix caching shares blocks across prompts", "source": "ai-engineer-interview.html"}
+{"text": "TTFT: queue + prefill; up with saturation or long prompts", "source": "ai-engineer-interview.html"}
+{"text": "TPOT / inter-token latency: decode batching and KV pressure", "source": "ai-engineer-interview.html"}
+{"text": "Instrument per stage; SLO on p95/p99 — not mean latency", "source": "ai-engineer-interview.html"}
+{"text": "Queue depth and admission control; cold start / new replicas not ready", "source": "ai-engineer-interview.html"}
+{"text": "Prefill head-of-line: long prompts, chunked prefill settings", "source": "ai-engineer-interview.html"}
+{"text": "KV occupancy and preemption rate — not visible on GPU-util-only dashboards", "source": "ai-engineer-interview.html"}
+{"text": "Post-deploy: warm replicas before traffic; cap queue → 429 — runbooks", "source": "ai-engineer-interview.html"}
+{"text": "GPU util lags and hides queue buildup; scale on waiting requests, batch depth, TTFT p95", "source": "ai-engineer-interview.html"}
+{"text": "Scale-down stabilization — avoid flapping; minReplicas / warm pool for cold start", "source": "ai-engineer-interview.html"}
+{"text": "Pending replica storm: GPUs unavailable → cap replicas, shed load, drain non-critical deployments", "source": "ai-engineer-interview.html"}
+{"text": "Feature flags at BFF to stop retry storms — autoscaling overview, failure runbooks", "source": "ai-engineer-interview.html"}
+{"text": "Gateway: auth, quotas, validation, SSE streaming, cancellation propagates to free KV", "source": "ai-engineer-interview.html"}
+{"text": "Admission control + bounded queues; 429 vs unbounded wait", "source": "ai-engineer-interview.html"}
+{"text": "Model registry, canary, shadow traffic, rollback artifact pinned", "source": "ai-engineer-interview.html"}
+{"text": "Separate interactive vs batch priority classes — common 45–60 min senior prompt", "source": "ai-engineer-interview.html"}
+{"text": "Missing optimizer.zero_grad(); logging loss tensor vs loss.item()", "source": "ai-engineer-interview.html"}
+{"text": "model.train() / eval() + torch.no_grad() for validation", "source": "ai-engineer-interview.html"}
+{"text": "Wrong accuracy denominator; logits vs softmax for CE", "source": "ai-engineer-interview.html"}
+{"text": "See training-loop, failure modes", "source": "ai-engineer-interview.html"}
+{"text": "ΔW = BA, rank r; A random, B zero → start at base weights", "source": "ai-engineer-interview.html"}
+{"text": "Scale α/r; target q_proj/v_proj typical; QLoRA when VRAM-bound", "source": "ai-engineer-interview.html"}
+{"text": "Merge adapters into base for lowest latency unless base is quantized in a way that forbids it", "source": "ai-engineer-interview.html"}
+{"text": "Only features known at decision time T; label must not appear in features", "source": "ai-engineer-interview.html"}
+{"text": "Obvious: target column in X; subtle: aggregates including events after T", "source": "ai-engineer-interview.html"}
+{"text": "Fit preprocessors inside CV folds; group splits by user/entity", "source": "ai-engineer-interview.html"}
+{"text": "See generalization, testing-ml", "source": "ai-engineer-interview.html"}
+{"text": "Three moving parts: code, data, model — any can change behavior independently", "source": "ai-engineer-interview.html"}
+{"text": "Non-deterministic training; need data/schema tests and reproducible artifacts", "source": "ai-engineer-interview.html"}
+{"text": "Gates: offline metrics → register → canary/shadow → promote; prediction contract tests", "source": "ai-engineer-interview.html"}
+{"text": "See pipelines, devops-cicd", "source": "ai-engineer-interview.html"}
+{"text": "Trigger: who or what invokes the agent (a user, a schedule, an event)? This sets latency tolerance and error handling.", "source": "ai-engineer-interview.html"}
+{"text": "Outcome: what does “done” look like, in a measurable form (“resolves 70% of tier-1 tickets without escalation”)?", "source": "ai-engineer-interview.html"}
+{"text": "Authority: does it advise, draft, execute, or decide, and does it have side effects? This is the main safety boundary.", "source": "ai-engineer-interview.html"}
+{"text": "Worst credible failure: what does a wrong action cost? This sets where human approval is required.", "source": "ai-engineer-interview.html"}
+{"text": "Scale and latency: requests per day, interactive or long-running, latency budget.", "source": "ai-engineer-interview.html"}
+{"text": "Data and constraints: where the data lives, tenancy, residency, and where the model may run.", "source": "ai-engineer-interview.html"}
+{"text": "A baseline before complexity, and a reason for each added component.", "source": "ai-engineer-interview.html"}
+{"text": "Tool authorization with least privilege; step, token, and time budgets; idempotency; audit logs; human approval for irreversible actions.", "source": "ai-engineer-interview.html"}
+{"text": "An evaluation plan: golden set, offline run on every change, a judge with human spot checks (LLM as a judge), and online metrics.", "source": "ai-engineer-interview.html"}
+{"text": "A cost model (tokens in and out × price × volume, and what caching changes) and p50 and p99 latency targets.", "source": "ai-engineer-interview.html"}
+{"text": "Failure scenarios with a blast radius and how it is contained (reliability &amp; ops).", "source": "ai-engineer-interview.html"}
+{"text": "Pause and restate the question. Ask which constraints or assumptions are safe. This also catches misunderstandings early.", "source": "ai-engineer-interview.html"}
+{"text": "Admit, anchor, reason. Say what you don't know in one sentence without apologizing, name the nearest thing you do know, then reason out loud from it: “I haven't used X, but it solves the same problem as Y, so I'd expect…, and I'd confirm it by…”.", "source": "ai-engineer-interview.html"}
+{"text": "Name the gap precisely. Separate a forgotten detail (a method name) from a missing concept, and a fact to verify from a design choice.", "source": "ai-engineer-interview.html"}
+{"text": "State the consequence of being wrong. If a repeated call could duplicate a charge, the unknown matters; if it only affects a label, move on. This shows prioritization.", "source": "ai-engineer-interview.html"}
+{"text": "Proceed under a labeled assumption with a fallback: “assuming requests carry an idempotency key; otherwise I'd use…”. Keep it visible, and revise when the interviewer corrects it. Do not assume away the very thing being tested.", "source": "ai-engineer-interview.html"}
+{"text": "Say how you would verify: which source or experiment, and what result would change your decision. “I'd Google it” says nothing.", "source": "ai-engineer-interview.html"}
+{"text": "Use hints. Repeat the hint back and update your reasoning.", "source": "ai-engineer-interview.html"}
+{"text": "If there is no bridge at all, say so and offer to reason from first principles or return to it later.", "source": "ai-engineer-interview.html"}
+{"text": "The 45-Minute Agentic System-Design Interview — AIR Course 002", "source": "ai-engineer-interview.html"}
+{"text": "The AI Agent Design Interview Framework — DataInterview", "source": "ai-engineer-interview.html"}
+{"text": "5-Phase Framework — Complete Guide for AI Engineers — AgenticPrep", "source": "ai-engineer-interview.html"}
+{"text": "The AI Engineer System-Design Interview: A 2026 Playbook — AITechConnect", "source": "ai-engineer-interview.html"}
+{"text": "Implement an agent loop. What safeguards do you add? — TechAIInterview", "source": "ai-engineer-interview.html"}
+{"text": "The ML System Design Interview Framework — DataInterview", "source": "ai-engineer-interview.html"}
+{"text": "ML System Design Interview: A 7-Step Framework — DesignRounds", "source": "ai-engineer-interview.html"}
+{"text": "ML Design Template — ML Interviews", "source": "ai-engineer-interview.html"}
+{"text": "What to Say When You Don't Know the Answer in an Interview — Devana", "source": "ai-engineer-interview.html"}
+{"text": "Answer a Technical Unknown With a Verify-or-Assume Plan — PhantomCode", "source": "ai-engineer-interview.html"}
+{"text": "How to say “I don't know” in a technical interview — DEV Community", "source": "ai-engineer-interview.html"}
+{"text": "Don't Say “I Don't Know”: A Horrible Advice for a Tech Interview — Forketyfork Dev Blog", "source": "ai-engineer-interview.html"}
+{"text": "What Oracle looks for in technical interviews — Oracle Jobs", "source": "ai-engineer-interview.html"}
+{"text": "Score: identity before account actions, refund caps in code, audit trail, eval on ticket replay", "source": "ai-engineer-interview.html"}
+{"text": "Probe: walk one refund with latency budget; injection via order notes; 10× traffic plan", "source": "ai-engineer-interview.html"}
+{"text": "Aligns with agents-security + order APIs", "source": "ai-engineer-interview.html"}
+{"text": "Hybrid + rerank; mandatory metadata filter on every query; legal hold / deletion propagation", "source": "ai-engineer-interview.html"}
+{"text": "Probe: sharding index; hallucination metrics; block release if ACL-leak tests fail", "source": "ai-engineer-interview.html"}
+{"text": "See rag-systems, access control", "source": "ai-engineer-interview.html"}
+{"text": "Prefix cache / KV affinity routing; small model for completion, large for chat", "source": "ai-engineer-interview.html"}
+{"text": "Client secret redaction; acceptance rate + retention as online metrics", "source": "ai-engineer-interview.html"}
+{"text": "Fail silent on timeout — user keeps typing", "source": "ai-engineer-interview.html"}
+{"text": "Streaming features (Redis); GBDT + rules; shadow deploy; fail-open vs fail-closed by tier", "source": "ai-engineer-interview.html"}
+{"text": "Not LLM-first — tests classical ML + infra depth", "source": "ai-engineer-interview.html"}
+{"text": "NL → structured filters + semantic retrieval over large SKU index; grounded product cards", "source": "ai-engineer-interview.html"}
+{"text": "Never promise delivery the catalog cannot support; show stock/shipping freshness", "source": "ai-engineer-interview.html"}
+{"text": "Probe: hybrid search latency budget; hallucinated product attributes", "source": "ai-engineer-interview.html"}
+{"text": "Chunk by version + endpoint; refuse when retrieval score low; mandatory citations", "source": "ai-engineer-interview.html"}
+{"text": "CI eval on every doc publish webhook; route simple queries to smaller model", "source": "ai-engineer-interview.html"}
+{"text": "Multi-hop “v2 vs v3 migration” needs planner or decomposed sub-queries", "source": "ai-engineer-interview.html"}
+{"text": "End-to-end latency budget per hop", "source": "ai-engineer-interview.html"}
+{"text": "Retrieval failed — metric and fix order", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection trust boundary", "source": "ai-engineer-interview.html"}
+{"text": "10× traffic — first bottleneck", "source": "ai-engineer-interview.html"}
+{"text": "Ship v2 — shadow/canary gates and rollback trigger", "source": "ai-engineer-interview.html"}
+{"text": "STAR: narrow to measurable outcome with sponsor", "source": "ai-engineer-interview.html"}
+{"text": "Time-box discovery; deliver thin vertical slice first", "source": "ai-engineer-interview.html"}
+{"text": "Written assumptions; explicit out-of-scope", "source": "ai-engineer-interview.html"}
+{"text": "Communicate trade-offs early — date vs scope vs quality", "source": "ai-engineer-interview.html"}
+{"text": "Data or experiment to resolve — not opinion alone", "source": "ai-engineer-interview.html"}
+{"text": "Align on criteria: risk, cost, maintainability, user impact", "source": "ai-engineer-interview.html"}
+{"text": "Disagree and commit once decided; document decision", "source": "ai-engineer-interview.html"}
+{"text": "Escalate only if risk to users, security, or ethics", "source": "ai-engineer-interview.html"}
+{"text": "Shared goal in their language (risk, revenue, SLA)", "source": "ai-engineer-interview.html"}
+{"text": "Small ask first; prove value", "source": "ai-engineer-interview.html"}
+{"text": "Executive sponsor if blocked", "source": "ai-engineer-interview.html"}
+{"text": "Make work easy: clear spec, estimates, rollback plan", "source": "ai-engineer-interview.html"}
+{"text": "Quantify impact on metric slices", "source": "ai-engineer-interview.html"}
+{"text": "Options: relabel budget, weak labels, transfer learning, rule baseline", "source": "ai-engineer-interview.html"}
+{"text": "Ship with confidence bounds + human review where error is costly", "source": "ai-engineer-interview.html"}
+{"text": "Transparent to stakeholders — no silent failure", "source": "ai-engineer-interview.html"}
+{"text": "Problem → baseline → iteration → deployment (even pilot)", "source": "ai-engineer-interview.html"}
+{"text": "Your specific ownership (data, model, infra, stakeholder)", "source": "ai-engineer-interview.html"}
+{"text": "Metric moved; what you’d improve second time", "source": "ai-engineer-interview.html"}
+{"text": "Responsible angle if user-facing (fairness, privacy, fallback)", "source": "ai-engineer-interview.html"}
+{"text": "Think aloud: intent before typing", "source": "ai-engineer-interview.html"}
+{"text": "Clarify constraints and edge cases", "source": "ai-engineer-interview.html"}
+{"text": "Small steps; run/test often", "source": "ai-engineer-interview.html"}
+{"text": "Invite feedback — collaboration over solo heroics", "source": "ai-engineer-interview.html"}
+{"text": "RAG: systems, evaluation, hallucination diagnosis, fusion, ANN, representations, retrieval, chunking, ingest", "source": "ai-engineer-interview.html"}
+{"text": "Agents: patterns, memory, reliability, eval, trust", "source": "ai-engineer-interview.html"}
+{"text": "Serving: autoscaling, Ray + vLLM, serving, efficiency, observability", "source": "ai-engineer-interview.html"}
+{"text": "ML core: transformers, optimizers, MLOps, testing-ml", "source": "ai-engineer-interview.html"}
+{"text": "Tailor STAR stories to the job description; rehearse one full system design out loud timed to 45 min", "source": "ai-engineer-interview.html"}
+{"text": "Explain how a neural network learns — to a non-technical stakeholder.", "source": "ai-engineer-interview.html"}
+{"text": "When would you pick a CNN/Inception-style model vs a Transformer?", "source": "ai-engineer-interview.html"}
+{"text": "What is self-attention, in one interview answer?", "source": "ai-engineer-interview.html"}
+{"text": "What breaks when you keep making the network deeper?", "source": "ai-engineer-interview.html"}
+{"text": "Design a RAG chatbot over internal financial documents.", "source": "ai-engineer-interview.html"}
+{"text": "How would you use a feature store for a recommendation system?", "source": "ai-engineer-interview.html"}
+{"text": "Design a model to predict whether a rider accepts a trip offer.", "source": "ai-engineer-interview.html"}
+{"text": "How do you tell bots from humans using browsing history?", "source": "ai-engineer-interview.html"}
+{"text": "Two teams train on the “same” dataset but get different results. Why?", "source": "ai-engineer-interview.html"}
+{"text": "AUC improved after a model change but revenue did not. What do you check?", "source": "ai-engineer-interview.html"}
+{"text": "Stakeholders ask why you used a neural net instead of logistic regression.", "source": "ai-engineer-interview.html"}
+{"text": "How would you A/B test a new promotion or product feature?", "source": "ai-engineer-interview.html"}
+{"text": "How do you present model insights to executives who do not code?", "source": "ai-engineer-interview.html"}
+{"text": "What is model drift and how do you respond in production?", "source": "ai-engineer-interview.html"}
+{"text": "Walk through the end-to-end RAG pipeline (ingestion → answer).", "source": "ai-engineer-interview.html"}
+{"text": "Why hybrid search (dense + BM25) instead of vectors alone?", "source": "ai-engineer-interview.html"}
+{"text": "Bi-encoder vs cross-encoder — where does each sit?", "source": "ai-engineer-interview.html"}
+{"text": "How do you tune HNSW (M, ef_construction, ef_search)?", "source": "ai-engineer-interview.html"}
+{"text": "pgvector vs Qdrant vs Pinecone for production RAG?", "source": "ai-engineer-interview.html"}
+{"text": "Enforce ACLs on retrieval — zero cross-tenant leakage.", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate RAG: separate retrieval from generation.", "source": "ai-engineer-interview.html"}
+{"text": "RAG answers are bad — debug in what order?", "source": "ai-engineer-interview.html"}
+{"text": "How do you choose chunk size, overlap, and boundaries?", "source": "ai-engineer-interview.html"}
+{"text": "Vector DB returns scores — why add a cross-encoder reranker?", "source": "ai-engineer-interview.html"}
+{"text": "Faithfulness vs answer correctness — how are they different?", "source": "ai-engineer-interview.html"}
+{"text": "How do you pick an embedding model (and when fine-tune)?", "source": "ai-engineer-interview.html"}
+{"text": "ReAct vs plan-and-execute — when do you pick each?", "source": "ai-engineer-interview.html"}
+{"text": "Design a production-safe tool loop (max steps, loops, bad args).", "source": "ai-engineer-interview.html"}
+{"text": "LangGraph-style orchestration in one answer.", "source": "ai-engineer-interview.html"}
+{"text": "Short-term vs long-term memory for a support agent.", "source": "ai-engineer-interview.html"}
+{"text": "Prompt injection via retrieved docs or tool output — defend how?", "source": "ai-engineer-interview.html"}
+{"text": "Evaluate agents beyond final-answer exact match.", "source": "ai-engineer-interview.html"}
+{"text": "Guardrails vs offline eval — why do you need both?", "source": "ai-engineer-interview.html"}
+{"text": "Human-in-the-loop before irreversible actions (refund, cancel, ship).", "source": "ai-engineer-interview.html"}
+{"text": "Explain PagedAttention and why KV cache limits concurrency.", "source": "ai-engineer-interview.html"}
+{"text": "TTFT vs TPOT — what breaks when each degrades?", "source": "ai-engineer-interview.html"}
+{"text": "P99 TTFT spikes but TPOT is fine — debug in what order?", "source": "ai-engineer-interview.html"}
+{"text": "K8s autoscaling for LLMs — why not GPU utilization alone?", "source": "ai-engineer-interview.html"}
+{"text": "Design an LLM inference API (streaming, multi-tenant, SLOs).", "source": "ai-engineer-interview.html"}
+{"text": "Training, PEFT &amp; ML depth (common coding / whiteboard)", "source": "ai-engineer-interview.html"}
+{"text": "Find the bugs in this PyTorch training loop.", "source": "ai-engineer-interview.html"}
+{"text": "LoRA — formula, init, rank, when to merge for serving.", "source": "ai-engineer-interview.html"}
+{"text": "Define prediction time and give two leakage examples.", "source": "ai-engineer-interview.html"}
+{"text": "How is ML CI/CD different from normal software CI/CD?", "source": "ai-engineer-interview.html"}
+{"text": "Clarifying questions — ask in this order, only those that change the architecture", "source": "ai-engineer-interview.html"}
+{"text": "Curveball questions — when you don't know the answer", "source": "ai-engineer-interview.html"}
+{"text": "System design prompts (practice — 45–60 min)", "source": "ai-engineer-interview.html"}
+{"text": "Agentic e-commerce support (~100k contacts/day, refunds via tools).", "source": "ai-engineer-interview.html"}
+{"text": "Enterprise doc RAG (millions of docs, ACL per user, &lt;3s p95 chat).", "source": "ai-engineer-interview.html"}
+{"text": "IDE code completion (p95 ghost text &lt;800ms, 100k+ devs).", "source": "ai-engineer-interview.html"}
+{"text": "Real-time fraud scoring (p99 ≤50ms, 10k RPS, delayed labels).", "source": "ai-engineer-interview.html"}
+{"text": "Conversational product discovery (“gift under $40, arrives Friday”).", "source": "ai-engineer-interview.html"}
+{"text": "Developer docs assistant (versioned APIs, 500 QPS, cite or refuse).", "source": "ai-engineer-interview.html"}
+{"text": "Five probes interviewers reuse on any design.", "source": "ai-engineer-interview.html"}
+{"text": "Requirements were vague and the deadline was fixed. What did you do?", "source": "ai-engineer-interview.html"}
+{"text": "You disagreed with a senior engineer on the technical approach.", "source": "ai-engineer-interview.html"}
+{"text": "You had no direct authority but needed another team to prioritize your work.", "source": "ai-engineer-interview.html"}
+{"text": "Critical training data was missing or badly labeled.", "source": "ai-engineer-interview.html"}
+{"text": "Describe an end-to-end ML or AI project you are proud of.", "source": "ai-engineer-interview.html"}
+{"text": "You are pair programming in the interview. What do they want to see?", "source": "ai-engineer-interview.html"}
+{"text": "Wall-clock timeout (request + per tool).", "source": "agents-reliability.html"}
+{"text": "Max agent steps — stop ReAct loops.", "source": "agents-reliability.html"}
+{"text": "Token / cost cap per session or tenant.", "source": "agents-reliability.html"}
+{"text": "Concurrency queues and 429 when saturated.", "source": "agents-reliability.html"}
+{"text": "Fallback model or cached FAQ when primary fails.", "source": "agents-reliability.html"}
+{"text": "Feature flag: disable agent mode, keep simple RAG+LLM.", "source": "agents-reliability.html"}
+{"text": "Partial success (show retrieval if generation fails).", "source": "agents-reliability.html"}
+{"text": "Read vs write retry policy — detailed in harness hardening.", "source": "agents-reliability.html"}
+{"text": "Trace id, model id, latency breakdown, step count, status.", "source": "agents-reliability.html"}
+{"text": "Redact prompts per security policy.", "source": "agents-reliability.html"}
+{"text": "Cost per request for finance controls.", "source": "agents-reliability.html"}
+{"text": "p95/p99 latency with step cap.", "source": "agents-reliability.html"}
+{"text": "Separate availability for “RAG answer” vs “full agent.”", "source": "agents-reliability.html"}
+{"text": "Error budgets tied to releases.", "source": "agents-reliability.html"}
+{"text": "Steps and tool calls per task, and step-limit hits (and what the agent does then: escalate, guess, or stall).", "source": "agents-reliability.html"}
+{"text": "Repeated-call rate — calls with near-identical arguments in one run.", "source": "agents-reliability.html"}
+{"text": "Tool selection and argument validity — wrong tool, schema errors, tool error rate.", "source": "agents-reliability.html"}
+{"text": "Cost and latency per resolved task — looping shows up here before it shows up in accuracy.", "source": "agents-reliability.html"}
+{"text": "Production replay — add escalated and looping traces to the offline set; offline sets are usually clean and single-intent.", "source": "agents-reliability.html"}
+{"text": "Empty or weak tool results (often retrieval quality) → fix retrieval; return a status and a hint such as “no results; try X or ask the user”.", "source": "agents-reliability.html"}
+{"text": "Overlapping tools (dozens of similar descriptions) → sharper descriptions, a narrower tool set per step, or sub-agents.", "source": "agents-reliability.html"}
+{"text": "Lost state (earlier attempts truncated from context) → keep a short record of queries already tried.", "source": "agents-reliability.html"}
+{"text": "No stopping rule → step budget, duplicate-call dedupe or cache, and an explicit escalate-to-human action.", "source": "agents-reliability.html"}
+{"text": "Ambiguous user intent → instruct and allow the agent to ask a clarifying question.", "source": "agents-reliability.html"}
+{"text": "Record approvals in the system — tied to the order, the approver, and the exception.", "source": "agents-reliability.html"}
+{"text": "Backend rejects the call — the write tool returns an error unless the action is within policy or a valid approval exists.", "source": "agents-reliability.html"}
+{"text": "Policy-check tool — the agent asks whether an action is allowed and gets a deterministic answer.", "source": "agents-reliability.html"}
+{"text": "User's permissions — the tool acts with the requesting user's identity, so the agent can do no more than the user could.", "source": "agents-reliability.html"}
+{"text": "Human approval for policy exceptions and amounts above a threshold.", "source": "agents-reliability.html"}
+{"text": "Order of side effects — send the customer email only after the ticket succeeds.", "source": "agents-reliability.html"}
+{"text": "Trace first — which chunks reached the tool message, whether the key sentence was truncated, and whether the user stated the wrong value.", "source": "agents-reliability.html"}
+{"text": "Span check — every number in the answer must appear in the retrieved text.", "source": "agents-reliability.html"}
+{"text": "Extract, then act — pull the value (days, amount) from the source into a structured field; act on the field.", "source": "agents-reliability.html"}
+{"text": "Entailment sweep — natural language inference (NLI) or a cross-encoder scores answer claims against retrieved text across many runs.", "source": "agents-reliability.html"}
+{"text": "Sycophancy probe — check whether another model, or repeated pushback, flips the answer.", "source": "agents-reliability.html"}
+{"text": "Abstain or escalate when grounding checks fail.", "source": "agents-reliability.html"}
+{"text": "Edge — nginx/Kong rate limit + request timeout.", "source": "agents-reliability.html"}
+{"text": "App — step cap in agent loop; httpx timeout per tool; tenacity on read-only tools.", "source": "agents-reliability.html"}
+{"text": "Observe — OpenTelemetry or Langfuse; export step count and model id.", "source": "agents-reliability.html"}
+{"text": "Control — Unleash flag to fall back to single-shot RAG; LiteLLM or router for model fallback.", "source": "agents-reliability.html"}
+{"text": "Retrying mutating tool calls without idempotency keys.", "source": "agents-reliability.html"}
+{"text": "Logging full prompts to a third party when contract forbids it — self-host Phoenix/Langfuse or OTel only.", "source": "agents-reliability.html"}
+{"text": "Circuit breaker on the whole app because one optional tool fails — scope breakers per dependency.", "source": "agents-reliability.html"}
+{"text": "MVP chat → timeout + token cap + 429.", "source": "agents-reliability.html"}
+{"text": "Production agent → step cap, per-tool timeouts, circuit breakers, tracing.", "source": "agents-reliability.html"}
+{"text": "Batch jobs → graph checkpoints; resume last good node.", "source": "agents-reliability.html"}
+{"text": "Deadlines, cancellation, and partial failure", "source": "agents-reliability.html"}
+{"text": "Pointwise: score one answer against a rubric (1–5, or pass/fail per criterion).", "source": "testing-llm-judge.html"}
+{"text": "Pairwise: pick the better of two answers (A/B). More stable than absolute scores, but costs two calls to remove order effects.", "source": "testing-llm-judge.html"}
+{"text": "Reference-guided: the judge also sees a gold answer or the retrieved context, and checks the answer against it.", "source": "testing-llm-judge.html"}
+{"text": "p_oobserved agreement between judge and human", "source": "testing-llm-judge.html"}
+{"text": "p_eagreement expected if both labeled at random with their own label frequencies", "source": "testing-llm-judge.html"}
+{"text": "Human ceiling: measure agreement between two humans on the same items. The judge cannot reasonably be expected to exceed it.", "source": "testing-llm-judge.html"}
+{"text": "Agreement where it matters: compute agreement on the items where the two versions under test differ. High overall agreement can hide failures on exactly those items.", "source": "testing-llm-judge.html"}
+{"text": "Per segment: by question type, answer length, and difficulty.", "source": "testing-llm-judge.html"}
+{"text": "Bias probes: run the quick tests in the previous table and record the results.", "source": "testing-llm-judge.html"}
+{"text": "Uncertainty: bootstrap a confidence interval for agreement and for score differences between versions; a small gain on a few hundred items is often noise.", "source": "testing-llm-judge.html"}
+{"text": "Judge change control: re-score the calibration set whenever the judge model, rubric, or sampling settings change, and require a minimum agreement before using it.", "source": "testing-llm-judge.html"}
+{"text": "Sharpen the rubric. Separate criteria (correctness, groundedness, completeness, conciseness), define each score level, and state that length is not quality and that unnecessary length is penalized.", "source": "testing-llm-judge.html"}
+{"text": "Score per criterion before the overall score. Ask for a short reason and the criterion scores, then the verdict. This reduces the halo effect of one strong impression.", "source": "testing-llm-judge.html"}
+{"text": "Give the judge evidence. Supply the retrieved context or a reference answer so it checks claims rather than guessing.", "source": "testing-llm-judge.html"}
+{"text": "Add few-shot examples from the human-labeled set, including cases where the longer or more fluent answer is worse.", "source": "testing-llm-judge.html"}
+{"text": "Control order and noise. In pairwise mode, run both orders and keep the verdict only when they agree, otherwise call it a tie. Use temperature 0, or average several samples.", "source": "testing-llm-judge.html"}
+{"text": "Control length. Compare at matched length, regress score on length and use the residual, or penalize length beyond a target explicitly.", "source": "testing-llm-judge.html"}
+{"text": "Use a different model family from the system under test, and consider an ensemble of two judges that must agree.", "source": "testing-llm-judge.html"}
+{"text": "Fine-tune only if agreement is still low and you have enough labeled data. Supervised fine-tuning on human labels, or a trained reward model, is the usual route. Direct preference optimization (DPO) trains a generator on preference pairs and is a less direct fit for a scoring model; a small set of spot checks also risks overfitting.", "source": "testing-llm-judge.html"}
+{"text": "Rubric written, with criteria and score levels defined.", "source": "testing-llm-judge.html"}
+{"text": "Human-labeled calibration set with hard cases, and a held-out part.", "source": "testing-llm-judge.html"}
+{"text": "Agreement measured with the right metric, against the human–human ceiling.", "source": "testing-llm-judge.html"}
+{"text": "Length, position, and self-preference probes run and recorded.", "source": "testing-llm-judge.html"}
+{"text": "Confidence intervals reported for version-to-version differences.", "source": "testing-llm-judge.html"}
+{"text": "Judge model and rubric versioned; calibration re-run on any change.", "source": "testing-llm-judge.html"}
+{"text": "Humans still review a sample of production outputs.", "source": "testing-llm-judge.html"}
+{"text": "Load balancing spreads requests across existing backends — Kubernetes Service / ingress (nginx, Envoy, cloud load balancer), or Ray Serve’s router. Health checks steer traffic away from bad pods.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Autoscaling changes how many backends exist — replica count on the vLLM Deployment, Ray Serve min_replicas / max_replicas, or GPU nodes when new pods cannot schedule.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Baseline deployment — infrastructure as code (Helm, Kustomize, Terraform): vLLM container, pinned model, nvidia.com/gpu request, probes, --max-num-seqs / --max-model-len from VRAM sizing.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Policy &amp; thresholds — when a metric crosses a target for long enough, increase replicas; after a cooldown, decrease. Tooling: Kubernetes Event-driven Autoscaling (KEDA) or Horizontal Pod Autoscaler (HPA) with Prometheus metrics; or Ray Serve autoscaling_config.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Placement — scheduler binds pods to GPU nodes. If none free, pods stay Pending; Cluster Autoscaler (CA) (GKE/EKS/AKS node pool autoscaler) adds machines — configured separately from pod autoscalers.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Admission — if scale-out is slow (cold start: pull image + load weights), the backend-for-frontend (BFF) or gateway returns HTTP 429 Too Many Requests instead of unbounded queue — not autoscaling, but part of the same SLO story.", "source": "transformers-serving-autoscaling.html"}
+{"text": "vLLM Deployment — minReplicas / maxReplicas (KEDA ScaledObject or HPA).", "source": "transformers-serving-autoscaling.html"}
+{"text": "Ray Serve LLM deployment — min_replicas, max_replicas, target_ongoing_requests.", "source": "transformers-serving-autoscaling.html"}
+{"text": "KubeRay worker group (optional) — minReplicas / maxReplicas on RayCluster worker pods when Ray needs more GPU slots.", "source": "transformers-serving-autoscaling.html"}
+{"text": "GPU node pool — min / max node count and cloud GPU quota; cap Serve max_replicas to what you can schedule.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Agent Deployment — central processing unit (CPU) pool, its own HPA/KEDA; demand correlates with LLM calls but replica counts differ.", "source": "transformers-serving-autoscaling.html"}
+{"text": "GPU inference — vLLM (memory-bound key-value (KV) cache + batching); scale on waiting queue, not GPU %.", "source": "transformers-serving-autoscaling.html"}
+{"text": "CPU encoders — toxicity / decision transformers on Ray Serve or separate Deployments; scale on in-flight or R × LLM replicas from load tests.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Agent orchestration — LangGraph/FastAPI; scale on requests per second (RPS) / CPU; may colocate tiny models in-process.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Horizontal (scale out / in) — add vLLM pods or Ray Serve replicas behind the load balancer. Each replica is usually a full model copy (or one tensor parallel (TP) group = N GPUs in one pod).", "source": "transformers-serving-autoscaling.html"}
+{"text": "Vertical (scale up / down) — bigger GPU SKU, TP across devices, or tune --max-num-seqs / quant / FP8 KV inside one replica. Kubernetes does not auto-resize GPU per pod; you change the Deployment template or node pool SKU.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Signal: vLLM num_requests_waiting (best leading indicator); or in-flight per pod vs target (Ray target_ongoing_requests). Use TTFT 95th percentile (p95) to validate SLOs, not as the only trigger.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Tooling: KEDA Prometheus trigger on waiting sum; HPA with Prometheus adapter; Ray Serve upscale_delay_s / downscale_delay_s (long downscale for LLM cold start).", "source": "transformers-serving-autoscaling.html"}
+{"text": "Anti-pattern: HPA on GPU or CPU utilization alone — queue builds while utilization looks fine.", "source": "transformers-serving-autoscaling.html"}
+{"text": "CronJob or GitOps schedule patches minReplicas on vLLM or GPU node pool min before daily peaks.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Ray: raise min_replicas before a known event (same idea as pre-warm in runbooks).", "source": "transformers-serving-autoscaling.html"}
+{"text": "Hour-of-week baselines → higher minReplicas or warm GPU nodes.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Active users / sessions in Prometheus → KEDA scales min or gives early upscale (multiply by measured LLM-call rate per user).", "source": "transformers-serving-autoscaling.html"}
+{"text": "Keep dynamic scaling on waiting/in-flight for spikes the forecast missed.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Scale GPU pods on waiting at vLLM; scale agent on RPS / CPU.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Encoders: same request rate as LLM if one call per turn — higher target_ongoing_requests per CPU pod or fixed ratio to LLM replicas.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Consistent performance — fewer surprise TTFT cliffs if waiting-queue triggers and min replicas match cold-start time.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Cost — scale in during troughs (with long downscale delay); avoid permanent overprovisioned GPU fleets.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Less manual ops — policies replace heroic kubectl scale; runbooks for when autoscaler hits quota or pending storms.", "source": "transformers-serving-autoscaling.html"}
+{"text": "User experience — bounded wait (429) beats minute-long silent queues when GPUs cannot appear instantly.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Load-test: waiting threshold, cold-start time, pick min/max replicas and pool max.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Dashboard: waiting, in-flight, replicas ready vs desired, Pending pods, TTFT p95.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Align cloud GPU quota with max_replicas × GPUs per pod.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Failure modes: pending replica storm, out-of-memory (OOM), retries — runbooks.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Economics: hosting cost context.", "source": "transformers-serving-autoscaling.html"}
+{"text": "Mixed workload shapes (like “instance types”)", "source": "transformers-serving-autoscaling.html"}
+{"text": "Orchestration patterns (what we actually run)", "source": "transformers-serving-autoscaling.html"}
+{"text": "Benefits (when policies match LLM reality)", "source": "transformers-serving-autoscaling.html"}
+{"text": "When judges help and when they lie (full guide: LLM as a judge)", "source": "rag-evaluation.html"}
+{"text": "Metadata per chunk: version, effective_date, status (active, superseded, retracted), supersedes (id of the replaced document), review_by, and the source authority tier.", "source": "rag-ingest-pipeline.html"}
+{"text": "Supersede on update. When a new version is indexed, mark the old chunks superseded (or delete them) in the same job. Queries filter to status = active; policy questions that depend on a date filter on effective_date.", "source": "rag-ingest-pipeline.html"}
+{"text": "Detect conflicts at ingest. Compare each new chunk with its nearest existing chunks from other sources or versions; flag pairs that are close in meaning but state different values (a window of 30 days against 90). Route flagged pairs to review or to a rule.", "source": "rag-ingest-pipeline.html"}
+{"text": "Resolve by rule, in this order: source authority (system of record over wiki over chat export), then effective date, then ingest time. If the rule cannot decide, keep both, label them with source and date, and escalate.", "source": "rag-ingest-pipeline.html"}
+{"text": "Expire what nobody owns. Documents past review_by are flagged or down-ranked until an owner re-confirms them.", "source": "rag-ingest-pipeline.html"}
+{"text": "At answer time, if retrieved chunks still disagree, the prompt tells the model to state the conflict and cite both sources instead of merging them. See conflicting chunks.", "source": "rag-ingest-pipeline.html"}
+{"text": "Measure it: index freshness lag (source change to searchable), count of active conflicts, and a conflict slice in the evaluation set (RAG evaluation).", "source": "rag-ingest-pipeline.html"}
+{"text": "Searchable lag — is the pipeline slow globally or one source?", "source": "rag-ingest-pipeline.html"}
+{"text": "Queue age + DLQ — backlog vs poison docs?", "source": "rag-ingest-pipeline.html"}
+{"text": "Stage timings — parse vs embed vs upsert bottleneck?", "source": "rag-ingest-pipeline.html"}
+{"text": "Spot check — pick failing source_id: raw blob → parsed text → chunk in vector DB?", "source": "rag-ingest-pipeline.html"}
+{"text": "Reconciliation — chunk count vs CMS; version field mix?", "source": "rag-ingest-pipeline.html"}
+{"text": "Query path — if ingest healthy, switch to hallucination diagnosis (retrieval/generation).", "source": "rag-ingest-pipeline.html"}
+{"text": "Normal pipeline — stages and typical stack", "source": "rag-ingest-pipeline.html"}
+{"text": "Failure modes, metrics, diagnosis, troubleshooting", "source": "rag-ingest-pipeline.html"}
+{"text": "Failure modes — diagnose and troubleshoot", "source": "rag-ingest-pipeline.html"}
+{"text": "Diagnostic order (when “KB is stale or wrong”)", "source": "rag-ingest-pipeline.html"}
+{"text": "Compaction — summarize older turns; keep last-k raw tool outputs.", "source": "agents-memory.html"}
+{"text": "Structured state — JSON artifact (plan, extracted fields) smaller than full chat replay.", "source": "agents-memory.html"}
+{"text": "Graph checkpoints — persist working state between runs (state machine nodes).", "source": "agents-memory.html"}
+{"text": "Keyed by user, project, or tenant — never leak episodes across ACL boundaries.", "source": "agents-memory.html"}
+{"text": "Often paired with embeddings over (goal, outcome, tools used) tuples.", "source": "agents-memory.html"}
+{"text": "Reflexion-style critiques are episodic hints for the next retry (patterns).", "source": "agents-memory.html"}
+{"text": "Skill libraries — e.g. Voyager-style stored programs that solved a class of environment tasks.", "source": "agents-memory.html"}
+{"text": "Profile / prefs — short bullet summaries maintained by a background job, not raw chat dumps.", "source": "agents-memory.html"}
+{"text": "Distinct from RAG corpus — semantic memory is agent-centric; RAG is org documents (RAG systems).", "source": "agents-memory.html"}
+{"text": "Always preserve system + current task spec — never truncate the only copy of the goal.", "source": "agents-memory.html"}
+{"text": "Prefer dropping middle tool spam while keeping first setup + recent observations (sandwich) when logs allow.", "source": "agents-memory.html"}
+{"text": "Weak for long projects unless paired with summaries or external state.", "source": "agents-memory.html"}
+{"text": "Extract decisions, open questions, constraints explicitly — generic “they discussed X” summaries lose actionable detail.", "source": "agents-memory.html"}
+{"text": "Re-summarize when summary length exceeds a budget; keep a short immutable “contract” block (IDs, dates, user hard rules).", "source": "agents-memory.html"}
+{"text": "Natural fit for plan-and-execute and graph checkpoints (state machines).", "source": "agents-memory.html"}
+{"text": "Handoffs between sub-agents pass the artifact, not full sibling traces.", "source": "agents-memory.html"}
+{"text": "Truncate + pointer — first/last lines + “full log id 7f3a in store.”", "source": "agents-memory.html"}
+{"text": "Structured extract — SQL → rows as table or aggregates; HTML → main text; PDF tool → cited spans only.", "source": "agents-memory.html"}
+{"text": "Progressive disclosure — list files, then read one file on demand; never paste whole repo trees.", "source": "agents-memory.html"}
+{"text": "Deterministic post-process — regex/JSON parse beats asking the LLM to “ignore the noise.”", "source": "agents-memory.html"}
+{"text": "Fixed top-k and max chars per chunk; rerank then cut (retrieval stages).", "source": "agents-memory.html"}
+{"text": "Query-conditioned fetch each step, not one mega-retrieval at session start (stale for agents).", "source": "agents-memory.html"}
+{"text": "Separate slots: corpus RAG vs episodic memory hits — label sources so the model does not merge them.", "source": "agents-memory.html"}
+{"text": "System + safety + tool schemas (stable → good for prefix caching on some APIs).", "source": "agents-memory.html"}
+{"text": "Current user goal and constraints.", "source": "agents-memory.html"}
+{"text": "Structured state / rolling summary.", "source": "agents-memory.html"}
+{"text": "Fresh tool observations and retrieved chunks.", "source": "agents-memory.html"}
+{"text": "Oldest chat tail — first to drop or summarize.", "source": "agents-memory.html"}
+{"text": "Prompt compression (LLMLingua-class) — drop low-salience tokens in filler text; test on your tool formats.", "source": "agents-memory.html"}
+{"text": "Small model condenser — cheap model shrinks logs; frontier model plans next action.", "source": "agents-memory.html"}
+{"text": "Sub-agent isolation — workers get task-local context; supervisor merges short reports only.", "source": "agents-memory.html"}
+{"text": "Goal, final outcome, success/failure signal, tools called, latency, model version.", "source": "agents-memory.html"}
+{"text": "Hashes of retrieved chunks (for RAG debug) — not necessarily full text if ACL-sensitive.", "source": "agents-memory.html"}
+{"text": "Optional: user-approved summary for long-term semantic memory.", "source": "agents-memory.html"}
+{"text": "Context stuffing — every observation forever → cost, distraction, lost needle facts.", "source": "agents-memory.html"}
+{"text": "Stale semantic memory — old prefs contradict new instructions; need TTL and user override (write protocol).", "source": "agents-memory.html"}
+{"text": "Cross-tenant bleed — episodic retrieval without strict filters.", "source": "agents-memory.html"}
+{"text": "Poisoned memory — attacker plants a “lesson” that future sessions retrieve (security).", "source": "agents-memory.html"}
+{"text": "Store metadata with each fact: subject (which user), attribute (employer, plan), value, source (user statement, tool result, model inference), timestamp, and confidence.", "source": "agents-memory.html"}
+{"text": "Update by key. Key facts by subject and attribute; a new value supersedes the old one. Keep the old value with validity dates only if history is needed.", "source": "agents-memory.html"}
+{"text": "Check for conflict on write. Memory is fetched at the start of each conversation anyway, so compare newly learned facts with the retrieved ones then. The most recent explicit statement from the user, or a tool result, beats an older or inferred value.", "source": "agents-memory.html"}
+{"text": "Set the lifetime by fact type. A time to live (TTL) per attribute: months for employer, minutes for plan tier, none for language preference. A single age cutoff deletes stable facts and keeps volatile ones too long.", "source": "agents-memory.html"}
+{"text": "Confirm instead of assuming when a fact is old and used for something visible or costly: “Are you still at Acme?”", "source": "agents-memory.html"}
+{"text": "Do not store what a tool can fetch. Plan, balance, and order status come from the system of record each time. If memory holds such a value anyway, tool results override it, and the prompt says so.", "source": "agents-memory.html"}
+{"text": "Record only established facts. A user's unverified claim (“my manager approved this”) is not a fact to save.", "source": "agents-memory.html"}
+{"text": "Isolate by subject. Write each fact under the authenticated user's id, take the id from the session rather than from the model, and filter on it before similarity search so one user's memory never reaches another (tenant filtering). Check the write path too: a colleague mentioned in a chat must not be saved as the user's own fact.", "source": "agents-memory.html"}
+{"text": "Support deletion on user request and keep personal data out of memory unless a feature needs it.", "source": "agents-memory.html"}
+{"text": "Short tasks, single session → working memory only + tight compaction.", "source": "agents-memory.html"}
+{"text": "Returning users / long projects → episodic + semantic stores with retrieval tool.", "source": "agents-memory.html"}
+{"text": "Large org knowledge → RAG corpus; agent memory holds session-specific residue only.", "source": "agents-memory.html"}
+{"text": "Repeated environment tasks → verified skill library before fine-tuning the base model.", "source": "agents-memory.html"}
+{"text": "Improve over time → pair memory with offline learning pipeline (learning &amp; improvement).", "source": "agents-memory.html"}
+{"text": "Memory write protocol: stale and conflicting facts", "source": "agents-memory.html"}

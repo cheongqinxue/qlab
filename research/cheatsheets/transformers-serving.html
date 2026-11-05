@@ -16,6 +16,8 @@
           <a href="transformers-efficiency.html">efficiency</a>. Quant layouts →
           <a href="transformers-compression.html">compression</a>. Agent uptime →
           <a href="agents-reliability.html">reliability</a>.
+          Autoscaling end-to-end →
+          <a href="transformers-serving-autoscaling.html">LLM autoscaling (full picture)</a>.
         </p>
       </nav>
 
@@ -129,7 +131,7 @@
                   <tr>
                     <td><strong>Ray Serve + engine</strong></td>
                     <td>Multi-model routing, autoscale</td>
-                    <td>Orchestration layer; vLLM/TRT workers behind Ray deployments — <a href="transformers-serving-ray-vllm.html">Ray + vLLM prod sheet</a></td>
+                    <td>Orchestration layer; vLLM/TRT workers behind Ray deployments — <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>, <a href="transformers-serving-autoscaling.html">autoscaling overview</a></td>
                   </tr>
                   <tr>
                     <td><strong>MLX</strong></td>
@@ -277,90 +279,78 @@
           </section>
 
           <section class="cell cell-band cell-span" id="vram-worked-example">
-            <span class="cell-title">Worked example — Llama 3.1 8B Instruct (10 users × 8k tokens)</span>
+            <span class="cell-title">Worked example — how many users fit? (13B, one 80 GiB GPU)</span>
           </section>
 
           <section class="cell cell-span">
             <p>
-              Ten concurrent agent sessions; 8192 tokens reserved per session (system prompt, tool traces, and generation budget).
-              Meta Llama 3.1 8B architecture constants:
+              The same formulas run backwards: fix the GPU, subtract what is not KV cache, and divide what remains by the KV cost of one token.
+              Scenario: a 13B Llama-2-style model in FP16 on one 80 GiB GPU; each user holds about 2048 tokens (prompt plus generation).
+              Constants: <code>num_layers = 40</code>, <code>n_kv_heads = 40</code> (no grouped-query attention), <code>head_dim = 128</code>, <code>P_B = 13</code>.
             </p>
-            <div class="formula">num_layers = 32</div>
-            <div class="formula">n_kv_heads = 8</div>
-            <div class="formula">head_dim = 128</div>
-            <div class="formula">P_B ≈ 8</div>
-            <p class="formula-comment">~8B parameters (Llama 3.1 8B)</p>
-            <div class="formula">kv_bits_per_element = 16</div>
-            <p class="formula-comment">FP16/BF16 KV for the substitution below</p>
-            <div class="formula">KV bytes per token = 2 × 32 × 8 × 128 × (16 ÷ 8)</div>
-            <div class="formula">KV bytes per token = 131,072 bytes (128 KiB)</div>
-            <div class="formula">kv_bits_per_element = 8</div>
-            <p class="formula-comment">FP8 KV — halve the per-token KV bytes above</p>
-            <div class="formula">KV per sequence (8192 tokens, FP16 KV) ≈ 1.0 GiB</div>
-            <div class="formula">KV per sequence (8192 tokens, FP8 KV) ≈ 0.5 GiB</div>
-            <div class="formula">KV for 10 sequences (FP16 KV) ≈ 10.0 GiB</div>
-            <div class="formula">KV for 10 sequences (FP8 KV) ≈ 5.0 GiB</div>
-            <div class="formula">Weight GiB ≈ P_B × 0.55 ≈ 4.4 GiB</div>
-            <p class="formula-comment">INT4 AWQ/GPTQ checkpoint for self-host planning</p>
-            <div class="formula">Weight GiB ≈ P_B × 2 ≈ 16 GiB</div>
-            <p class="formula-comment">BF16 full weights — comparison only</p>
-            <div class="formula">engine_overhead ≈ 2 GiB</div>
-            <p class="formula-comment">vLLM/SGLang allocator, CUDA graphs, logits scratch</p>
-            <p>
-              <strong>Production band (quant weights only):</strong> about 11–16 GiB total for this load (FP8 KV through FP16 KV), before optional headroom for longer contexts.
-            </p>
+            <p><strong>Step 1 — KV cost of one token</strong></p>
+            <div class="formula">KV bytes per token = 2 × 40 × 40 × 128 × (16 ÷ 8) = 819,200 bytes</div>
+            <p class="formula-comment">800 KiB per token with FP16 KV; 400 KiB with FP8 KV</p>
+            <p><strong>Step 2 — memory left for KV</strong></p>
+            <div class="formula">Usable GiB = 80 × 0.90 = 72 GiB</div>
+            <p class="formula-comment"><code>gpu_memory_utilization</code> = 0.90</p>
+            <div class="formula">Weight GiB ≈ 13 × 2 = 26 GiB</div>
+            <div class="formula">KV pool GiB = 72 − 26 − 2 = 44 GiB</div>
+            <p class="formula-comment">2 GiB engine overhead (CUDA graphs, activations)</p>
+            <p><strong>Step 3 — tokens that fit, then users</strong></p>
+            <div class="formula">Tokens = 44 GiB ÷ 800 KiB ≈ 57,700 tokens</div>
+            <div class="formula">Users = 57,700 ÷ 2048 ≈ 28 users</div>
+            <p><strong>Step 4 — what 60 users would need</strong></p>
+            <div class="formula">KV needed = 60 × 2048 × 800 KiB ≈ 94 GiB</div>
+            <p class="formula-comment">more than twice the 44 GiB pool</p>
             <div class="cell-table-wrap">
               <table class="cell-table">
                 <thead>
                   <tr>
                     <th scope="col">Configuration</th>
-                    <th scope="col">Weights</th>
-                    <th scope="col">KV (10 × 8k)</th>
-                    <th scope="col">Overhead</th>
-                    <th scope="col">Total (approx.)</th>
-                    <th scope="col">Fits (single GPU, ~90% util.)</th>
+                    <th scope="col">KV pool</th>
+                    <th scope="col">Tokens that fit</th>
+                    <th scope="col">Users (2048 tokens)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>BF16/FP16 weights + FP16/BF16 KV</td>
-                    <td>16.0 GiB</td>
-                    <td>10.0 GiB</td>
-                    <td>2 GiB</td>
-                    <td><strong>~28 GiB</strong></td>
-                    <td>NVIDIA A100 40GB; L4 24GB is too tight</td>
+                    <td>FP16 weights + FP16 KV</td>
+                    <td>44 GiB</td>
+                    <td>~57,700</td>
+                    <td><strong>~28</strong></td>
                   </tr>
                   <tr>
-                    <td>INT4 AWQ/GPTQ weights + FP16/BF16 KV</td>
-                    <td>~4.4 GiB</td>
-                    <td>10.0 GiB</td>
-                    <td>2 GiB</td>
-                    <td><strong>~16 GiB</strong></td>
-                    <td>NVIDIA L4 24GB (typical GCP <code>g2-standard-4</code>)</td>
+                    <td>FP16 weights + FP8 KV</td>
+                    <td>44 GiB</td>
+                    <td>~115,000</td>
+                    <td><strong>~56</strong></td>
                   </tr>
                   <tr>
-                    <td>INT4 weights + FP8 KV (<code>fp8</code> on vLLM; <code>fp8_e4m3</code> on SGLang)</td>
-                    <td>~4.4 GiB</td>
-                    <td>5.0 GiB</td>
-                    <td>2 GiB</td>
-                    <td><strong>~11 GiB</strong></td>
-                    <td>L4 24GB with headroom for longer contexts</td>
+                    <td>INT4 AWQ weights (~7 GiB) + FP16 KV</td>
+                    <td>~63 GiB</td>
+                    <td>~82,000</td>
+                    <td><strong>~40</strong></td>
                   </tr>
                   <tr>
-                    <td>BF16 weights + FP8 KV</td>
-                    <td>16.0 GiB</td>
-                    <td>5.0 GiB</td>
-                    <td>2 GiB</td>
-                    <td><strong>~23 GiB</strong></td>
-                    <td>L4 24GB at the edge of comfort — prefer A100 40GB for BF16 weights</td>
+                    <td>INT4 AWQ weights + FP8 KV</td>
+                    <td>~63 GiB</td>
+                    <td>~165,000</td>
+                    <td><strong>~80</strong></td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <p>
+              <strong>What happens past the limit.</strong> vLLM reserves the KV pool at startup, so it does not run out of memory because of user count alone.
+              When no free blocks remain, the scheduler <strong>preempts</strong> a running sequence (recompute it later, or swap its blocks to CPU memory),
+              which shows up as latency spikes. Genuine out-of-memory errors point to a pool sized too aggressively
+              (<code>gpu_memory_utilization</code> near 0.95 or higher), very long prompts, or other processes sharing the GPU.
+              Only the prefix cache, which holds finished sequences, is evicted to make room.
+            </p>
             <p class="cell-caption">
-              FP8 KV halves KV bytes; quality depends on scales — see <a href="transformers-compression.html#kv-quant">KV quant</a>.
-              INT8 KV (<code>int8</code> paths in some builds) also uses one byte per element where the attention backend supports it.
-              <strong>Assumptions snapshot: November 2026</strong> — re-validate layer/head counts on the HF config before capacity sign-off.
+              Real prompts vary in length: size from measured tokens per request (p95), not from the average.
+              Capping concurrency with <code>max-num-seqs</code> keeps latency predictable instead of letting preemption decide.
             </p>
           </section>
 
@@ -539,7 +529,7 @@ python3 -m sglang.launch_server \
           <section class="cell">
             <span class="cell-title">Capacity planning</span>
             <ul>
-              <li>VRAM = weights + KV × concurrent seqs — walk through <a href="#vram-worked-example">Llama 3.1 8B example</a> and <a href="transformers-compression.html#kv-quant">KV quant</a>.</li>
+              <li>VRAM = weights + KV × concurrent seqs — walk through <a href="#vram-worked-example">13B example</a> and <a href="transformers-compression.html#kv-quant">KV quant</a>.</li>
               <li>GCP SKU ladder (dated) → <a href="#gcp-gpu-ladder">GCP GPU ladder</a>; per-model table → <a href="agents-llms.html#gcp-self-host">LLM comparison — GCP self-host</a>.</li>
               <li>Decode QPS often limited by memory bandwidth, not FLOPs.</li>
               <li>Reserve headroom for long-context spikes and agent multi-turn; load-test at product max context.</li>

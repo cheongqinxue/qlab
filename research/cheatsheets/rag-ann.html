@@ -148,9 +148,9 @@
             <p>
               Combines <strong>coarse partitioning</strong> (similar spirit to IVF) with learned or optimized
               <strong>anisotropic vector quantization (AQ)</strong> — quantization that respects which directions matter for distance, not just uniform bins.
-              Often strong recall/latency on CPU; shipped in Google Vertex Matching Engine and the open ScaNN library.
+              Often strong recall/latency on CPU; shipped in Google's managed Agent Retrieval (formerly Vertex AI Vector Search and Matching Engine) and the open ScaNN library.
             </p>
-            <p>Think: cluster → compress vectors aggressively → asymmetric distance at query time. Tuned as a bundle; less DIY than raw Faiss knobs.</p>
+            <p>Think: cluster → compress vectors aggressively → asymmetric distance at query time. Tuned as a bundle; fewer knobs to tune than raw IVF-PQ.</p>
           </section>
 
           <section class="cell">
@@ -214,9 +214,9 @@
           <section class="cell cell-span">
             <span class="cell-title">When to pick which family</span>
             <ul>
-              <li><strong>Default RAG corpus in RAM</strong> — HNSW (pgvector, Qdrant, Milvus, Faiss HNSW)</li>
+              <li><strong>Default RAG corpus in RAM</strong> — HNSW (pgvector, Qdrant, Milvus)</li>
               <li><strong>Huge N, tight RAM</strong> — IVF-PQ or ScaNN-style AQ; or DiskANN if graph quality on SSD</li>
-              <li><strong>GPU-heavy stack</strong> — Faiss GPU flat or CAGRA; batch queries</li>
+              <li><strong>GPU-heavy stack</strong> — GPU indexes (CAGRA, GPU IVF); batch queries</li>
               <li><strong>Static snapshot, simple ops</strong> — Annoy mmap index</li>
               <li><strong>Prove ANN quality</strong> — exact flat on sample + recall@k sweep on efSearch / nprobe</li>
             </ul>
@@ -272,7 +272,7 @@
                     <td>768</td>
                     <td>~286</td>
                     <td>IVF-PQ / ScaNN / sharded HNSW — not one RAM graph</td>
-                    <td>Milvus/OpenSearch shards or Faiss IVF-PQ + rerank</td>
+                    <td>Milvus/OpenSearch shards or IVF-PQ + rerank</td>
                   </tr>
                   <tr>
                     <td>91M (250k/day × 365d)</td>
@@ -286,7 +286,7 @@
             </div>
             <p class="cell-caption">
               PQ/SQ: store codes, not full floats — asymmetric distance (ADC) at query time.
-              Example: 10M × 768 with IVF-PQ m=48, 8-bit → often <strong>~3–8 GiB</strong> index vs ~29 GiB raw (Faiss-class; tune for recall).
+              Example: 10M × 768 with IVF-PQ m=48, 8-bit → often <strong>~3–8 GiB</strong> index vs ~29 GiB raw (tune for recall).
             </p>
           </section>
 
@@ -297,10 +297,10 @@
               Measure recall@k vs exact on <em>your</em> queries before trusting these bands.
             </p>
             <ul>
-              <li><strong>Faiss HNSW in-process</strong> — p50 ~0.5–3 ms, p99 ~2–15 ms on 1M vectors (CPU AVX2); QPS limited by your wrapper (often 500–5k/s per core class).</li>
-              <li><strong>Qdrant / Weaviate (1M, 1 node, 8 vCPU)</strong> — p50 ~2–8 ms, p99 ~15–40 ms; ~200–1.5k filtered QPS/node typical before saturation.</li>
+                            <li><strong>Qdrant / Weaviate (1M, 1 node, 8 vCPU)</strong> — p50 ~2–8 ms, p99 ~15–40 ms; ~200–1.5k filtered QPS/node typical before saturation.</li>
               <li><strong>pgvector HNSW (1M, 32 GiB RDS-class)</strong> — p50 ~5–25 ms SQL+ANN; ~50–400 QPS depending on concurrent writers, connection pool, and <code>ef_search</code>.</li>
               <li><strong>Pinecone serverless (managed)</strong> — p50 often ~10–50 ms + network; QPS billed as read units — compare $/M queries at your N (see vendor calculator).</li>
+              <li><strong>Google Agent Retrieval (managed)</strong> — latency and throughput not published as fixed bands; sized by usage-based or resource-based pricing — benchmark on your data.</li>
               <li><strong>Milvus distributed (10M+)</strong> — p50 ~5–20 ms per query at moderate load; QPS scales with query nodes (100s–10k+ cluster-dependent).</li>
             </ul>
             <p>
@@ -407,7 +407,7 @@
                 <thead>
                   <tr>
                     <th scope="col">Feature</th>
-                    <th scope="col">Faiss</th>
+                    <th scope="col">Google Agent Retrieval</th>
                     <th scope="col">pgvector</th>
                     <th scope="col">Qdrant</th>
                     <th scope="col">Milvus</th>
@@ -420,7 +420,7 @@
                 <tbody>
                   <tr>
                     <td>What it is</td>
-                    <td>C++ index library</td>
+                    <td>Managed vector DB on ScaNN (formerly Vector Search 2.0)</td>
                     <td>Postgres extension</td>
                     <td>Vector database</td>
                     <td>Vector database</td>
@@ -431,7 +431,7 @@
                   </tr>
                   <tr>
                     <td>Self-host</td>
-                    <td>Y (embed in app)</td>
+                    <td>— (Google Cloud only)</td>
                     <td>Y</td>
                     <td>Y</td>
                     <td>Y</td>
@@ -442,7 +442,7 @@
                   </tr>
                   <tr>
                     <td>HNSW ANN</td>
-                    <td>Y</td>
+                    <td>— (ScaNN indexes)</td>
                     <td>Y</td>
                     <td>Y</td>
                     <td>Y</td>
@@ -453,7 +453,7 @@
                   </tr>
                   <tr>
                     <td>IVF / clustering ANN</td>
-                    <td>Y (core)</td>
+                    <td>P (ScaNN partitioning)</td>
                     <td>Y (IVFFlat)</td>
                     <td>P</td>
                     <td>Y</td>
@@ -464,7 +464,7 @@
                   </tr>
                   <tr>
                     <td>PQ / SQ compression</td>
-                    <td>Y (PQ, SQ)</td>
+                    <td>P (ScaNN quantization, managed)</td>
                     <td>P (halfvec, quant)</td>
                     <td>P (quantization)</td>
                     <td>Y (PQ-style)</td>
@@ -475,7 +475,7 @@
                   </tr>
                   <tr>
                     <td>GPU search</td>
-                    <td>Y</td>
+                    <td>— (not exposed)</td>
                     <td>—</td>
                     <td>—</td>
                     <td>P</td>
@@ -486,7 +486,7 @@
                   </tr>
                   <tr>
                     <td>Metadata pre-filter + ANN</td>
-                    <td>— (DIY)</td>
+                    <td>Y (structured predicates)</td>
                     <td>Y (SQL WHERE)</td>
                     <td>Y (payload filter)</td>
                     <td>Y (scalar/filter)</td>
@@ -497,7 +497,7 @@
                   </tr>
                   <tr>
                     <td>Hybrid lexical + vector</td>
-                    <td>—</td>
+                    <td>Y (built-in text + vector, RRF)</td>
                     <td>P (Postgres FTS + vector)</td>
                     <td>P (sparse vectors)</td>
                     <td>P (sparse BM25)</td>
@@ -508,7 +508,7 @@
                   </tr>
                   <tr>
                     <td>Multi-tenant (millions B2C)</td>
-                    <td>—</td>
+                    <td>P (filter on a tenant field)</td>
                     <td>P (RLS + pgvector)</td>
                     <td>Y (payload <code>is_tenant</code> filter — not 1 coll/user)</td>
                     <td>Y (scalar filter / tiered shard)</td>
@@ -519,7 +519,7 @@
                   </tr>
                   <tr>
                     <td>SQL or familiar queries</td>
-                    <td>—</td>
+                    <td>P (client libraries, filter predicates)</td>
                     <td>Y (SQL)</td>
                     <td>P (REST/gRPC)</td>
                     <td>P (SDK)</td>
@@ -530,7 +530,7 @@
                   </tr>
                   <tr>
                     <td>Managed cloud offering</td>
-                    <td>—</td>
+                    <td>Y (Google Cloud)</td>
                     <td>P (Neon, RDS, etc.)</td>
                     <td>Y</td>
                     <td>Y (Zilliz)</td>
@@ -544,7 +544,7 @@
                   </tr>
                   <tr>
                     <td>Index RAM (order of)</td>
-                    <td>You allocate</td>
+                    <td>Opaque (usage- or resource-based pricing)</td>
                     <td>~4–8 GiB (+ Postgres shared_buffers)</td>
                     <td>~4–8 GiB / node</td>
                     <td>~4–8 GiB / segment + coord</td>
@@ -555,7 +555,7 @@
                   </tr>
                   <tr>
                     <td>p50 query latency</td>
-                    <td>0.5–3 ms in-proc</td>
+                    <td>Not published — benchmark</td>
                     <td>5–25 ms</td>
                     <td>2–8 ms</td>
                     <td>5–20 ms (distributed)</td>
@@ -566,7 +566,7 @@
                   </tr>
                   <tr>
                     <td>Sustained ANN QPS (1 node class)</td>
-                    <td>1k–10k+ in-proc</td>
+                    <td>Plan by pricing model; benchmark</td>
                     <td>50–400</td>
                     <td>200–1.5k</td>
                     <td>500–5k cluster</td>
@@ -577,7 +577,7 @@
                   </tr>
                   <tr>
                     <td>Re-embed 1M vectors ingest</td>
-                    <td>Minutes (offline)</td>
+                    <td>Auto-embeddings; kNN first, ANN index later</td>
                     <td>Hours (index rebuild)</td>
                     <td>~10–60 min batch</td>
                     <td>Parallel segments</td>
@@ -588,7 +588,7 @@
                   </tr>
                   <tr>
                     <td>Native horizontal sharding</td>
-                    <td>— (DIY)</td>
+                    <td>Y (managed internally)</td>
                     <td>P (Citus, manual)</td>
                     <td>Y (cluster)</td>
                     <td>Y (distributed)</td>
@@ -599,7 +599,7 @@
                   </tr>
                   <tr>
                     <td>Scale caveat</td>
-                    <td>You operate shards</td>
+                    <td>GCP lock-in; shards and memory grow with size and filter complexity</td>
                     <td>One primary write path</td>
                     <td>RAM per node</td>
                     <td>Ops complexity</td>
@@ -610,7 +610,7 @@
                   </tr>
                   <tr>
                     <td>Best fit</td>
-                    <td>Custom high-QPS index in-process</td>
+                    <td>GCP-native stack; managed hybrid + auto-embeddings</td>
                     <td>Already on Postgres, RLS</td>
                     <td>RAG API, filters, OSS</td>
                     <td>Large scale, many index types</td>
@@ -622,7 +622,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="cell-caption">Also consider: Elasticsearch (same dense_vector story as OpenSearch), Redis vector sets, Chroma/LanceDB for local/dev, Vertex Matching Engine (ScaNN) on GCP.</p>
+            <p class="cell-caption">Also consider: Elasticsearch (same dense_vector story as OpenSearch), Redis vector sets, Chroma/LanceDB for local/dev. Google column: <a href="https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/vector-search-2/overview">Agent Retrieval overview</a> (formerly Vector Search 2.0); latency and QPS are not published as fixed bands.</p>
           </section>
 
           <section class="cell cell-span">
@@ -630,7 +630,7 @@
             <ul>
               <li>Measure <strong>recall@k</strong> vs exact search on a held-out query set — ANN params are not portable across corpora</li>
               <li>Re-embed → full rebuild unless engine supports online reindex</li>
-              <li>Normalize vectors if metric assumes cosine; Faiss inner product on normalized = cosine</li>
+              <li>Normalize vectors if metric assumes cosine; inner product on normalized vectors = cosine</li>
               <li>Metadata pre-filter: confirm “filter + ANN” is integrated (not filter-after-ANN on small sets only)</li>
               <li>PQ/SQ: store original or higher-precision rerank pass for top candidates if quality drops</li>
             </ul>

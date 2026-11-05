@@ -154,6 +154,23 @@
             </p>
           </section>
 
+          <section class="cell cell-span" id="freshness-conflicts">
+            <span class="cell-title">Freshness and conflicting versions</span>
+            <p>
+              Retrieval cannot tell which of two similar chunks is current. Give the index what it needs to decide, and settle conflicts at
+              ingest time instead of leaving them to the model.
+            </p>
+            <ul>
+              <li><strong>Metadata per chunk:</strong> <code>version</code>, <code>effective_date</code>, <code>status</code> (active, superseded, retracted), <code>supersedes</code> (id of the replaced document), <code>review_by</code>, and the source authority tier.</li>
+              <li><strong>Supersede on update.</strong> When a new version is indexed, mark the old chunks <code>superseded</code> (or delete them) in the same job. Queries filter to <code>status = active</code>; policy questions that depend on a date filter on <code>effective_date</code>.</li>
+              <li><strong>Detect conflicts at ingest.</strong> Compare each new chunk with its nearest existing chunks from other sources or versions; flag pairs that are close in meaning but state different values (a window of 30 days against 90). Route flagged pairs to review or to a rule.</li>
+              <li><strong>Resolve by rule, in this order:</strong> source authority (system of record over wiki over chat export), then effective date, then ingest time. If the rule cannot decide, keep both, label them with source and date, and escalate.</li>
+              <li><strong>Expire what nobody owns.</strong> Documents past <code>review_by</code> are flagged or down-ranked until an owner re-confirms them.</li>
+              <li><strong>At answer time,</strong> if retrieved chunks still disagree, the prompt tells the model to state the conflict and cite both sources instead of merging them. See <a href="hallucination-diagnosis.html">conflicting chunks</a>.</li>
+              <li><strong>Measure it:</strong> index freshness lag (source change to searchable), count of active conflicts, and a conflict slice in the evaluation set (<a href="rag-evaluation.html">RAG evaluation</a>).</li>
+            </ul>
+          </section>
+
           <section class="cell cell-band cell-span">
             <span class="cell-title">ETL security best practices</span>
           </section>

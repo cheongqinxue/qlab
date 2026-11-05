@@ -29,6 +29,7 @@
         { href: "testing-strategies.html", label: "Strategies" },
         { href: "testing-python.html", label: "Python, pytest & mocks" },
         { href: "testing-ml.html", label: "ML & LLM systems" },
+        { href: "testing-llm-judge.html", label: "LLM as a judge" },
         { href: "testing-performance.html", label: "Performance & load" },
       ],
     },
@@ -37,6 +38,7 @@
       items: [
         { href: "devops-overview.html", label: "Overview" },
         { href: "devops-containers.html", label: "Containers" },
+        { href: "devops-kubernetes.html", label: "Kubernetes" },
         { href: "devops-cicd.html", label: "CI/CD" },
         { href: "devops-infrastructure.html", label: "Infrastructure" },
         { href: "devops-observability.html", label: "Observability" },
@@ -60,6 +62,7 @@
         { href: "transformers-efficiency.html", label: "Efficiency" },
         { href: "transformers-serving.html", label: "Serving & hosting" },
         { href: "transformers-serving-ray-vllm.html", label: "Ray Serve + vLLM prod" },
+        { href: "transformers-serving-autoscaling.html", label: "LLM autoscaling (full picture)" },
         { href: "transformers-compression.html", label: "Compression" },
         { href: "transformers-peft.html", label: "PEFT & adapters" },
         { href: "transformers-vision.html", label: "Vision" },

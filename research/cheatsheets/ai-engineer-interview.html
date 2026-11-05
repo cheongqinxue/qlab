@@ -41,7 +41,7 @@
             <ul>
               <li><strong>ML fundamentals:</strong> transformers, optimizers, generalization — often 20–30 min</li>
               <li><strong>GenAI / RAG / agents:</strong> pipeline, eval, security — conceptual + mini design</li>
-              <li><strong>System design (45–60 min):</strong> requirements, scale, data, eval, cost, failure modes</li>
+              <li><strong>System design (45–60 min):</strong> requirements, scale, data, eval, cost, failure modes — <a href="#answer-framework">answer framework</a>, <a href="#curveballs">curveballs</a></li>
               <li><strong>Serving:</strong> batching, KV cache, autoscaling, observability — senior / infra-leaning loops</li>
               <li><strong>Behavioral + coding:</strong> STAR stories; training-loop bugs; metrics by hand</li>
             </ul>
@@ -528,7 +528,7 @@
               <li>GPU util lags and hides queue buildup; scale on waiting requests, batch depth, TTFT p95</li>
               <li>Scale-down stabilization — avoid flapping; minReplicas / warm pool for cold start</li>
               <li>Pending replica storm: GPUs unavailable → cap replicas, shed load, drain non-critical deployments</li>
-              <li>Feature flags at BFF to stop retry storms — <a href="transformers-serving-ray-vllm.html">failure runbooks</a></li>
+              <li>Feature flags at BFF to stop retry storms — <a href="transformers-serving-autoscaling.html">autoscaling overview</a>, <a href="transformers-serving-ray-vllm.html">failure runbooks</a></li>
             </ul>
           </section>
 
@@ -583,6 +583,142 @@
               <li>Non-deterministic training; need data/schema tests and reproducible artifacts</li>
               <li>Gates: offline metrics → register → canary/shadow → promote; prediction contract tests</li>
               <li>See <a href="mlops-pipelines.html">pipelines</a>, <a href="devops-cicd.html">devops-cicd</a></li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span" id="answer-framework">
+            <span class="cell-title">How to structure a system-design answer</span>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Framework for a 45-minute agent design</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Phase</th>
+                    <th scope="col">Time</th>
+                    <th scope="col">What to produce</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Clarify</strong></td>
+                    <td>0–5 min</td>
+                    <td>Answers to the questions below, plus stated assumptions</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Scope</strong></td>
+                    <td>5–8</td>
+                    <td>Functional and non-functional requirements, non-goals, one success metric</td>
+                  </tr>
+                  <tr>
+                    <td><strong>High-level design</strong></td>
+                    <td>8–13</td>
+                    <td>End-to-end diagram with trust boundaries (six or seven boxes)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Core flow</strong></td>
+                    <td>13–25</td>
+                    <td>Orchestration pattern, state and memory, tools, human control</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Deep dive</strong></td>
+                    <td>25–34</td>
+                    <td>One or two constraints that make this problem different</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Quality and operations</strong></td>
+                    <td>34–40</td>
+                    <td>Evaluation, observability, latency, cost, rollout</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Failures and trade-offs</strong></td>
+                    <td>40–44</td>
+                    <td>Failure scenarios, alternatives, how the design evolves</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Close</strong></td>
+                    <td>44–45</td>
+                    <td>Restate the design and name open questions</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Other sources group the middle as five phases: scope, orchestration pattern, memory and context, tools, then safety and evaluation.
+              Each phase constrains the next, so skipping the first leads to contradictions later. Do not spend 20 minutes on requirements and
+              leave no design.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Clarifying questions — ask in this order, only those that change the architecture</span>
+            <ol>
+              <li><strong>Trigger:</strong> who or what invokes the agent (a user, a schedule, an event)? This sets latency tolerance and error handling.</li>
+              <li><strong>Outcome:</strong> what does “done” look like, in a measurable form (“resolves 70% of tier-1 tickets without escalation”)?</li>
+              <li><strong>Authority:</strong> does it advise, draft, execute, or decide, and does it have side effects? This is the main safety boundary.</li>
+              <li><strong>Worst credible failure:</strong> what does a wrong action cost? This sets where human approval is required.</li>
+              <li><strong>Scale and latency:</strong> requests per day, interactive or long-running, latency budget.</li>
+              <li><strong>Data and constraints:</strong> where the data lives, tenancy, residency, and where the model may run.</li>
+            </ol>
+            <p>
+              Then restate the scope in your own words and add one constraint the interviewer implied. Derive one number early (such as volume per
+              month), since it decides things like whether processing is asynchronous. State assumptions when the interviewer does not answer, and
+              stop asking when the next answer would not change the design.
+            </p>
+            <p>
+              For machine-learning design questions the same opening applies, followed by: task framing and offline and online metrics, data and
+              labels (point-in-time correctness), a baseline model, serving with a latency budget and fallback, then monitoring with explicit
+              retraining triggers.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Items interviewers keep checking</span>
+            <ul>
+              <li>A baseline before complexity, and a reason for each added component.</li>
+              <li>Tool authorization with least privilege; step, token, and time budgets; idempotency; audit logs; human approval for irreversible actions.</li>
+              <li>An evaluation plan: golden set, offline run on every change, a judge with human spot checks (<a href="testing-llm-judge.html">LLM as a judge</a>), and online metrics.</li>
+              <li>A cost model (tokens in and out × price × volume, and what caching changes) and p50 and p99 latency targets.</li>
+              <li>Failure scenarios with a blast radius and how it is contained (<a href="agents-reliability.html">reliability &amp; ops</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span" id="curveballs">
+            <span class="cell-title">Curveball questions — when you don't know the answer</span>
+            <ol>
+              <li><strong>Pause and restate</strong> the question. Ask which constraints or assumptions are safe. This also catches misunderstandings early.</li>
+              <li><strong>Admit, anchor, reason.</strong> Say what you don't know in one sentence without apologizing, name the nearest thing you do know, then reason out loud from it: “I haven't used X, but it solves the same problem as Y, so I'd expect…, and I'd confirm it by…”.</li>
+              <li><strong>Name the gap precisely.</strong> Separate a forgotten detail (a method name) from a missing concept, and a fact to verify from a design choice.</li>
+              <li><strong>State the consequence of being wrong.</strong> If a repeated call could duplicate a charge, the unknown matters; if it only affects a label, move on. This shows prioritization.</li>
+              <li><strong>Proceed under a labeled assumption with a fallback:</strong> “assuming requests carry an idempotency key; otherwise I'd use…”. Keep it visible, and revise when the interviewer corrects it. Do not assume away the very thing being tested.</li>
+              <li><strong>Say how you would verify:</strong> which source or experiment, and what result would change your decision. “I'd Google it” says nothing.</li>
+              <li><strong>Use hints.</strong> Repeat the hint back and update your reasoning.</li>
+              <li><strong>If there is no bridge at all,</strong> say so and offer to reason from first principles or return to it later.</li>
+            </ol>
+            <p>
+              <strong>Avoid:</strong> bluffing with invented specifics (default values, limits), long apologies, silence after “I don't know”, and
+              switching to a question you can answer.
+            </p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Sources (retrieved November 2026)</span>
+            <ul>
+              <li><a href="https://learn.theairuntime.com/learn/courses/agentic-system-design/modules/system-design-interview/">The 45-Minute Agentic System-Design Interview</a> — AIR Course 002</li>
+              <li><a href="https://www.datainterview.com/courses/ai-agent-system-design/playbook-framework">The AI Agent Design Interview Framework</a> — DataInterview</li>
+              <li><a href="https://agenticprep.ai/topics/system-design-framework">5-Phase Framework — Complete Guide for AI Engineers</a> — AgenticPrep</li>
+              <li><a href="https://aitechconnect.in/tips/ai-engineer-system-design-interview-2026">The AI Engineer System-Design Interview: A 2026 Playbook</a> — AITechConnect</li>
+              <li><a href="https://www.techaiinterview.com/questions/agents-and-applications/agent-loop-safeguards/">Implement an agent loop. What safeguards do you add?</a> — TechAIInterview</li>
+              <li><a href="https://www.datainterview.com/courses/machine-learning-system-design/playbook-framework">The ML System Design Interview Framework</a> — DataInterview</li>
+              <li><a href="https://designrounds.in/learn/ml-system-design-interview">ML System Design Interview: A 7-Step Framework</a> — DesignRounds</li>
+              <li><a href="https://www.machinelearninginterviews.com/ml-design-template/">ML Design Template</a> — ML Interviews</li>
+              <li><a href="https://www.joindevana.com/blog/what-to-say-when-you-dont-know-the-answer">What to Say When You Don't Know the Answer in an Interview</a> — Devana</li>
+              <li><a href="https://www.phantomcodeai.com/blogs/answer-a-technical-unknown-with-a-verify-or-assume-plan">Answer a Technical Unknown With a Verify-or-Assume Plan</a> — PhantomCode</li>
+              <li><a href="https://dev.to/krzysztof_fraus/how-to-say-i-dont-know-in-a-technical-interview-ajk">How to say “I don't know” in a technical interview</a> — DEV Community</li>
+              <li><a href="https://forketyfork.github.io/blog/2023/05/24/dont-say-i-dont-know-a-horrible-advice/">Don't Say “I Don't Know”: A Horrible Advice for a Tech Interview</a> — Forketyfork Dev Blog</li>
+              <li><a href="https://blogs.oracle.com/jobsatoracle/what-oracle-looks-for-in-technical-interviews">What Oracle looks for in technical interviews</a> — Oracle Jobs</li>
             </ul>
           </section>
 
@@ -724,7 +860,7 @@
             <ul>
               <li>RAG: <a href="rag-systems.html">systems</a>, <a href="rag-evaluation.html">evaluation</a>, <a href="hallucination-diagnosis.html">hallucination diagnosis</a>, <a href="rag-fusion-ranking.html">fusion</a>, <a href="rag-ann.html">ANN</a>, <a href="rag-representations.html">representations</a>, <a href="rag-retrieval.html">retrieval</a>, <a href="rag-chunking.html">chunking</a>, <a href="rag-ingest-pipeline.html">ingest</a></li>
               <li>Agents: <a href="agents-patterns.html">patterns</a>, <a href="agents-memory.html">memory</a>, <a href="agents-reliability.html">reliability</a>, <a href="agents-model-eval.html">eval</a>, <a href="agents-trust-policy.html">trust</a></li>
-              <li>Serving: <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>, <a href="transformers-serving.html">serving</a>, <a href="transformers-efficiency.html">efficiency</a>, <a href="devops-observability.html">observability</a></li>
+              <li>Serving: <a href="transformers-serving-autoscaling.html">autoscaling</a>, <a href="transformers-serving-ray-vllm.html">Ray + vLLM</a>, <a href="transformers-serving.html">serving</a>, <a href="transformers-efficiency.html">efficiency</a>, <a href="devops-observability.html">observability</a></li>
               <li>ML core: <a href="transformers-core.html">transformers</a>, <a href="optimizers.html">optimizers</a>, <a href="mlops-lifecycle.html">MLOps</a>, <a href="testing-ml.html">testing-ml</a></li>
               <li>Tailor STAR stories to the job description; rehearse one full system design out loud timed to 45 min</li>
             </ul>

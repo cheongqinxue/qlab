@@ -57,7 +57,7 @@
               <li><strong>Modality</strong> — inputs→output; <strong>T</strong> text, <strong>I</strong> image, <strong>V</strong> video, <strong>A</strong> audio (<code>T+I→T</code> = text and image in, text out).</li>
               <li><strong>Context</strong> — max input tokens the model/API accepts in one request (not how much you should fill — agent loops burn context fast).</li>
               <li><strong>Disk</strong> — approximate download size for open weights (BF16/full and Q4_K_M GGUF where noted). API models: hosted.</li>
-              <li><strong>VRAM</strong> — rough at ~4k (Q4); for <strong>quantized weights, 10×8k</strong>, VRAM range (FP8 vs FP16 KV), GCP SKU, and monthly cost, see <a href="#gcp-self-host">GCP self-host sizing</a> and <a href="transformers-serving.html#vram-worked-example">8B walkthrough</a>.</li>
+              <li><strong>VRAM</strong> — rough at ~4k (Q4); for <strong>quantized weights, 10×8k</strong>, VRAM range (FP8 vs FP16 KV), GCP SKU, and monthly cost, see <a href="#gcp-self-host">GCP self-host sizing</a> and <a href="transformers-serving.html#vram-sizing">VRAM sizing formulas</a>.</li>
               <li><strong>$/M</strong> — USD per million tokens on first-party API (input / prompt cache read / output). Gemini cache excludes hourly storage.</li>
               <li><strong>TTFT</strong> — time to first token (seconds). <strong>Speed</strong> — output tokens per second after first token.</li>
               <li><strong>SWE-bench V</strong> — SWE-bench Verified (real GitHub fixes). <strong>HumanEval</strong> — Python function completion (saturated at frontier).</li>
@@ -1076,7 +1076,7 @@
               <a href="transformers-serving.html#gcp-gpu-ladder">GCP GPU ladder (Nov 2026)</a>.
               We always assume a <strong>quantized weight checkpoint</strong> (INT4 AWQ/GPTQ/Q4, ternary packings, or NVFP4/FP8 sizes from the Disk column — not BF16 full weights).
               The range is the KV term only: <strong>low</strong> = FP8 KV (<code>--kv-cache-dtype fp8_e4m3</code> or <code>fp8_e5m2</code>), <strong>high</strong> = FP16/BF16 KV (<code>auto</code>).
-              Other assumptions match the <a href="transformers-serving.html#vram-worked-example">Llama 3.1 8B walkthrough</a>: ten concurrent sessions, 8192 tokens per session, ~2 GiB engine overhead.
+              Other assumptions: Llama 3.1 8B (32 layers, 8 KV heads, head dim 128), ten concurrent sessions, 8192 tokens per session, ~2 GiB engine overhead (formulas in <a href="transformers-serving.html#vram-sizing">VRAM sizing</a>).
               MoE and multimodal rows use listed on-disk weight size; KV uses GQA-shaped estimates (hybrid/Nemotron/LFM use reduced KV where less is cached per token).
               Monthly cost spans the SKU for the low VRAM bound through the SKU for the high bound at ~90% <code>gpu-memory-utilization</code> (730 h/mo on-demand).
               Verify live prices on
@@ -1137,7 +1137,7 @@
             </div>
             <p class="cell-caption">
               <strong>Pricing &amp; SKU snapshot: November 2026</strong> (us-central1 on-demand, 730 h/mo).
-              VRAM low/high = quantized weights + KV at FP8/FP16 + overhead. Example: Llama 3.1 8B AWQ is ~11–16 GiB for the same 10×8k load (see serving walkthrough).
+              VRAM low/high = quantized weights + KV at FP8/FP16 + overhead. Example: Llama 3.1 8B AWQ is ~11–16 GiB for the same 10×8k load (see <a href="transformers-serving.html#vram-sizing">VRAM sizing</a>).
               GCP column uses → when FP8 KV fits a smaller machine type than FP16 KV; G4 and A100 40GB enter via the Nov 2026 ladder before defaulting to 80GB.
               Hourly rates used: L4 ~$0.71/h; 2× L4 ~$1.55/h; A100 40GB ~$3.67/h; RTX PRO 6000 (G4) ~$4.50/h; A100 80GB ~$5.07/h; 8× H100 ~$88.49/h node.
               Spot, CUDs, and sustained-use discounts are not included — refresh from GCP before budgeting.

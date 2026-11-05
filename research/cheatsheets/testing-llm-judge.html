@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Testing — LLM as a judge · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Metric definitions → <a href="metrics.html">metrics</a> ·
+          RAG-specific checks → <a href="rag-evaluation.html">RAG evaluation</a> ·
+          Faithfulness failures → <a href="hallucination-diagnosis.html">hallucination diagnosis</a> ·
+          Regression gates → <a href="testing-ml.html">ML &amp; LLM testing</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">Testing — LLM as a judge</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span">
+            <span class="cell-title">What an LLM judge is</span>
+            <p>
+              A large language model (LLM) judge is a model prompted with a rubric to score or compare another system's outputs. It replaces
+              human review where answers are open-ended and no single reference string exists. It is a measurement instrument, so it needs the
+              same validation as any other: check it against human labels before trusting it.
+            </p>
+            <ul>
+              <li><strong>Pointwise:</strong> score one answer against a rubric (1–5, or pass/fail per criterion).</li>
+              <li><strong>Pairwise:</strong> pick the better of two answers (A/B). More stable than absolute scores, but costs two calls to remove order effects.</li>
+              <li><strong>Reference-guided:</strong> the judge also sees a gold answer or the retrieved context, and checks the answer against it.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(a) When to use a judge</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Good fit</th>
+                    <th scope="col">Poor fit, and what to use instead</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Open-ended answers with no single correct string (summaries, support replies, explanations)</td>
+                    <td>Exact-answer tasks (extraction, classification, code) — use exact match, unit tests, or execution</td>
+                  </tr>
+                  <tr>
+                    <td>Regression tests when a prompt, model, or retriever changes, run on hundreds of cases</td>
+                    <td>Facts the judge cannot check without a source — give it the context or a reference, or use a verifier tool</td>
+                  </tr>
+                  <tr>
+                    <td>Properties a rubric can state: groundedness against supplied context, instruction following, tone, policy compliance</td>
+                    <td>Narrow domain expertise (clinical, legal) where the judge is less reliable than the model being judged — use expert review</td>
+                  </tr>
+                  <tr>
+                    <td>Triage of production traffic: score a sample and send low scorers to humans</td>
+                    <td>Final decisions on safety-critical actions — use deterministic rules and human approval</td>
+                  </tr>
+                  <tr>
+                    <td>Ranking candidate prompts or models (pairwise)</td>
+                    <td>The only signal you optimize against — the system learns the judge's blind spots (Goodhart's law)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="cell-caption">
+              Use a judge from a different model family than the system under test, and keep a human-reviewed sample alongside it.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(b) Biases and failure modes</span>
+          </section>
+
+          <section class="cell cell-span">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Bias</th>
+                    <th scope="col">What happens</th>
+                    <th scope="col">Quick test</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Verbosity (length)</strong></td>
+                    <td>Longer answers score higher regardless of content</td>
+                    <td>Correlate score with token count; compare against the same correlation in human scores; pad an answer with filler and re-score</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Position</strong></td>
+                    <td>In pairwise mode the judge prefers the first (or second) slot</td>
+                    <td>Swap A and B; the preference should follow the answer, not the slot</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Self-preference</strong></td>
+                    <td>A judge favors outputs from its own model family or style</td>
+                    <td>Score the same answers with judges from two different families and compare</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Style and confidence</strong></td>
+                    <td>Fluent, confident, well-formatted answers beat correct but plain ones</td>
+                    <td>Insert a fluent factual error into a good answer; the score should drop</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Leniency and compression</strong></td>
+                    <td>Most scores land in a narrow band (such as 4–5), so small prompt changes look like gains</td>
+                    <td>Plot the score histogram; check whether known-bad answers get low scores</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Unverifiable claims</strong></td>
+                    <td>Without a source, the judge accepts plausible wrong facts</td>
+                    <td>Seed answers with false but plausible details and measure how often they pass</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Prompt sensitivity and noise</strong></td>
+                    <td>Rewording the rubric or sampling temperature changes scores</td>
+                    <td>Run the same items several times and with paraphrased rubrics; measure the spread</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Rubric ambiguity</strong></td>
+                    <td>“Helpful” or “good” means different things per run, so the judge falls back on length and tone</td>
+                    <td>Check whether two humans agree on the rubric first</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(c) How to evaluate a judge</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p><strong>Build a calibration set.</strong> Collect 100–300 items labeled by humans with the same rubric and scale the judge uses. Include hard cases: pairs that differ in length, near-ties, and answers that are fluent but wrong. Hold part of it out so that tuning the judge does not overfit it.</p>
+            <p><strong>Pick the agreement metric by score type.</strong></p>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Judge output</th>
+                    <th scope="col">Agreement metric</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Pairwise preference (A or B)</td>
+                    <td>Agreement rate and Cohen's kappa</td>
+                  </tr>
+                  <tr>
+                    <td>Ordinal score (1–5)</td>
+                    <td>Weighted kappa (quadratic weights), plus Spearman or Kendall rank correlation</td>
+                  </tr>
+                  <tr>
+                    <td>Binary pass/fail</td>
+                    <td>Cohen's kappa, and the judge's precision and recall against the human label</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Cohen's kappa corrects raw agreement for the agreement expected by chance:</p>
+            <div class="formula">kappa = (p_o − p_e) ÷ (1 − p_e)</div>
+            <ul class="where">
+              <li><span class="sym">p_o</span>observed agreement between judge and human</li>
+              <li><span class="sym">p_e</span>agreement expected if both labeled at random with their own label frequencies</li>
+            </ul>
+            <p>
+              Example: the judge and the human agree on 85% of pairs and chance agreement is 50%, so kappa = (0.85 − 0.50) ÷ (1 − 0.50) = 0.70.
+              Kappa near 0.6–0.8 is usually considered substantial; the bar depends on how much a wrong verdict costs.
+            </p>
+            <p><strong>Then check the following.</strong></p>
+            <ul>
+              <li><strong>Human ceiling:</strong> measure agreement between two humans on the same items. The judge cannot reasonably be expected to exceed it.</li>
+              <li><strong>Agreement where it matters:</strong> compute agreement on the items where the two versions under test differ. High overall agreement can hide failures on exactly those items.</li>
+              <li><strong>Per segment:</strong> by question type, answer length, and difficulty.</li>
+              <li><strong>Bias probes:</strong> run the quick tests in the previous table and record the results.</li>
+              <li><strong>Uncertainty:</strong> bootstrap a confidence interval for agreement and for score differences between versions; a small gain on a few hundred items is often noise.</li>
+              <li><strong>Judge change control:</strong> re-score the calibration set whenever the judge model, rubric, or sampling settings change, and require a minimum agreement before using it.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">(d) How to harden or tune a judge</span>
+          </section>
+
+          <section class="cell cell-span">
+            <p>Work through these in order; each is cheaper than the next.</p>
+            <ol>
+              <li><strong>Sharpen the rubric.</strong> Separate criteria (correctness, groundedness, completeness, conciseness), define each score level, and state that length is not quality and that unnecessary length is penalized.</li>
+              <li><strong>Score per criterion before the overall score.</strong> Ask for a short reason and the criterion scores, then the verdict. This reduces the halo effect of one strong impression.</li>
+              <li><strong>Give the judge evidence.</strong> Supply the retrieved context or a reference answer so it checks claims rather than guessing.</li>
+              <li><strong>Add few-shot examples</strong> from the human-labeled set, including cases where the longer or more fluent answer is worse.</li>
+              <li><strong>Control order and noise.</strong> In pairwise mode, run both orders and keep the verdict only when they agree, otherwise call it a tie. Use temperature 0, or average several samples.</li>
+              <li><strong>Control length.</strong> Compare at matched length, regress score on length and use the residual, or penalize length beyond a target explicitly.</li>
+              <li><strong>Use a different model family</strong> from the system under test, and consider an ensemble of two judges that must agree.</li>
+              <li><strong>Fine-tune only if agreement is still low</strong> and you have enough labeled data. Supervised fine-tuning on human labels, or a trained reward model, is the usual route. Direct preference optimization (DPO) trains a generator on preference pairs and is a less direct fit for a scoring model; a small set of spot checks also risks overfitting.</li>
+            </ol>
+            <p><strong>In production use</strong>, let the judge triage and sample, keep a rolling human-reviewed slice to detect drift in the judge itself, and ship a change only when it wins on both the judge and the human sample.</p>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Checklist</span>
+            <ul>
+              <li>Rubric written, with criteria and score levels defined.</li>
+              <li>Human-labeled calibration set with hard cases, and a held-out part.</li>
+              <li>Agreement measured with the right metric, against the human–human ceiling.</li>
+              <li>Length, position, and self-preference probes run and recorded.</li>
+              <li>Confidence intervals reported for version-to-version differences.</li>
+              <li>Judge model and rubric versioned; calibration re-run on any change.</li>
+              <li>Humans still review a sample of production outputs.</li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

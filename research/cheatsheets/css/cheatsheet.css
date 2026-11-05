@@ -12,8 +12,9 @@
   --nav-width: 13.5rem;
   --header-height: 4rem;
   --pad-cell: calc(0.75rem * var(--font-scale));
-  /* Two columns, fixed total */
+  /* Two-column grid total width; single-column pages use --sheet-read-width-single */
   --sheet-read-width: 75rem;
+  --sheet-read-width-single: 42rem;
 
   /* Green light */
   --bg-page: #f4f7f4;
@@ -331,6 +332,27 @@ body {
   width: var(--sheet-read-width);
   max-width: 100%;
   margin-inline: auto;
+}
+
+/* Pages with only full-width cells (no half-width .cell pairs) */
+.sheet[data-layout="single"] .sheet-header,
+.sheet[data-layout="single"] .sheet-main {
+  padding-left: max(1.25rem, calc((100% - var(--sheet-read-width-single)) / 2));
+  padding-right: max(1.25rem, calc((100% - var(--sheet-read-width-single)) / 2));
+}
+
+.sheet[data-layout="single"] .sheet-grid {
+  width: var(--sheet-read-width-single);
+  grid-template-columns: 1fr;
+}
+
+.sheet[data-layout="single"] .sheet-grid .cell:nth-child(4n + 2),
+.sheet[data-layout="single"] .sheet-grid .cell:nth-child(4n + 3) {
+  background: var(--bg-cell);
+}
+
+.sheet[data-layout="single"] .sheet-grid .cell:nth-child(even):not(.cell-band) {
+  background: var(--bg-cell-alt);
 }
 
 .cell {

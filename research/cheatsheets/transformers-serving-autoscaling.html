@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformers — large language model (LLM) autoscaling (Kubernetes &amp; Ray) · qlab cheatsheets</title>
+    <link rel="stylesheet" href="css/cheatsheet.css" />
+  </head>
+  <body>
+    <div class="sheet">
+      <nav class="sheet-nav" aria-label="Cheatsheet topics">
+        <div class="nav-brand">qlab cheatsheets</div>
+        <div class="nav-groups" data-cheatsheet-nav></div>
+        <p class="nav-footer">
+          Prerequisite → <a href="devops-kubernetes.html">Kubernetes concepts</a>.
+          Deep dives → <a href="transformers-serving-ray-vllm.html">Ray + vLLM runbooks</a>,
+          <a href="transformers-serving.html">serving &amp; video RAM (VRAM)</a>,
+          <a href="devops-observability.html">observability</a>.
+        </p>
+      </nav>
+
+      <header class="sheet-header">
+        <h1 class="sheet-title">LLM autoscaling</h1>
+        <div class="sheet-toolbar" role="toolbar" aria-label="Display options">
+          <button type="button" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" data-action="font-larger" title="Larger text">A+</button>
+          <button type="button" data-action="toggle-theme" aria-pressed="false" title="Toggle light and dark">Dark</button>
+        </div>
+      </header>
+
+      <main class="sheet-main">
+        <div class="sheet-grid">
+          <section class="cell cell-span" id="what-is">
+            <span class="cell-title">What is autoscaling?</span>
+            <p>
+              <strong>Autoscaling</strong> automatically adds or removes compute when demand changes, so inference keeps meeting
+              <strong>service level objectives (SLOs)</strong> without manual <code>kubectl scale</code> every time traffic moves.
+              For self-hosted LLMs that means more (or fewer) <strong>vLLM pods</strong>, optional <strong>Ray Serve</strong> replicas,
+              <strong>graphics processing unit (GPU) nodes</strong> in the cluster, and separate scaling for the <strong>agent</strong> tier.
+            </p>
+            <p>
+              Goal: hit latency targets (especially <strong>time to first token (TTFT)</strong>) and availability while avoiding idle GPUs.
+              Demand swings with users, campaigns, and time of day — baseline capacity alone is either too small (queues) or too large (cost).
+            </p>
+          </section>
+
+          <section class="cell cell-span" id="load-balancing">
+            <span class="cell-title">Load balancing versus autoscaling</span>
+            <p>
+              They solve different problems and are used together.
+            </p>
+            <ul>
+              <li>
+                <strong>Load balancing</strong> spreads requests across <em>existing</em> backends — Kubernetes <code>Service</code> / ingress
+                (nginx, Envoy, cloud load balancer), or Ray Serve’s router. Health checks steer traffic away from bad pods.
+              </li>
+              <li>
+                <strong>Autoscaling</strong> changes <em>how many</em> backends exist — replica count on the vLLM <code>Deployment</code>,
+                Ray Serve <code>min_replicas</code> / <code>max_replicas</code>, or GPU nodes when new pods cannot schedule.
+              </li>
+            </ul>
+            <p>
+              More replicas help only if the load balancer can reach them; autoscaling helps only if metrics say you need another copy of the model loaded on GPU.
+            </p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">How autoscaling works (in our stack)</span>
+          </section>
+
+          <section class="cell cell-span" id="how-it-works">
+            <span class="cell-title">Typical flow</span>
+            <ol>
+              <li>
+                <strong>Baseline deployment</strong> — infrastructure as code (Helm, Kustomize, Terraform): vLLM container, pinned model,
+                <code>nvidia.com/gpu</code> request, probes, <code>--max-num-seqs</code> / <code>--max-model-len</code> from
+                <a href="transformers-serving.html#vram-worked-example">VRAM sizing</a>.
+              </li>
+              <li>
+                <strong>Policy &amp; thresholds</strong> — when a metric crosses a target for long enough, increase replicas; after a cooldown, decrease.
+                Tooling: <strong>Kubernetes Event-driven Autoscaling (KEDA)</strong> or <strong>Horizontal Pod Autoscaler (HPA)</strong>
+                with <strong>Prometheus</strong> metrics; or Ray Serve <code>autoscaling_config</code>.
+              </li>
+              <li>
+                <strong>Placement</strong> — scheduler binds pods to GPU nodes. If none free, pods stay <strong>Pending</strong>;
+                <strong>Cluster Autoscaler (CA)</strong> (GKE/EKS/AKS node pool autoscaler) adds machines — configured separately from pod autoscalers.
+              </li>
+              <li>
+                <strong>Admission</strong> — if scale-out is slow (cold start: pull image + load weights), the backend-for-frontend (BFF)
+                or gateway returns HTTP 429 Too Many Requests instead of unbounded queue — not autoscaling, but part of the same SLO story.
+              </li>
+            </ol>
+          </section>
+
+          <section class="cell cell-span" id="scaling-groups">
+            <span class="cell-title">Autoscaling groups (min / max)</span>
+            <ul>
+              <li><strong>vLLM Deployment</strong> — <code>minReplicas</code> / <code>maxReplicas</code> (KEDA <code>ScaledObject</code> or HPA).</li>
+              <li><strong>Ray Serve LLM deployment</strong> — <code>min_replicas</code>, <code>max_replicas</code>, <code>target_ongoing_requests</code>.</li>
+              <li><strong>KubeRay worker group</strong> (optional) — <code>minReplicas</code> / <code>maxReplicas</code> on <code>RayCluster</code> worker pods when Ray needs more GPU slots.</li>
+              <li><strong>GPU node pool</strong> — min / max node count and cloud GPU quota; cap Serve <code>max_replicas</code> to what you can schedule.</li>
+              <li><strong>Agent Deployment</strong> — central processing unit (CPU) pool, its own HPA/KEDA; demand correlates with LLM calls but replica counts differ.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span">
+            <span class="cell-title">Mixed workload shapes (like “instance types”)</span>
+            <ul>
+              <li><strong>GPU inference</strong> — vLLM (memory-bound key-value (KV) cache + batching); scale on waiting queue, not GPU %.</li>
+              <li><strong>CPU encoders</strong> — toxicity / decision transformers on Ray Serve or separate Deployments; scale on in-flight or <code>R ×</code> LLM replicas from load tests.</li>
+              <li><strong>Agent orchestration</strong> — LangGraph/FastAPI; scale on requests per second (RPS) / CPU; may colocate tiny models in-process.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Types of scaling</span>
+          </section>
+
+          <section class="cell cell-span" id="horizontal-vertical">
+            <span class="cell-title">Horizontal versus vertical</span>
+            <ul>
+              <li>
+                <strong>Horizontal (scale out / in)</strong> — add vLLM pods or Ray Serve replicas behind the load balancer.
+                Each replica is usually a full model copy (or one <strong>tensor parallel (TP)</strong> group = N GPUs in one pod).
+              </li>
+              <li>
+                <strong>Vertical (scale up / down)</strong> — bigger GPU SKU, TP across devices, or tune <code>--max-num-seqs</code> /
+                quant / FP8 KV inside one replica. Kubernetes does not auto-resize GPU per pod; you change the Deployment template or node pool SKU.
+              </li>
+            </ul>
+            <p>LLM production autoscaling is mostly <strong>horizontal replicas + horizontal GPU nodes</strong>; vertical changes are deploy-time capacity planning.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Autoscaling policy modes</span>
+          </section>
+
+          <section class="cell cell-span" id="dynamic">
+            <span class="cell-title">Dynamic scaling (reactive)</span>
+            <p>Adjust capacity when metrics say load is high or low — the default for burst traffic.</p>
+            <ul>
+              <li>
+                <strong>Signal:</strong> vLLM <code>num_requests_waiting</code> (best leading indicator); or in-flight per pod vs target
+                (Ray <code>target_ongoing_requests</code>). Use TTFT 95th percentile (p95) to validate SLOs, not as the only trigger.
+              </li>
+              <li>
+                <strong>Tooling:</strong> KEDA Prometheus trigger on waiting sum; HPA with Prometheus adapter; Ray Serve
+                <code>upscale_delay_s</code> / <code>downscale_delay_s</code> (long downscale for LLM cold start).
+              </li>
+              <li>
+                <strong>Anti-pattern:</strong> HPA on GPU or CPU utilization alone — queue builds while utilization looks fine.
+              </li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span" id="scheduled">
+            <span class="cell-title">Scheduled scaling</span>
+            <p>Raise or lower capacity on a calendar when demand is predictable.</p>
+            <ul>
+              <li>CronJob or GitOps schedule patches <code>minReplicas</code> on vLLM or GPU node pool min before daily peaks.</li>
+              <li>Ray: raise <code>min_replicas</code> before a known event (same idea as pre-warm in
+                <a href="transformers-serving-ray-vllm.html">runbooks</a>).</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-span" id="predictive">
+            <span class="cell-title">Predictive scaling</span>
+            <p>Use history or live leading indicators to move the <strong>floor</strong> before queues form.</p>
+            <ul>
+              <li>Hour-of-week baselines → higher <code>minReplicas</code> or warm GPU nodes.</li>
+              <li>Active users / sessions in Prometheus → KEDA scales min or gives early upscale (multiply by measured LLM-call rate per user).</li>
+              <li>Keep dynamic scaling on waiting/in-flight for spikes the forecast missed.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Where queues and limits live</span>
+          </section>
+
+          <section class="cell cell-span" id="queues">
+            <span class="cell-title">Backpressure stack</span>
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Layer</th>
+                    <th scope="col">Tooling</th>
+                    <th scope="col">Knob</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Agent / BFF</td>
+                    <td>App + gateway</td>
+                    <td>Concurrency, rate limits, circuit breaker</td>
+                  </tr>
+                  <tr>
+                    <td>Router</td>
+                    <td>Ingress or Ray Serve</td>
+                    <td><code>max_ongoing_requests</code>, <code>max_queued_requests</code> (Serve only)</td>
+                  </tr>
+                  <tr>
+                    <td>Engine</td>
+                    <td>vLLM</td>
+                    <td><code>max-num-seqs</code>, scheduler waiting queue</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Cap depth at the outermost layer you control — <a href="transformers-serving-ray-vllm.html">queuing detail</a>.</p>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Orchestration patterns (what we actually run)</span>
+          </section>
+
+          <section class="cell cell-span" id="patterns">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Pattern</th>
+                    <th scope="col">Pod / replica scaler</th>
+                    <th scope="col">Node scaler</th>
+                    <th scope="col">When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>vLLM on Kubernetes only</td>
+                    <td>KEDA / HPA on vLLM Deployment</td>
+                    <td>Cluster Autoscaler on GPU pool</td>
+                    <td>One model, ingress → Service</td>
+                  </tr>
+                  <tr>
+                    <td>Ray Serve + fixed GPUs</td>
+                    <td>Serve <code>autoscaling_config</code>, max capped</td>
+                    <td>Fixed pool</td>
+                    <td>Multi-model graph, no spare GPU for max_replicas</td>
+                  </tr>
+                  <tr>
+                    <td>KubeRay + Serve</td>
+                    <td>Serve + Ray worker group autoscaler</td>
+                    <td>Cluster Autoscaler when workers Pending</td>
+                    <td>Elastic Ray workers on Kubernetes —
+                      <a href="https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/configuring-autoscaling.html">KubeRay doc</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>KubeRay</strong> is optional — only when Ray runs on Kubernetes with elastic worker groups.
+              <code>max_ongoing_requests</code> requires Ray Serve; otherwise use gateway limits and vLLM caps.
+            </p>
+          </section>
+
+          <section class="cell cell-span" id="multi-service">
+            <span class="cell-title">Agent, LLM, and encoders together</span>
+            <p>
+              Traffic: <code>users → agent Deployment → HTTP → vLLM</code> (± Ray Serve encoders).
+              Agent scale leads GPU demand but is not 1:1 — tool-only turns and shared LLM pools break simple coupling.
+            </p>
+            <ul>
+              <li>Scale GPU pods on <strong>waiting at vLLM</strong>; scale agent on RPS / CPU.</li>
+              <li>Encoders: same request rate as LLM if one call per turn — higher <code>target_ongoing_requests</code> per CPU pod or fixed ratio to LLM replicas.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Benefits (when policies match LLM reality)</span>
+          </section>
+
+          <section class="cell cell-span" id="benefits">
+            <ul>
+              <li><strong>Consistent performance</strong> — fewer surprise TTFT cliffs if waiting-queue triggers and min replicas match cold-start time.</li>
+              <li><strong>Cost</strong> — scale in during troughs (with long downscale delay); avoid permanent overprovisioned GPU fleets.</li>
+              <li><strong>Less manual ops</strong> — policies replace heroic <code>kubectl scale</code>; runbooks for when autoscaler hits quota or pending storms.</li>
+              <li><strong>User experience</strong> — bounded wait (429) beats minute-long silent queues when GPUs cannot appear instantly.</li>
+            </ul>
+          </section>
+
+          <section class="cell cell-band cell-span">
+            <span class="cell-title">Metrics → tooling quick reference</span>
+          </section>
+
+          <section class="cell cell-span" id="metrics">
+            <div class="cell-table-wrap">
+              <table class="cell-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Metric</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Typical consumer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>num_requests_waiting</code></td>
+                    <td>Primary dynamic upscale</td>
+                    <td>Prometheus → KEDA / HPA</td>
+                  </tr>
+                  <tr>
+                    <td>In-flight per replica</td>
+                    <td>Target-based scale</td>
+                    <td>Ray Serve autoscaling</td>
+                  </tr>
+                  <tr>
+                    <td>Pending GPU pods</td>
+                    <td>Node pool / quota problem</td>
+                    <td>Cluster Autoscaler, alerts — not “raise max_replicas”</td>
+                  </tr>
+                  <tr>
+                    <td>TTFT p95</td>
+                    <td>SLO monitoring, threshold tuning</td>
+                    <td>Grafana alerts</td>
+                  </tr>
+                  <tr>
+                    <td>Active users / sessions</td>
+                    <td>Predictive / scheduled floor</td>
+                    <td>KEDA, CronJob minReplicas</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="cell cell-span" id="checklist">
+            <span class="cell-title">Production checklist</span>
+            <ol>
+              <li>Load-test: waiting threshold, cold-start time, pick min/max replicas and pool max.</li>
+              <li>Dashboard: waiting, in-flight, replicas ready vs desired, Pending pods, TTFT p95.</li>
+              <li>Align cloud GPU quota with <code>max_replicas</code> × GPUs per pod.</li>
+              <li>Failure modes: pending replica storm, out-of-memory (OOM), retries — <a href="transformers-serving-ray-vllm.html">runbooks</a>.</li>
+              <li>Economics: <a href="transformers-serving.html#gcp-self-host">hosting cost context</a>.</li>
+            </ol>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="js/cheatsheet-nav.js"></script>
+    <script src="js/cheatsheet.js"></script>
+  </body>
+</html>

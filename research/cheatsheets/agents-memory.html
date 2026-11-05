@@ -312,10 +312,30 @@
             <span class="cell-title">Failure modes</span>
             <ul>
               <li><strong>Context stuffing</strong> — every observation forever → cost, distraction, lost needle facts.</li>
-              <li><strong>Stale semantic memory</strong> — old prefs contradict new instructions; need TTL and user override.</li>
+              <li><strong>Stale semantic memory</strong> — old prefs contradict new instructions; need TTL and user override (<a href="#memory-write-protocol">write protocol</a>).</li>
               <li><strong>Cross-tenant bleed</strong> — episodic retrieval without strict filters.</li>
               <li><strong>Poisoned memory</strong> — attacker plants a “lesson” that future sessions retrieve (<a href="security-implementation.html">security</a>).</li>
             </ul>
+          </section>
+
+          <section class="cell cell-span" id="memory-write-protocol">
+            <span class="cell-title">Memory write protocol: stale and conflicting facts</span>
+            <p>
+              Long-term memory that only appends will contradict itself within months (a former employer, an old plan tier). Treat every write
+              as an update to a record, not a new note.
+            </p>
+            <ul>
+              <li><strong>Store metadata with each fact:</strong> subject (which user), attribute (employer, plan), value, source (user statement, tool result, model inference), timestamp, and confidence.</li>
+              <li><strong>Update by key.</strong> Key facts by subject and attribute; a new value supersedes the old one. Keep the old value with validity dates only if history is needed.</li>
+              <li><strong>Check for conflict on write.</strong> Memory is fetched at the start of each conversation anyway, so compare newly learned facts with the retrieved ones then. The most recent explicit statement from the user, or a tool result, beats an older or inferred value.</li>
+              <li><strong>Set the lifetime by fact type.</strong> A time to live (TTL) per attribute: months for employer, minutes for plan tier, none for language preference. A single age cutoff deletes stable facts and keeps volatile ones too long.</li>
+              <li><strong>Confirm instead of assuming</strong> when a fact is old and used for something visible or costly: “Are you still at Acme?”</li>
+              <li><strong>Do not store what a tool can fetch.</strong> Plan, balance, and order status come from the system of record each time. If memory holds such a value anyway, tool results override it, and the prompt says so.</li>
+              <li><strong>Record only established facts.</strong> A user's unverified claim (“my manager approved this”) is not a fact to save.</li>
+              <li><strong>Isolate by subject.</strong> Write each fact under the authenticated user's id, take the id from the session rather than from the model, and filter on it before similarity search so one user's memory never reaches another (<a href="rag-ann.html">tenant filtering</a>). Check the write path too: a colleague mentioned in a chat must not be saved as the user's own fact.</li>
+              <li><strong>Support deletion</strong> on user request and keep personal data out of memory unless a feature needs it.</li>
+            </ul>
+            <p>The same idea for document corpora is in <a href="rag-ingest-pipeline.html#freshness-conflicts">freshness and conflicting versions</a>.</p>
           </section>
 
           <section class="cell cell-span">

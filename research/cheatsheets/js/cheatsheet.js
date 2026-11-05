@@ -60,7 +60,21 @@
     });
   }
 
+  /** Narrow read column when every grid cell is full-width (no two-column .cell pairs). */
+  function applySheetLayout() {
+    const sheet = document.querySelector(".sheet");
+    const grid = document.querySelector(".sheet-grid");
+    if (!sheet || !grid) {
+      return;
+    }
+    const hasHalfWidthCell = grid.querySelector(".cell:not(.cell-span):not(.cell-band)");
+    if (!hasHalfWidthCell) {
+      sheet.dataset.layout = "single";
+    }
+  }
+
   function init() {
+    applySheetLayout();
     let prefs = loadPrefs();
     applyPrefs(prefs);
 
